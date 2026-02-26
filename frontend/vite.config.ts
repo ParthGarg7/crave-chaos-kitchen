@@ -12,10 +12,17 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    host: true, // FIX: Allows access from outside the Docker container (0.0.0.0)
+    host: true,           // bind 0.0.0.0 — required inside Docker
+    strictPort: true,
+    watch: {
+      usePolling: true,   // needed for hot-reload on Windows/Docker
+    },
     proxy: {
+      // All /api calls are forwarded to the backend.
+      // Inside Docker → backend resolves via Docker DNS.
+      // Running locally (npm run dev) → falls back to localhost:8000.
       '/api': {
-        target: 'http://backend:8000', // FIX: Resolves to the Docker backend service, not the frontend container
+        target: process.env.VITE_API_URL || 'http://localhost:8000',
         changeOrigin: true,
       },
     },

@@ -50,7 +50,15 @@ const LoginPage = () => {
     onSuccess: (response) => {
       setAuth(response.data);
       toast.success('Welcome back! 🔥');
-      navigate('/');
+      // Role-based redirect
+      const role = response.data?.user?.role;
+      if (role === 'restaurant_owner') {
+        navigate('/restaurant-dashboard');
+      } else if (role === 'driver') {
+        navigate('/driver-dashboard');
+      } else {
+        navigate('/');
+      }
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.detail || 'Login failed');
