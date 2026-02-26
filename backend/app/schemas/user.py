@@ -49,7 +49,7 @@ class TokenResponse(BaseModel):
     refresh_token: str
     token_type: str = "bearer"
     expires_in: int
-    user: UserResponse
+    user: Optional[UserResponse] = None
 
 
 class PasswordChange(BaseModel):

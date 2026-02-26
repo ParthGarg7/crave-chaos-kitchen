@@ -56,6 +56,23 @@ async def list_cuisine_types():
     return [{"value": c.value, "label": c.value.replace("_", " ").title()} for c in CuisineType]
 
 
+@router.get("/my-restaurant", response_model=RestaurantResponse)
+async def get_my_restaurant(
+    current_user: User = Depends(require_role(UserRole.RESTAURANT_OWNER)),
+    db: Session = Depends(get_db)
+):
+    """Get the authenticated restaurant owner's restaurant"""
+    restaurant = db.query(Restaurant).filter(Restaurant.owner_id == current_user.id).first()
+    
+    if not restaurant:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="You do not have a restaurant yet. Please create one."
+        )
+    
+    return restaurant
+
+
 @router.get("/{restaurant_id}", response_model=RestaurantResponse)
 async def get_restaurant(restaurant_id: int, db: Session = Depends(get_db)):
     """Get restaurant details by ID"""

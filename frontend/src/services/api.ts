@@ -100,16 +100,50 @@ export const restaurantApi = {
   
   getById: (id: number) => api.get(`/restaurants/${id}`),
   
+  getMyRestaurant: () => api.get('/restaurants/my-restaurant'),
+  
+  create: (data: {
+    name: string; description?: string; phone: string; email?: string;
+    address: string; city: string; state: string; zip_code: string;
+    cuisine_type?: string; delivery_fee?: number; min_order_amount?: number;
+  }) => api.post('/restaurants', data),
+  
+  update: (id: number, data: Record<string, unknown>) => api.put(`/restaurants/${id}`, data),
+  
   getMenu: (restaurantId: number, params?: { category?: string; available_only?: boolean }) =>
     api.get(`/restaurants/${restaurantId}/menu`, { params }),
   
   getCuisineTypes: () => api.get('/restaurants/cuisines'),
 };
 
+// Menu API — for restaurant owners to manage their menu
+export const menuApi = {
+  addItem: (restaurantId: number, data: {
+    name: string; description?: string; price: number; category: string;
+    is_vegetarian?: boolean; is_vegan?: boolean; is_gluten_free?: boolean;
+    is_spicy?: boolean; is_available?: boolean; image_url?: string;
+  }) => api.post(`/restaurants/${restaurantId}/menu`, data),
+  
+  updateItem: (restaurantId: number, itemId: number, data: {
+    name?: string; description?: string; price?: number; category?: string;
+    is_vegetarian?: boolean; is_vegan?: boolean; is_gluten_free?: boolean;
+    is_spicy?: boolean; is_available?: boolean; image_url?: string;
+  }) => api.put(`/restaurants/${restaurantId}/menu/${itemId}`, data),
+  
+  deleteItem: (restaurantId: number, itemId: number) =>
+    api.delete(`/restaurants/${restaurantId}/menu/${itemId}`),
+  
+  toggleAvailability: (restaurantId: number, itemId: number, isAvailable: boolean) =>
+    api.put(`/restaurants/${restaurantId}/menu/${itemId}`, { is_available: isAvailable }),
+};
+
 // Order API
 export const orderApi = {
   getMyOrders: (params?: { status?: string; skip?: number; limit?: number }) =>
     api.get('/orders/my-orders', { params }),
+  
+  getRestaurantOrders: (params?: { status?: string }) =>
+    api.get('/orders/restaurant-orders', { params }),
   
   getById: (id: number) => api.get(`/orders/${id}`),
   
@@ -164,7 +198,30 @@ export const deliveryApi = {
     api.post(`/delivery/${id}/complete`, data),
 };
 
-// Failure Simulator API
+// Admin API
+export const adminApi = {
+  getSessionRegistry: (params?: { role?: string; session_status?: string }) =>
+    api.get('/admin/session-registry', { params }),
+  
+  exportRegistry: () =>
+    api.get('/admin/session-registry/export', { responseType: 'blob' }),
+  
+  listUsers: (params?: { role?: string; is_active?: boolean; skip?: number; limit?: number }) =>
+    api.get('/admin/users', { params }),
+  
+  activateUser: (userId: number) =>
+    api.patch(`/admin/users/${userId}/activate`),
+  
+  deactivateUser: (userId: number) =>
+    api.patch(`/admin/users/${userId}/deactivate`),
+  
+  listRestaurants: () => api.get('/admin/restaurants'),
+  
+  approveRestaurant: (restaurantId: number) =>
+    api.patch(`/admin/restaurants/${restaurantId}/approve`),
+};
+
+// Failure Simulator API (admin only)
 export const failureSimulatorApi = {
   getStatus: () => api.get('/failure-simulator/status'),
   

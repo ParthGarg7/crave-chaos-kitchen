@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, ReactNode } from 'react';
-import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, useNavigate, useParams, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 
@@ -13,6 +13,7 @@ import RegisterPage from './pages/RegisterPage';
 import FailureSimulatorPage from './pages/FailureSimulatorPage';
 import RestaurantDashboard from './pages/RestaurantDashboard';
 import DriverDashboard from './pages/DriverDashboard';
+import AdminPanel from './pages/AdminPanel';
 
 // Auth store & API
 import { useAuthStore } from './stores/authStore';
@@ -69,6 +70,7 @@ function ProfileDropdown({ onClose }: { onClose: () => void }) {
   };
 
   const getDashboard = () => {
+    if (user?.role === 'admin') return { path: '/admin', label: '⚙️ Admin Panel' };
     if (user?.role === 'restaurant_owner') return { path: '/restaurant-dashboard', label: '🍽️ My Kitchen' };
     if (user?.role === 'driver') return { path: '/driver-dashboard', label: '🛵 My Deliveries' };
     return null;
@@ -175,7 +177,9 @@ function Navbar({ cartCount, onCartClick }: { cartCount: number; onCartClick: ()
     { path: '/', label: 'Home' },
     { path: '/browse', label: 'Browse' },
     ...(!isAuthenticated ? [{ path: '/login', label: 'Login' }] : []),
-    { path: '/simulator', label: 'Simulator' },
+    // Simulator only visible to admin users
+    ...(user?.role === 'admin' ? [{ path: '/simulator', label: 'Simulator' }] : []),
+    ...(user?.role === 'admin' ? [{ path: '/admin', label: 'Admin' }] : []),
   ];
 
   return (
@@ -318,6 +322,36 @@ function PageWrap({ children }: { children: ReactNode }) {
   );
 }
 
+// ─── Role Guard ───
+function RequireRole({ role, children }: { role: string; children: ReactNode }) {
+  const { isAuthenticated, user } = useAuthStore();
+
+  useEffect(() => {
+    if (!isAuthenticated) toast.error('Please login to continue 🔐');
+    else if (user?.role !== role) toast.error('Access denied');
+  }, [isAuthenticated, user, role]);
+
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (user?.role !== role) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
+// ─── Menu Page Wrapper (reads :id from URL) ───
+function MenuPageWrapper(props: {
+  cart: CartItem[];
+  addToCart: (item: { id: number; name: string; price: number; emoji: string; restaurantId?: number }) => void;
+  updateQty: (id: number, qty: number) => void;
+  onViewCart: () => void;
+}) {
+  const { id } = useParams<{ id: string }>();
+  const restaurantId = parseInt(id ?? '1', 10);
+  return (
+    <PageWrap key={`menu-${restaurantId}`}>
+      <MenuPage restaurantId={restaurantId} {...props} />
+    </PageWrap>
+  );
+}
+
 // ─── Main Application Logic ───
 function AppContent() {
   const location = useLocation();
@@ -366,7 +400,7 @@ function AppContent() {
           quantity: item.qty,
         })),
         delivery_address: user?.address ?? '123 Main Street, New Delhi',
-        payment_method: 'cash_on_delivery',
+        payment_method: 'cash',  // fixed: was 'cash_on_delivery' which is not a valid backend enum
         tip: 0,
       };
 
@@ -404,12 +438,15 @@ function AppContent() {
           <Routes location={location} key={location.pathname}>
             <Route path="/" element={<PageWrap key="hero"><HeroPage navigate={legacyNavigate} /></PageWrap>} />
             <Route path="/browse" element={<PageWrap key="browse"><BrowsePage onSelect={(id) => navigate(`/menu/${id}`)} /></PageWrap>} />
-            <Route path="/menu/:id" element={<PageWrap key="menu"><MenuPage restaurantId={1} cart={cart} addToCart={addToCart} updateQty={updateQty} onViewCart={() => setCartOpen(true)} /></PageWrap>} />
+            {/* Fixed: now passes the actual :id param from the URL instead of hardcoded 1 */}
+            <Route path="/menu/:id" element={<MenuPageWrapper cart={cart} addToCart={addToCart} updateQty={updateQty} onViewCart={() => setCartOpen(true)} />} />
             <Route path="/tracking" element={<PageWrap key="track"><TrackingPage orderId={orderId} navigate={legacyNavigate} /></PageWrap>} />
             <Route path="/login" element={<PageWrap key="login"><LoginPage /></PageWrap>} />
             <Route path="/register" element={<PageWrap key="register"><RegisterPage /></PageWrap>} />
-            <Route path="/simulator" element={<PageWrap key="simulator"><div style={{ paddingTop: '0px' }}><FailureSimulatorPage /></div></PageWrap>} />
-            {/* Role-protected dashboards */}
+            {/* Admin-only routes */}
+            <Route path="/simulator" element={<RequireRole role="admin"><PageWrap key="simulator"><div style={{ paddingTop: '0px' }}><FailureSimulatorPage /></div></PageWrap></RequireRole>} />
+            <Route path="/admin" element={<RequireRole role="admin"><PageWrap key="admin"><AdminPanel /></PageWrap></RequireRole>} />
+            {/* Role-protected dashboards — auth guards handled inside each dashboard */}
             <Route path="/restaurant-dashboard" element={<PageWrap key="rdash"><RestaurantDashboard /></PageWrap>} />
             <Route path="/driver-dashboard" element={<PageWrap key="ddash"><DriverDashboard /></PageWrap>} />
           </Routes>

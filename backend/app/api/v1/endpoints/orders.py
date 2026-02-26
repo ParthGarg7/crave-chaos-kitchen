@@ -32,7 +32,7 @@ def generate_order_number() -> str:
 
 @router.get("/my-orders", response_model=List[OrderListResponse])
 async def get_my_orders(
-    status: OrderStatus = Query(None),
+    order_status: OrderStatus = Query(None, alias="status"),
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
     current_user: User = Depends(get_current_user),
@@ -41,8 +41,8 @@ async def get_my_orders(
     """Get current user's orders"""
     query = db.query(Order).filter(Order.customer_id == current_user.id)
     
-    if status:
-        query = query.filter(Order.status == status)
+    if order_status:
+        query = query.filter(Order.status == order_status)
     
     orders = query.order_by(Order.created_at.desc()).offset(skip).limit(limit).all()
     
@@ -57,7 +57,7 @@ async def get_my_orders(
 
 @router.get("/restaurant-orders", response_model=List[OrderResponse])
 async def get_restaurant_orders(
-    status: OrderStatus = Query(None),
+    order_status: OrderStatus = Query(None, alias="status"),
     current_user: User = Depends(require_role(UserRole.RESTAURANT_OWNER)),
     db: Session = Depends(get_db)
 ):
@@ -68,13 +68,13 @@ async def get_restaurant_orders(
     if not restaurant:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Restaurant not found"
+            detail="Restaurant not found for this owner"
         )
     
     query = db.query(Order).filter(Order.restaurant_id == restaurant.id)
     
-    if status:
-        query = query.filter(Order.status == status)
+    if order_status:
+        query = query.filter(Order.status == order_status)
     
     orders = query.order_by(Order.created_at.desc()).all()
     return orders

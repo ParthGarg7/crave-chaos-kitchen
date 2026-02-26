@@ -1,10 +1,12 @@
 """
 Failure Simulator API Endpoints
+All endpoints are restricted to ADMIN role only.
 """
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import List, Dict, Any
 
 from app.core.failure_config import failure_simulator
+from app.models.user import User, UserRole
 from app.schemas.failure_simulator import (
     FailureScenarioResponse,
     FailureScenarioUpdate,
@@ -13,13 +15,17 @@ from app.schemas.failure_simulator import (
     PresetScenario,
     FAILURE_PRESETS
 )
+from app.api.v1.endpoints.auth import require_role
 
 router = APIRouter(prefix="/failure-simulator", tags=["Failure Simulator"])
 
+# Admin-only dependency used on every endpoint
+_admin = Depends(require_role(UserRole.ADMIN))
+
 
 @router.get("/status", response_model=FailureSimulatorStatus)
-async def get_simulator_status():
-    """Get current status of the failure simulator"""
+async def get_simulator_status(_: User = _admin):
+    """Get current status of the failure simulator (admin only)"""
     metrics = failure_simulator.get_metrics()
     return FailureSimulatorStatus(
         enabled=failure_simulator.state.enabled,
@@ -35,15 +41,15 @@ async def get_simulator_status():
 
 
 @router.get("/metrics", response_model=FailureSimulatorMetrics)
-async def get_simulator_metrics():
-    """Get metrics for the failure simulator"""
+async def get_simulator_metrics(_: User = _admin):
+    """Get metrics for the failure simulator (admin only)"""
     metrics = failure_simulator.get_metrics()
     return FailureSimulatorMetrics(**metrics)
 
 
 @router.get("/scenarios", response_model=Dict[str, FailureScenarioResponse])
-async def list_scenarios():
-    """List all available failure scenarios"""
+async def list_scenarios(_: User = _admin):
+    """List all available failure scenarios (admin only)"""
     scenarios = failure_simulator.list_scenarios()
     result = {}
     for name, scenario in scenarios.items():
@@ -63,8 +69,8 @@ async def list_scenarios():
 
 
 @router.get("/scenarios/{name}", response_model=FailureScenarioResponse)
-async def get_scenario(name: str):
-    """Get a specific failure scenario"""
+async def get_scenario(name: str, _: User = _admin):
+    """Get a specific failure scenario (admin only)"""
     scenario = failure_simulator.get_scenario(name)
     if not scenario:
         raise HTTPException(status_code=404, detail=f"Scenario '{name}' not found")
@@ -84,8 +90,8 @@ async def get_scenario(name: str):
 
 
 @router.post("/scenarios/{name}/enable")
-async def enable_scenario(name: str):
-    """Enable a failure scenario"""
+async def enable_scenario(name: str, _: User = _admin):
+    """Enable a failure scenario (admin only)"""
     if name not in failure_simulator.state.scenarios:
         raise HTTPException(status_code=404, detail=f"Scenario '{name}' not found")
     
@@ -94,8 +100,8 @@ async def enable_scenario(name: str):
 
 
 @router.post("/scenarios/{name}/disable")
-async def disable_scenario(name: str):
-    """Disable a failure scenario"""
+async def disable_scenario(name: str, _: User = _admin):
+    """Disable a failure scenario (admin only)"""
     if name not in failure_simulator.state.scenarios:
         raise HTTPException(status_code=404, detail=f"Scenario '{name}' not found")
     
@@ -104,8 +110,8 @@ async def disable_scenario(name: str):
 
 
 @router.patch("/scenarios/{name}", response_model=FailureScenarioResponse)
-async def update_scenario(name: str, update: FailureScenarioUpdate):
-    """Update a failure scenario"""
+async def update_scenario(name: str, update: FailureScenarioUpdate, _: User = _admin):
+    """Update a failure scenario (admin only)"""
     if name not in failure_simulator.state.scenarios:
         raise HTTPException(status_code=404, detail=f"Scenario '{name}' not found")
     
@@ -130,15 +136,15 @@ async def update_scenario(name: str, update: FailureScenarioUpdate):
 
 
 @router.post("/reset")
-async def reset_all_scenarios():
-    """Reset all scenarios to disabled"""
+async def reset_all_scenarios(_: User = _admin):
+    """Reset all scenarios to disabled (admin only)"""
     failure_simulator.reset_all()
     return {"message": "All failure scenarios have been reset"}
 
 
 @router.post("/global-rate")
-async def set_global_failure_rate(rate: float = Query(..., ge=0.0, le=1.0)):
-    """Set a global failure rate (0-1) that applies to all requests"""
+async def set_global_failure_rate(rate: float = Query(..., ge=0.0, le=1.0), _: User = _admin):
+    """Set a global failure rate (0-1) that applies to all requests (admin only)"""
     failure_simulator.state.global_failure_rate = rate
     return {
         "message": f"Global failure rate set to {rate * 100}%",
@@ -147,8 +153,8 @@ async def set_global_failure_rate(rate: float = Query(..., ge=0.0, le=1.0)):
 
 
 @router.get("/presets", response_model=Dict[str, PresetScenario])
-async def list_presets():
-    """List available failure presets"""
+async def list_presets(_: User = _admin):
+    """List available failure presets (admin only)"""
     return {
         name: PresetScenario(name=preset["name"], description=preset["description"], scenarios=preset.get("scenarios", {}))
         for name, preset in FAILURE_PRESETS.items()
@@ -156,8 +162,8 @@ async def list_presets():
 
 
 @router.post("/presets/{preset_name}/apply")
-async def apply_preset(preset_name: str):
-    """Apply a failure preset"""
+async def apply_preset(preset_name: str, _: User = _admin):
+    """Apply a failure preset (admin only)"""
     if preset_name not in FAILURE_PRESETS:
         raise HTTPException(status_code=404, detail=f"Preset '{preset_name}' not found")
     
@@ -181,8 +187,8 @@ async def apply_preset(preset_name: str):
 
 
 @router.post("/toggle")
-async def toggle_simulator(enabled: bool = Query(...)):
-    """Enable or disable the entire failure simulator"""
+async def toggle_simulator(enabled: bool = Query(...), _: User = _admin):
+    """Enable or disable the entire failure simulator (admin only)"""
     failure_simulator.state.enabled = enabled
     return {
         "message": f"Failure simulator {'enabled' if enabled else 'disabled'}",
@@ -191,8 +197,8 @@ async def toggle_simulator(enabled: bool = Query(...)):
 
 
 @router.get("/health")
-async def health_check():
-    """Health check endpoint that may fail based on configuration"""
+async def health_check(_: User = _admin):
+    """Health check endpoint that may fail based on configuration (admin only)"""
     return {
         "status": "healthy",
         "simulator_enabled": failure_simulator.state.enabled,
