@@ -1,12 +1,17 @@
 import { useState, useEffect, useRef, useCallback, ReactNode } from 'react';
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+
+// Pages
 import HeroPage from './pages/HeroPage';
 import BrowsePage from './pages/BrowsePage';
 import MenuPage from './pages/MenuPage';
 import TrackingPage from './pages/TrackingPage';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import FailureSimulatorPage from './pages/FailureSimulatorPage';
 
 // ─── Types ───
-export type Page = 'hero' | 'browse' | 'menu' | 'tracking';
 export interface CartItem { id: number; name: string; price: number; emoji: string; qty: number }
 
 // ─── Custom Cursor ───
@@ -22,7 +27,7 @@ function CustomCursor() {
     const move = (e: MouseEvent) => { target.current = { x: e.clientX, y: e.clientY }; };
     const over = (e: MouseEvent) => {
       const t = e.target as HTMLElement;
-      setHovering(!!t.closest('button, a, [role="button"], input'));
+      setHovering(!!t.closest('button, a, [role="button"], input, select'));
     };
     window.addEventListener('mousemove', move);
     document.addEventListener('mouseover', over);
@@ -45,7 +50,9 @@ function CustomCursor() {
 }
 
 // ─── Navbar ───
-function Navbar({ currentPage, navigate, cartCount, onCartClick }: { currentPage: Page; navigate: (p: Page) => void; cartCount: number; onCartClick: () => void }) {
+function Navbar({ cartCount, onCartClick }: { cartCount: number; onCartClick: () => void }) {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [scrolled, setScrolled] = useState(false);
   const [bounce, setBounce] = useState(false);
   const prevCount = useRef(cartCount);
@@ -61,15 +68,22 @@ function Navbar({ currentPage, navigate, cartCount, onCartClick }: { currentPage
     prevCount.current = cartCount;
   }, [cartCount]);
 
+  const navLinks = [
+    { path: '/', label: 'Home' },
+    { path: '/browse', label: 'Browse' },
+    { path: '/login', label: 'Login' },
+    { path: '/simulator', label: 'Simulator' }
+  ];
+
   return (
     <nav className="glass" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1000, padding: '0 var(--space-lg)', borderBottom: scrolled ? '1px solid var(--glow-fire)' : '1px solid transparent', transition: 'border-color 0.3s' }}>
       <div style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 64 }}>
-        <button onClick={() => navigate('hero')} style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '1.8rem', color: 'var(--accent-fire)', fontWeight: 700, letterSpacing: 2 }}>CRAVE</button>
+        <button onClick={() => navigate('/')} style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '1.8rem', color: 'var(--accent-fire)', fontWeight: 700, letterSpacing: 2 }}>CRAVE</button>
         <div style={{ display: 'flex', gap: 'var(--space-lg)', alignItems: 'center' }}>
-          {(['browse', 'hero'] as Page[]).map(p => (
-            <button key={p} onClick={() => navigate(p)} style={{ fontFamily: 'var(--font-body)', fontSize: '0.8rem', color: currentPage === p ? 'var(--accent-cream)' : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 2, position: 'relative', padding: '4px 0', transition: 'color 0.2s' }}>
-              {p === 'browse' ? 'Browse' : 'Home'}
-              {currentPage === p && <motion.span layoutId="nav-underline" style={{ position: 'absolute', bottom: -2, left: 0, right: 0, height: 2, background: 'var(--accent-fire)', borderRadius: 1 }} />}
+          {navLinks.map(link => (
+            <button key={link.path} onClick={() => navigate(link.path)} style={{ fontFamily: 'var(--font-body)', fontSize: '0.8rem', color: location.pathname === link.path ? 'var(--accent-cream)' : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 2, position: 'relative', padding: '4px 0', transition: 'color 0.2s' }}>
+              {link.label}
+              {location.pathname === link.path && <motion.span layoutId="nav-underline" style={{ position: 'absolute', bottom: -2, left: 0, right: 0, height: 2, background: 'var(--accent-fire)', borderRadius: 1 }} />}
             </button>
           ))}
           <button onClick={onCartClick} style={{ position: 'relative', padding: 8, animation: bounce ? 'shake 0.4s ease' : 'none' }}>
@@ -144,17 +158,15 @@ function PageWrap({ children }: { children: ReactNode }) {
   );
 }
 
-// ─── App ───
-export default function App() {
-  const [currentPage, setCurrentPage] = useState<Page>('hero');
-  const [selectedRestaurant, setSelectedRestaurant] = useState<number | null>(null);
+// ─── Main Application Logic ───
+// This component sits inside BrowserRouter so it can use routing hooks safely
+function AppContent() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [orderState, setOrderState] = useState<'idle' | 'loading' | 'success'>('idle');
   const [orderId, setOrderId] = useState('');
-
-  const navigate = useCallback((p: Page) => { setCurrentPage(p); window.scrollTo(0, 0); }, []);
-  const openRestaurant = useCallback((id: number) => { setSelectedRestaurant(id); navigate('menu'); }, [navigate]);
 
   const addToCart = useCallback((item: { id: number; name: string; price: number; emoji: string }) => {
     setCart(prev => {
@@ -182,26 +194,47 @@ export default function App() {
       setCart([]);
       setCartOpen(false);
       setOrderState('idle');
-      navigate('tracking');
+      navigate('/tracking');
     }, 1200);
   }, [navigate]);
 
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
 
+  // Helper for HeroPage and TrackingPage which expect a 'navigate' prop in the old format
+  const legacyNavigate = (p: string) => navigate(p === 'hero' ? '/' : `/${p}`);
+
   return (
     <>
-      <div className="grain" />
-      <CustomCursor />
-      <Navbar currentPage={currentPage} navigate={navigate} cartCount={cartCount} onCartClick={() => setCartOpen(true)} />
+      <Navbar cartCount={cartCount} onCartClick={() => setCartOpen(true)} />
       <CartDrawer cart={cart} open={cartOpen} onClose={() => setCartOpen(false)} onUpdate={updateQty} onRemove={removeItem} onPlaceOrder={handlePlaceOrder} orderState={orderState} />
+
       <main>
+        {/* AnimatePresence combined with the location key forces pages to slide cleanly */}
         <AnimatePresence mode="wait">
-          {currentPage === 'hero' && <PageWrap key="hero"><HeroPage navigate={navigate} /></PageWrap>}
-          {currentPage === 'browse' && <PageWrap key="browse"><BrowsePage onSelect={openRestaurant} /></PageWrap>}
-          {currentPage === 'menu' && <PageWrap key="menu"><MenuPage restaurantId={selectedRestaurant || 1} cart={cart} addToCart={addToCart} updateQty={updateQty} onViewCart={() => setCartOpen(true)} /></PageWrap>}
-          {currentPage === 'tracking' && <PageWrap key="track"><TrackingPage orderId={orderId} navigate={navigate} /></PageWrap>}
+          <Routes location={location} key={location.pathname}>
+            <Route path="/" element={<PageWrap key="hero"><HeroPage navigate={legacyNavigate} /></PageWrap>} />
+            <Route path="/browse" element={<PageWrap key="browse"><BrowsePage onSelect={(id) => navigate(`/menu/${id}`)} /></PageWrap>} />
+            <Route path="/menu/:id" element={<PageWrap key="menu"><MenuPage restaurantId={1} cart={cart} addToCart={addToCart} updateQty={updateQty} onViewCart={() => setCartOpen(true)} /></PageWrap>} />
+            <Route path="/tracking" element={<PageWrap key="track"><TrackingPage orderId={orderId} navigate={legacyNavigate} /></PageWrap>} />
+
+            {/* Standard React Component Pages Wrapped for Styling & Animations */}
+            <Route path="/login" element={<PageWrap key="login"><LoginPage /></PageWrap>} />
+            <Route path="/register" element={<PageWrap key="register"><RegisterPage /></PageWrap>} />
+            <Route path="/simulator" element={<PageWrap key="simulator"><div style={{ paddingTop: '100px' }}><FailureSimulatorPage /></div></PageWrap>} />
+          </Routes>
         </AnimatePresence>
       </main>
     </>
+  );
+}
+
+// ─── Entry Component ───
+export default function App() {
+  return (
+    <BrowserRouter>
+      <div className="grain" />
+      <CustomCursor />
+      <AppContent />
+    </BrowserRouter>
   );
 }
