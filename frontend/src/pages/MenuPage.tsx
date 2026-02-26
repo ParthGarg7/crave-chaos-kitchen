@@ -69,7 +69,7 @@ export default function MenuPage({ restaurantId, cart, addToCart, updateQty, onV
                     <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', marginBottom: 'var(--space-md)' }} />
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: 'var(--space-sm)' }}>
                         <span style={{ color: 'var(--text-muted)' }}>{cartCount} items</span>
-                        <span style={{ fontFamily: 'var(--font-accent)', color: 'var(--accent-gold)', fontSize: '1.1rem' }}>${subtotal.toFixed(2)}</span>
+                        <span style={{ fontFamily: 'var(--font-accent)', color: 'var(--accent-gold)', fontSize: '1.1rem' }}>₹{subtotal.toLocaleString('en-IN')}</span>
                     </div>
                     <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={onViewCart} style={{ width: '100%', padding: '12px 0', background: cartCount > 0 ? 'var(--accent-fire)' : 'var(--bg-elevated)', color: cartCount > 0 ? '#fff' : 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: '0.8rem', letterSpacing: 2, textTransform: 'uppercase', borderRadius: 'var(--radius-sm)', transition: 'background 0.3s' }}>
                         View Cart
@@ -104,7 +104,7 @@ export default function MenuPage({ restaurantId, cart, addToCart, updateQty, onV
                                         <div style={{ flex: 1, minWidth: 0 }}>
                                             <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', fontWeight: 500 }}>{mi.name}</p>
                                             <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{mi.desc}</p>
-                                            <p style={{ fontFamily: 'var(--font-accent)', color: 'var(--accent-gold)', fontSize: '1.2rem', marginTop: 4 }}>${mi.price.toFixed(2)}</p>
+                                            <p style={{ fontFamily: 'var(--font-accent)', color: 'var(--accent-gold)', fontSize: '1.2rem', marginTop: 4 }}>₹{mi.price.toLocaleString('en-IN')}</p>
                                         </div>
                                         {/* Add / Qty */}
                                         {inCart ? (

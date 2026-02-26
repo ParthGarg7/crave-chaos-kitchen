@@ -1,15 +1,6 @@
 import { useState } from 'react';
-import { 
-  Zap, 
-  Play, 
-  AlertTriangle, 
-  CheckCircle,
-  XCircle,
-  Server,
-  Clock,
-  Shield,
-  Activity
-} from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Zap, Play, AlertTriangle, CheckCircle, Server, Clock, Shield, Activity } from 'lucide-react';
 import { FailurePreset } from '../../types';
 
 interface PresetSelectorProps {
@@ -18,99 +9,80 @@ interface PresetSelectorProps {
   isApplying: boolean;
 }
 
-const presetIcons: Record<string, typeof Zap> = {
-  demo_rate_limiting: Clock,
-  demo_auth_failures: Shield,
-  demo_payment_issues: Zap,
-  demo_server_errors: Server,
-  demo_all_failures: Activity,
-  chaos_mode: AlertTriangle,
-  clear_all: CheckCircle,
-};
-
-const presetColors: Record<string, string> = {
-  demo_rate_limiting: 'text-yellow-600 bg-yellow-100 border-yellow-200',
-  demo_auth_failures: 'text-red-600 bg-red-100 border-red-200',
-  demo_payment_issues: 'text-blue-600 bg-blue-100 border-blue-200',
-  demo_server_errors: 'text-purple-600 bg-purple-100 border-purple-200',
-  demo_all_failures: 'text-orange-600 bg-orange-100 border-orange-200',
-  chaos_mode: 'text-failure-600 bg-failure-100 border-failure-200',
-  clear_all: 'text-success-600 bg-success-100 border-success-200',
+const PRESET_META: Record<string, { icon: typeof Zap; color: string; accent: string }> = {
+  demo_rate_limiting: { icon: Clock, color: '#ffc845', accent: 'rgba(255,200,69,0.12)' },
+  demo_auth_failures: { icon: Shield, color: '#f87171', accent: 'rgba(248,113,113,0.12)' },
+  demo_payment_issues: { icon: Zap, color: '#60a5fa', accent: 'rgba(96,165,250,0.12)' },
+  demo_server_errors: { icon: Server, color: '#a78bfa', accent: 'rgba(167,139,250,0.12)' },
+  demo_all_failures: { icon: Activity, color: '#fb923c', accent: 'rgba(251,146,60,0.12)' },
+  chaos_mode: { icon: AlertTriangle, color: '#ef4444', accent: 'rgba(239,68,68,0.12)' },
+  clear_all: { icon: CheckCircle, color: '#22c55e', accent: 'rgba(34,197,94,0.12)' },
 };
 
 const PresetSelector = ({ presets, onApplyPreset, isApplying }: PresetSelectorProps) => {
-  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
 
-  const handleApply = (presetName: string) => {
-    setSelectedPreset(presetName);
-    onApplyPreset(presetName);
-  };
-
-  const getScenarioCount = (preset: FailurePreset) => {
-    return Object.keys(preset.scenarios || {}).length;
+  const handleApply = (key: string) => {
+    setSelected(key);
+    onApplyPreset(key);
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900">
-            Failure Presets
-          </h2>
-          <p className="text-sm text-gray-500 mt-1">
-            Quickly apply predefined failure configurations
-          </p>
-        </div>
-      </div>
+    <div>
+      <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 'var(--space-md)', letterSpacing: 1 }}>
+        Instantly apply predefined failure configurations to simulate realistic outage scenarios.
+      </p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 'var(--space-md)' }}>
         {Object.entries(presets).map(([key, preset]) => {
-          const Icon = presetIcons[key] || Zap;
-          const colorClass = presetColors[key] || 'text-gray-600 bg-gray-100 border-gray-200';
-          const scenarioCount = getScenarioCount(preset);
+          const meta = PRESET_META[key] || { icon: Zap, color: 'var(--accent-fire)', accent: 'rgba(255,69,0,0.12)' };
+          const Icon = meta.icon;
+          const scenarioCount = Object.keys(preset.scenarios || {}).length;
+          const isActive = selected === key && isApplying;
 
           return (
-            <div
+            <motion.div
               key={key}
-              className={`border-2 rounded-xl p-6 transition-all hover:shadow-lg ${
-                selectedPreset === key ? 'ring-2 ring-primary-500' : ''
-              }`}
+              whileHover={{ y: -4 }}
+              className="glass"
+              style={{
+                borderRadius: 'var(--radius-md)', padding: 'var(--space-md)',
+                border: selected === key ? `1px solid ${meta.color}55` : '1px solid rgba(255,255,255,0.05)',
+                boxShadow: selected === key ? `0 0 30px ${meta.color}15` : 'none',
+                display: 'flex', flexDirection: 'column', gap: 14,
+                transition: 'border-color 0.3s, box-shadow 0.3s',
+              }}
             >
-              <div className="flex items-start justify-between mb-4">
-                <div className={`p-3 rounded-lg ${colorClass.split(' ').slice(1).join(' ')}`}>
-                  <Icon className={`h-6 w-6 ${colorClass.split(' ')[0]}`} />
+              {/* Top row */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: meta.accent, border: `1px solid ${meta.color}33`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Icon size={22} color={meta.color} />
                 </div>
                 {scenarioCount > 0 && (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                  <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.6rem', color: 'var(--text-muted)', background: 'var(--bg-elevated)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 'var(--radius-pill)', padding: '3px 10px', letterSpacing: 1 }}>
                     {scenarioCount} scenarios
                   </span>
                 )}
               </div>
 
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                {preset.name}
-              </h3>
-              <p className="text-sm text-gray-600 mb-4">
-                {preset.description}
-              </p>
+              {/* Info */}
+              <div>
+                <h3 style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', fontWeight: 600, color: 'var(--accent-cream)', marginBottom: 6 }}>{preset.name}</h3>
+                <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>{preset.description}</p>
+              </div>
 
-              {/* Scenario Preview */}
+              {/* Preview chips */}
               {scenarioCount > 0 && (
-                <div className="mb-4">
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
-                    Includes:
-                  </p>
-                  <div className="flex flex-wrap gap-1">
-                    {Object.keys(preset.scenarios).slice(0, 3).map((scenarioKey) => (
-                      <span
-                        key={scenarioKey}
-                        className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-700"
-                      >
-                        {scenarioKey.replace(/_/g, ' ')}
+                <div>
+                  <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.6rem', color: 'var(--text-muted)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 }}>Includes</p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {Object.keys(preset.scenarios).slice(0, 3).map(sk => (
+                      <span key={sk} style={{ fontFamily: 'var(--font-body)', fontSize: '0.62rem', padding: '3px 10px', borderRadius: 'var(--radius-pill)', background: 'var(--bg-elevated)', border: '1px solid rgba(255,255,255,0.07)', color: 'var(--text-muted)' }}>
+                        {sk.replace(/_/g, ' ')}
                       </span>
                     ))}
                     {scenarioCount > 3 && (
-                      <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-500">
+                      <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.62rem', padding: '3px 10px', borderRadius: 'var(--radius-pill)', background: 'var(--bg-elevated)', border: '1px solid rgba(255,255,255,0.07)', color: 'var(--text-muted)' }}>
                         +{scenarioCount - 3} more
                       </span>
                     )}
@@ -118,55 +90,52 @@ const PresetSelector = ({ presets, onApplyPreset, isApplying }: PresetSelectorPr
                 </div>
               )}
 
-              <button
+              {/* Apply button */}
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => handleApply(key)}
                 disabled={isApplying}
-                className={`w-full inline-flex items-center justify-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                  key === 'clear_all'
-                    ? 'bg-success-100 text-success-700 hover:bg-success-200'
-                    : key === 'chaos_mode'
-                    ? 'bg-failure-100 text-failure-700 hover:bg-failure-200'
-                    : 'bg-primary-100 text-primary-700 hover:bg-primary-200'
-                } disabled:opacity-50`}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  padding: '11px 0', borderRadius: 'var(--radius-sm)', cursor: 'none',
+                  background: key === 'chaos_mode' ? 'rgba(239,68,68,0.15)' : key === 'clear_all' ? 'rgba(34,197,94,0.15)' : `${meta.color}15`,
+                  border: `1px solid ${meta.color}44`,
+                  color: meta.color,
+                  fontFamily: 'var(--font-body)', fontSize: '0.72rem', letterSpacing: 2, textTransform: 'uppercase',
+                  opacity: isApplying && !isActive ? 0.5 : 1,
+                  transition: 'all 0.2s',
+                  marginTop: 'auto',
+                }}
               >
-                {isApplying && selectedPreset === key ? (
+                {isActive ? (
                   <>
-                    <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
-                    <span>Applying...</span>
+                    <span style={{ width: 14, height: 14, border: `2px solid ${meta.color}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite', display: 'inline-block' }} />
+                    Applying...
                   </>
                 ) : (
                   <>
-                    <Play className="h-4 w-4" />
-                    <span>Apply Preset</span>
+                    <Play size={13} />
+                    Apply Preset
                   </>
                 )}
-              </button>
-            </div>
+              </motion.button>
+            </motion.div>
           );
         })}
       </div>
 
-      {/* Info Box */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
-        <div className="flex items-start space-x-3">
-          <AlertTriangle className="h-5 w-5 text-blue-600 mt-0.5" />
-          <div>
-            <h3 className="text-sm font-semibold text-blue-900">
-              About Presets
-            </h3>
-            <p className="mt-1 text-sm text-blue-700">
-              Presets are pre-configured combinations of failure scenarios designed for 
-              specific testing purposes. Applying a preset will reset all current scenarios 
-              and enable only those defined in the preset.
-            </p>
-            <ul className="mt-2 text-sm text-blue-700 list-disc list-inside space-y-1">
-              <li><strong>Demo presets:</strong> Moderate failure rates for demonstration</li>
-              <li><strong>Chaos Mode:</strong> High failure rates for stress testing</li>
-              <li><strong>Clear All:</strong> Disable all failure scenarios</li>
-            </ul>
-          </div>
-        </div>
+      {/* Info box */}
+      <div className="glass" style={{ marginTop: 'var(--space-lg)', borderRadius: 'var(--radius-md)', padding: 'var(--space-md)', border: '1px solid rgba(255,140,0,0.15)' }}>
+        <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.65rem', color: 'var(--accent-ember)', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 10 }}>ℹ️ About Presets</p>
+        <ul style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 2, paddingLeft: 20 }}>
+          <li><strong style={{ color: 'var(--accent-cream)' }}>Demo presets</strong> — Moderate failure rates for demonstration purposes</li>
+          <li><strong style={{ color: '#ef4444' }}>Chaos Mode</strong> — High failure rates for stress testing</li>
+          <li><strong style={{ color: '#22c55e' }}>Clear All</strong> — Disable all failure scenarios and reset</li>
+        </ul>
       </div>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 };

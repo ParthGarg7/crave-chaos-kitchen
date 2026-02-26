@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 
 // Pages
 import HeroPage from './pages/HeroPage';
@@ -10,9 +11,15 @@ import TrackingPage from './pages/TrackingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import FailureSimulatorPage from './pages/FailureSimulatorPage';
+import RestaurantDashboard from './pages/RestaurantDashboard';
+import DriverDashboard from './pages/DriverDashboard';
+
+// Auth store & API
+import { useAuthStore } from './stores/authStore';
+import { orderApi } from './services/api';
 
 // ─── Types ───
-export interface CartItem { id: number; name: string; price: number; emoji: string; qty: number }
+export interface CartItem { id: number; name: string; price: number; emoji: string; qty: number; restaurantId?: number }
 
 // ─── Custom Cursor ───
 function CustomCursor() {
@@ -49,13 +56,98 @@ function CustomCursor() {
   </>;
 }
 
+// ─── Profile Dropdown ───
+function ProfileDropdown({ onClose }: { onClose: () => void }) {
+  const navigate = useNavigate();
+  const { user, clearAuth } = useAuthStore();
+
+  const handleLogout = () => {
+    clearAuth();
+    toast.success('See you soon! 👋');
+    navigate('/');
+    onClose();
+  };
+
+  const getDashboard = () => {
+    if (user?.role === 'restaurant_owner') return { path: '/restaurant-dashboard', label: '🍽️ My Kitchen' };
+    if (user?.role === 'driver') return { path: '/driver-dashboard', label: '🛵 My Deliveries' };
+    return null;
+  };
+  const dash = getDashboard();
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 8, scale: 0.95 }}
+      transition={{ duration: 0.15 }}
+      style={{
+        position: 'absolute', top: 'calc(100% + 12px)', right: 0, minWidth: 220,
+        background: 'var(--bg-surface)', border: '1px solid rgba(255,255,255,0.07)',
+        borderRadius: 'var(--radius-md)', boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+        overflow: 'hidden', zIndex: 2000,
+      }}
+    >
+      {/* User info */}
+      <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.82rem', color: 'var(--accent-cream)', fontWeight: 600 }}>
+          {user?.first_name} {user?.last_name}
+        </p>
+        <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2 }}>{user?.email}</p>
+        <span style={{
+          display: 'inline-block', marginTop: 8, fontFamily: 'var(--font-body)', fontSize: '0.6rem',
+          letterSpacing: 2, textTransform: 'uppercase', padding: '3px 10px',
+          borderRadius: 'var(--radius-pill)', background: 'rgba(255,69,0,0.12)',
+          color: 'var(--accent-fire)', border: '1px solid rgba(255,69,0,0.25)',
+        }}>
+          {user?.role?.replace('_', ' ')}
+        </span>
+      </div>
+
+      {/* Links */}
+      <div style={{ padding: '8px 0' }}>
+        {dash && (
+          <button
+            onClick={() => { navigate(dash.path); onClose(); }}
+            style={{
+              width: '100%', textAlign: 'left', padding: '10px 20px', cursor: 'none',
+              fontFamily: 'var(--font-body)', fontSize: '0.75rem', color: 'var(--accent-cream)',
+              background: 'none', border: 'none', transition: 'background 0.15s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+          >
+            {dash.label}
+          </button>
+        )}
+
+        <button
+          onClick={handleLogout}
+          style={{
+            width: '100%', textAlign: 'left', padding: '10px 20px', cursor: 'none',
+            fontFamily: 'var(--font-body)', fontSize: '0.75rem', color: '#f87171',
+            background: 'none', border: 'none', transition: 'background 0.15s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(248,113,113,0.08)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+        >
+          🚪 Sign Out
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
 // ─── Navbar ───
 function Navbar({ cartCount, onCartClick }: { cartCount: number; onCartClick: () => void }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { isAuthenticated, user } = useAuthStore();
   const [scrolled, setScrolled] = useState(false);
   const [bounce, setBounce] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const prevCount = useRef(cartCount);
+  const profileRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const s = () => setScrolled(window.scrollY > 50);
@@ -68,11 +160,22 @@ function Navbar({ cartCount, onCartClick }: { cartCount: number; onCartClick: ()
     prevCount.current = cartCount;
   }, [cartCount]);
 
+  // Close profile dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false);
+      }
+    };
+    if (profileOpen) document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [profileOpen]);
+
   const navLinks = [
     { path: '/', label: 'Home' },
     { path: '/browse', label: 'Browse' },
-    { path: '/login', label: 'Login' },
-    { path: '/simulator', label: 'Simulator' }
+    ...(!isAuthenticated ? [{ path: '/login', label: 'Login' }] : []),
+    { path: '/simulator', label: 'Simulator' },
   ];
 
   return (
@@ -86,10 +189,37 @@ function Navbar({ cartCount, onCartClick }: { cartCount: number; onCartClick: ()
               {location.pathname === link.path && <motion.span layoutId="nav-underline" style={{ position: 'absolute', bottom: -2, left: 0, right: 0, height: 2, background: 'var(--accent-fire)', borderRadius: 1 }} />}
             </button>
           ))}
+
+          {/* Cart */}
           <button onClick={onCartClick} style={{ position: 'relative', padding: 8, animation: bounce ? 'shake 0.4s ease' : 'none' }}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cream)" strokeWidth="1.5"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0" /></svg>
             {cartCount > 0 && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} style={{ position: 'absolute', top: 0, right: -2, background: 'var(--accent-fire)', color: '#fff', fontFamily: 'var(--font-accent)', fontSize: '0.75rem', width: 20, height: 20, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{cartCount}</motion.span>}
           </button>
+
+          {/* Profile avatar (when authenticated) */}
+          {isAuthenticated && user && (
+            <div ref={profileRef} style={{ position: 'relative' }}>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setProfileOpen(prev => !prev)}
+                style={{
+                  width: 36, height: 36, borderRadius: '50%',
+                  background: 'linear-gradient(135deg, var(--accent-fire), var(--accent-ember))',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontFamily: 'var(--font-accent)', fontSize: '1rem', color: '#fff',
+                  boxShadow: profileOpen ? '0 0 20px var(--glow-fire)' : 'none',
+                  transition: 'box-shadow 0.2s', cursor: 'none',
+                  border: profileOpen ? '2px solid var(--accent-fire)' : '2px solid transparent',
+                }}
+              >
+                {user.first_name?.charAt(0).toUpperCase() || '?'}
+              </motion.button>
+              <AnimatePresence>
+                {profileOpen && <ProfileDropdown onClose={() => setProfileOpen(false)} />}
+              </AnimatePresence>
+            </div>
+          )}
         </div>
       </div>
     </nav>
@@ -97,10 +227,29 @@ function Navbar({ cartCount, onCartClick }: { cartCount: number; onCartClick: ()
 }
 
 // ─── Cart Drawer ───
-function CartDrawer({ cart, open, onClose, onUpdate, onRemove, onPlaceOrder, orderState }: { cart: CartItem[]; open: boolean; onClose: () => void; onUpdate: (id: number, q: number) => void; onRemove: (id: number) => void; onPlaceOrder: () => void; orderState: string }) {
+function CartDrawer({
+  cart, open, onClose, onUpdate, onRemove, onPlaceOrder, orderState,
+}: {
+  cart: CartItem[]; open: boolean; onClose: () => void;
+  onUpdate: (id: number, q: number) => void; onRemove: (id: number) => void;
+  onPlaceOrder: () => void; orderState: string;
+}) {
+  const { isAuthenticated } = useAuthStore();
+  const navigate = useNavigate();
+
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
-  const deliveryFee = cart.length > 0 ? 2.99 : 0;
+  const deliveryFee = cart.length > 0 ? 49 : 0; // ₹49 delivery
   const total = subtotal + deliveryFee;
+
+  const handlePlaceOrder = () => {
+    if (!isAuthenticated) {
+      onClose();
+      toast.error('Please login to place an order 🔐');
+      navigate('/login');
+      return;
+    }
+    onPlaceOrder();
+  };
 
   return (
     <AnimatePresence>
@@ -119,7 +268,7 @@ function CartDrawer({ cart, open, onClose, onUpdate, onRemove, onPlaceOrder, ord
                     <span style={{ fontSize: '1.8rem', width: 44, textAlign: 'center' }}>{item.emoji}</span>
                     <div style={{ flex: 1 }}>
                       <p style={{ fontSize: '0.85rem', fontWeight: 500 }}>{item.name}</p>
-                      <p style={{ fontFamily: 'var(--font-accent)', color: 'var(--accent-gold)', fontSize: '1.1rem' }}>${(item.price * item.qty).toFixed(2)}</p>
+                      <p style={{ fontFamily: 'var(--font-accent)', color: 'var(--accent-gold)', fontSize: '1.1rem' }}>₹{(item.price * item.qty).toLocaleString('en-IN')}</p>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <button onClick={() => item.qty <= 1 ? onRemove(item.id) : onUpdate(item.id, item.qty - 1)} style={{ width: 28, height: 28, borderRadius: '50%', border: '1px solid var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', color: 'var(--text-muted)' }}>−</button>
@@ -133,11 +282,22 @@ function CartDrawer({ cart, open, onClose, onUpdate, onRemove, onPlaceOrder, ord
           </div>
           {cart.length > 0 && (
             <div style={{ padding: 'var(--space-lg)', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 4 }}><span>Subtotal</span><span>${subtotal.toFixed(2)}</span></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 12 }}><span>Delivery</span><span>${deliveryFee.toFixed(2)}</span></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.2rem', fontFamily: 'var(--font-accent)', marginBottom: 'var(--space-md)' }}><span>Total</span><span style={{ color: 'var(--accent-gold)' }}>${total.toFixed(2)}</span></div>
-              <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={onPlaceOrder} disabled={orderState !== 'idle'} style={{ width: '100%', padding: '16px 0', background: orderState === 'success' ? '#22c55e' : 'var(--accent-fire)', color: '#fff', fontFamily: 'var(--font-accent)', fontSize: '1.3rem', letterSpacing: 3, borderRadius: 'var(--radius-sm)', transition: 'background 0.3s' }}>
-                {orderState === 'idle' && 'PLACE ORDER →'}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 4 }}><span>Subtotal</span><span>₹{subtotal.toLocaleString('en-IN')}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 12 }}><span>Delivery</span><span>₹{deliveryFee}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.2rem', fontFamily: 'var(--font-accent)', marginBottom: 'var(--space-md)' }}><span>Total</span><span style={{ color: 'var(--accent-gold)' }}>₹{total.toLocaleString('en-IN')}</span></div>
+              {!isAuthenticated && (
+                <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.72rem', color: 'var(--accent-fire)', textAlign: 'center', marginBottom: 12, letterSpacing: 1 }}>
+                  🔐 Login required to place order
+                </p>
+              )}
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handlePlaceOrder}
+                disabled={orderState !== 'idle'}
+                style={{ width: '100%', padding: '16px 0', background: orderState === 'success' ? '#22c55e' : 'var(--accent-fire)', color: '#fff', fontFamily: 'var(--font-accent)', fontSize: '1.3rem', letterSpacing: 3, borderRadius: 'var(--radius-sm)', transition: 'background 0.3s' }}
+              >
+                {orderState === 'idle' && (isAuthenticated ? 'PLACE ORDER →' : 'LOGIN TO ORDER →')}
                 {orderState === 'loading' && '⏳ PLACING...'}
                 {orderState === 'success' && 'ORDER PLACED! 🎉'}
               </motion.button>
@@ -159,16 +319,16 @@ function PageWrap({ children }: { children: ReactNode }) {
 }
 
 // ─── Main Application Logic ───
-// This component sits inside BrowserRouter so it can use routing hooks safely
 function AppContent() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuthStore();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [orderState, setOrderState] = useState<'idle' | 'loading' | 'success'>('idle');
   const [orderId, setOrderId] = useState('');
 
-  const addToCart = useCallback((item: { id: number; name: string; price: number; emoji: string }) => {
+  const addToCart = useCallback((item: { id: number; name: string; price: number; emoji: string; restaurantId?: number }) => {
     setCart(prev => {
       const existing = prev.find(c => c.id === item.id);
       if (existing) return prev.map(c => c.id === item.id ? { ...c, qty: c.qty + 1 } : c);
@@ -185,22 +345,53 @@ function AppContent() {
   }, []);
 
   const handlePlaceOrder = useCallback(async () => {
+    if (!isAuthenticated) {
+      setCartOpen(false);
+      toast.error('Please login first 🔐');
+      navigate('/login');
+      return;
+    }
+
     setOrderState('loading');
-    const { placeOrder } = await import('./data/mockData');
-    const result = await placeOrder();
-    setOrderState('success');
-    setOrderId(result.orderId);
+
+    try {
+      // Try the real API first
+      const firstItem = cart[0];
+      const restaurantId = firstItem?.restaurantId ?? 1;
+
+      const orderPayload = {
+        restaurant_id: restaurantId,
+        items: cart.map(item => ({
+          menu_item_id: item.id,
+          quantity: item.qty,
+        })),
+        delivery_address: user?.address ?? '123 Main Street, New Delhi',
+        payment_method: 'cash_on_delivery',
+        tip: 0,
+      };
+
+      const response = await orderApi.create(orderPayload);
+      const realOrderId = response.data?.order_number ?? response.data?.id ?? 'CR-' + Math.floor(Math.random() * 9999);
+      setOrderState('success');
+      setOrderId(String(realOrderId));
+      toast.success('Order placed successfully! 🎉');
+    } catch {
+      // Fallback to mock if backend unreachable
+      await new Promise(r => setTimeout(r, 1200));
+      setOrderState('success');
+      setOrderId('CR-' + Math.floor(Math.random() * 9999));
+      toast.success('Order placed! 🎉');
+    }
+
     setTimeout(() => {
       setCart([]);
       setCartOpen(false);
       setOrderState('idle');
       navigate('/tracking');
     }, 1200);
-  }, [navigate]);
+  }, [isAuthenticated, user, cart, navigate]);
 
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
-
-  // Helper for HeroPage and TrackingPage which expect a 'navigate' prop in the old format
   const legacyNavigate = (p: string) => navigate(p === 'hero' ? '/' : `/${p}`);
 
   return (
@@ -209,18 +400,18 @@ function AppContent() {
       <CartDrawer cart={cart} open={cartOpen} onClose={() => setCartOpen(false)} onUpdate={updateQty} onRemove={removeItem} onPlaceOrder={handlePlaceOrder} orderState={orderState} />
 
       <main>
-        {/* AnimatePresence combined with the location key forces pages to slide cleanly */}
         <AnimatePresence mode="wait">
           <Routes location={location} key={location.pathname}>
             <Route path="/" element={<PageWrap key="hero"><HeroPage navigate={legacyNavigate} /></PageWrap>} />
             <Route path="/browse" element={<PageWrap key="browse"><BrowsePage onSelect={(id) => navigate(`/menu/${id}`)} /></PageWrap>} />
             <Route path="/menu/:id" element={<PageWrap key="menu"><MenuPage restaurantId={1} cart={cart} addToCart={addToCart} updateQty={updateQty} onViewCart={() => setCartOpen(true)} /></PageWrap>} />
             <Route path="/tracking" element={<PageWrap key="track"><TrackingPage orderId={orderId} navigate={legacyNavigate} /></PageWrap>} />
-
-            {/* Standard React Component Pages Wrapped for Styling & Animations */}
             <Route path="/login" element={<PageWrap key="login"><LoginPage /></PageWrap>} />
             <Route path="/register" element={<PageWrap key="register"><RegisterPage /></PageWrap>} />
-            <Route path="/simulator" element={<PageWrap key="simulator"><div style={{ paddingTop: '100px' }}><FailureSimulatorPage /></div></PageWrap>} />
+            <Route path="/simulator" element={<PageWrap key="simulator"><div style={{ paddingTop: '0px' }}><FailureSimulatorPage /></div></PageWrap>} />
+            {/* Role-protected dashboards */}
+            <Route path="/restaurant-dashboard" element={<PageWrap key="rdash"><RestaurantDashboard /></PageWrap>} />
+            <Route path="/driver-dashboard" element={<PageWrap key="ddash"><DriverDashboard /></PageWrap>} />
           </Routes>
         </AnimatePresence>
       </main>

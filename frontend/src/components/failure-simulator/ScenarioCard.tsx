@@ -1,65 +1,36 @@
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import {
-  Power,
-  Settings,
-  Zap,
-  Clock,
-  Shield,
-  Server,
-  Code,
-  Link as LinkIcon,
-  Wrench,
-  ChevronDown,
-  ChevronUp,
-  AlertTriangle
-} from 'lucide-react';
+import { Power, Zap, Clock, Shield, Server, Code, Link as LinkIcon, Wrench, ChevronDown, ChevronUp } from 'lucide-react';
 import { failureSimulatorApi } from '../../services/api';
 import { FailureScenario, FailureType } from '../../types';
 
-interface ScenarioCardProps {
-  name: string;
-  scenario: FailureScenario;
-}
+interface ScenarioCardProps { name: string; scenario: FailureScenario; }
 
-const failureTypeIcons: Record<FailureType, typeof Zap> = {
-  rate_limit: Zap,
-  timeout: Clock,
-  authentication: Shield,
-  authorization: Shield,
-  server_error: Server,
-  service_unavailable: Server,
-  bad_request: Code,
-  dependency: LinkIcon,
-  configuration: Wrench,
-};
-
-const failureTypeColors: Record<FailureType, string> = {
-  rate_limit: 'text-yellow-600 bg-yellow-100',
-  timeout: 'text-orange-600 bg-orange-100',
-  authentication: 'text-red-600 bg-red-100',
-  authorization: 'text-red-600 bg-red-100',
-  server_error: 'text-purple-600 bg-purple-100',
-  service_unavailable: 'text-purple-600 bg-purple-100',
-  bad_request: 'text-blue-600 bg-blue-100',
-  dependency: 'text-pink-600 bg-pink-100',
-  configuration: 'text-gray-600 bg-gray-100',
+const TYPE_META: Record<FailureType, { icon: typeof Zap; color: string; label: string }> = {
+  rate_limit: { icon: Zap, color: '#ffc845', label: 'Rate Limit' },
+  timeout: { icon: Clock, color: '#fb923c', label: 'Timeout' },
+  authentication: { icon: Shield, color: '#f87171', label: 'Auth Error' },
+  authorization: { icon: Shield, color: '#f87171', label: 'Authorization' },
+  server_error: { icon: Server, color: '#a78bfa', label: 'Server Error' },
+  service_unavailable: { icon: Server, color: '#a78bfa', label: 'Unavailable' },
+  bad_request: { icon: Code, color: '#60a5fa', label: 'Bad Request' },
+  dependency: { icon: LinkIcon, color: '#f472b6', label: 'Dependency' },
+  configuration: { icon: Wrench, color: 'var(--text-muted)', label: 'Config' },
 };
 
 const ScenarioCard = ({ name, scenario }: ScenarioCardProps) => {
   const queryClient = useQueryClient();
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [probability, setProbability] = useState(scenario.probability);
-
-  const Icon = failureTypeIcons[scenario.failure_type];
-  const colorClass = failureTypeColors[scenario.failure_type];
+  const meta = TYPE_META[scenario.failure_type] || TYPE_META.configuration;
+  const Icon = meta.icon;
 
   const toggleMutation = useMutation({
-    mutationFn: () =>
-      scenario.enabled
-        ? failureSimulatorApi.disableScenario(name)
-        : failureSimulatorApi.enableScenario(name),
+    mutationFn: () => scenario.enabled
+      ? failureSimulatorApi.disableScenario(name)
+      : failureSimulatorApi.enableScenario(name),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['failure-scenarios'] });
       queryClient.invalidateQueries({ queryKey: ['failure-status'] });
@@ -67,201 +38,184 @@ const ScenarioCard = ({ name, scenario }: ScenarioCardProps) => {
     },
   });
 
-  const updateProbabilityMutation = useMutation({
-    mutationFn: (newProbability: number) =>
-      failureSimulatorApi.updateScenario(name, { probability: newProbability }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['failure-scenarios'] });
-      toast.success('Probability updated');
-    },
+  const updateProb = useMutation({
+    mutationFn: (p: number) => failureSimulatorApi.updateScenario(name, { probability: p }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['failure-scenarios'] }); toast.success('Probability updated'); },
   });
-
-  const handleProbabilityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseFloat(e.target.value);
-    setProbability(value);
-  };
-
-  const handleProbabilityBlur = () => {
-    if (probability !== scenario.probability) {
-      updateProbabilityMutation.mutate(probability);
-    }
-  };
 
   return (
     <div
-      className={`border rounded-xl overflow-hidden transition-all ${
-        scenario.enabled
-          ? 'border-failure-300 shadow-md'
-          : 'border-gray-200'
-      }`}
+      className="glass"
+      style={{
+        borderRadius: 'var(--radius-md)',
+        border: scenario.enabled
+          ? `1px solid ${meta.color}44`
+          : '1px solid rgba(255,255,255,0.05)',
+        overflow: 'hidden',
+        transition: 'border-color 0.3s',
+        boxShadow: scenario.enabled ? `0 0 30px ${meta.color}18` : 'none',
+      }}
     >
       {/* Header */}
-      <div className="p-4">
-        <div className="flex items-start justify-between">
-          <div className="flex items-start space-x-3">
-            <div className={`p-2 rounded-lg ${colorClass}`}>
-              <Icon className="h-5 w-5" />
+      <div style={{ padding: 'var(--space-sm)' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {/* Icon badge */}
+            <div style={{
+              width: 40, height: 40, borderRadius: 'var(--radius-sm)',
+              background: `${meta.color}18`, border: `1px solid ${meta.color}33`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}>
+              <Icon size={18} color={meta.color} />
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900 capitalize">
+              <h3 style={{ fontFamily: 'var(--font-body)', fontSize: '0.82rem', fontWeight: 600, color: 'var(--accent-cream)', textTransform: 'capitalize' }}>
                 {name.replace(/_/g, ' ')}
               </h3>
-              <p className="text-sm text-gray-500 mt-0.5">
-                {scenario.failure_type.replace(/_/g, ' ')}
+              <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.65rem', color: meta.color, letterSpacing: 1, marginTop: 2 }}>
+                {meta.label}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center space-x-2">
-            {/* Status Badge */}
-            <span
-              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                scenario.enabled
-                  ? 'bg-failure-100 text-failure-800'
-                  : 'bg-gray-100 text-gray-800'
-              }`}
-            >
-              {scenario.enabled ? 'Active' : 'Inactive'}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Status badge */}
+            <span style={{
+              fontFamily: 'var(--font-body)', fontSize: '0.6rem', letterSpacing: 2, textTransform: 'uppercase',
+              padding: '3px 10px', borderRadius: 'var(--radius-pill)',
+              background: scenario.enabled ? `${meta.color}18` : 'var(--bg-elevated)',
+              color: scenario.enabled ? meta.color : 'var(--text-muted)',
+              border: `1px solid ${scenario.enabled ? meta.color + '44' : 'rgba(255,255,255,0.06)'}`,
+            }}>
+              {scenario.enabled ? 'Active' : 'Off'}
             </span>
 
-            {/* Toggle Button */}
-            <button
+            {/* Power toggle */}
+            <motion.button
+              whileTap={{ scale: 0.9 }}
               onClick={() => toggleMutation.mutate()}
               disabled={toggleMutation.isPending}
-              className={`p-2 rounded-lg transition-colors ${
-                scenario.enabled
-                  ? 'bg-failure-100 text-failure-600 hover:bg-failure-200'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
+              style={{
+                width: 32, height: 32, borderRadius: 'var(--radius-sm)', cursor: 'none',
+                background: scenario.enabled ? `${meta.color}22` : 'var(--bg-elevated)',
+                border: `1px solid ${scenario.enabled ? meta.color + '44' : 'rgba(255,255,255,0.06)'}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                opacity: toggleMutation.isPending ? 0.5 : 1,
+                transition: 'all 0.2s',
+              }}
             >
-              <Power className="h-4 w-4" />
-            </button>
+              <Power size={14} color={scenario.enabled ? meta.color : 'var(--text-muted)'} />
+            </motion.button>
 
-            {/* Expand Button */}
-            <button
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            {/* Expand */}
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setExpanded(!expanded)}
+              style={{
+                width: 32, height: 32, borderRadius: 'var(--radius-sm)', cursor: 'none',
+                background: 'var(--bg-elevated)', border: '1px solid rgba(255,255,255,0.06)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
             >
-              {isExpanded ? (
-                <ChevronUp className="h-4 w-4 text-gray-600" />
-              ) : (
-                <ChevronDown className="h-4 w-4 text-gray-600" />
-              )}
-            </button>
+              {expanded ? <ChevronUp size={14} color="var(--text-muted)" /> : <ChevronDown size={14} color="var(--text-muted)" />}
+            </motion.button>
           </div>
         </div>
 
-        {/* Quick Info */}
-        <div className="mt-3 flex items-center space-x-4 text-sm">
-          <span className="text-gray-600">
-            Probability: <span className="font-medium">{(scenario.probability * 100).toFixed(0)}%</span>
-          </span>
-          <span className="text-gray-400">|</span>
-          <span className="text-gray-600">
-            Endpoints: <span className="font-medium">{scenario.endpoints.length}</span>
-          </span>
+        {/* Quick stats */}
+        <div style={{ display: 'flex', gap: 'var(--space-md)', marginTop: 12, fontFamily: 'var(--font-body)', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+          <span>Probability <strong style={{ color: meta.color }}>{(scenario.probability * 100).toFixed(0)}%</strong></span>
+          <span>·</span>
+          <span>Endpoints <strong style={{ color: 'var(--accent-cream)' }}>{scenario.endpoints.length}</strong></span>
         </div>
       </div>
 
-      {/* Expanded Details */}
-      {isExpanded && (
-        <div className="border-t border-gray-200 p-4 bg-gray-50">
-          {/* Probability Slider */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Failure Probability
-            </label>
-            <div className="flex items-center space-x-4">
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                value={probability}
-                onChange={handleProbabilityChange}
-                onBlur={handleProbabilityBlur}
-                className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-              />
-              <span className="text-sm font-medium text-gray-900 w-16 text-right">
-                {(probability * 100).toFixed(0)}%
-              </span>
-            </div>
-          </div>
-
-          {/* Endpoints */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Affected Endpoints
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {scenario.endpoints.map((endpoint, idx) => (
-                <span
-                  key={idx}
-                  className="inline-flex items-center px-2 py-1 rounded-md text-xs font-mono bg-gray-200 text-gray-700"
-                >
-                  {endpoint}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Methods */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              HTTP Methods
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {scenario.methods.map((method, idx) => (
-                <span
-                  key={idx}
-                  className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-700"
-                >
-                  {method}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Error Message */}
-          {scenario.error_message && (
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Error Message
-              </label>
-              <p className="text-sm text-gray-600 bg-white p-3 rounded-lg border border-gray-200">
-                {scenario.error_message}
-              </p>
-            </div>
-          )}
-
-          {/* Type-specific settings */}
-          {scenario.rate_limit_requests && (
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Rate Limit (requests)
-                </label>
-                <p className="text-sm text-gray-900">{scenario.rate_limit_requests}</p>
+      {/* Expanded */}
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22, ease: 'easeOut' }}
+            style={{ overflow: 'hidden', borderTop: '1px solid rgba(255,255,255,0.05)' }}
+          >
+            <div style={{ padding: 'var(--space-sm)', background: 'var(--bg-elevated)' }}>
+              {/* Probability slider */}
+              <div style={{ marginBottom: 'var(--space-sm)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <label style={{ fontFamily: 'var(--font-body)', fontSize: '0.65rem', color: 'var(--text-muted)', letterSpacing: 2, textTransform: 'uppercase' }}>Failure Probability</label>
+                  <span style={{ fontFamily: 'var(--font-accent)', fontSize: '1.2rem', color: meta.color }}>{(probability * 100).toFixed(0)}%</span>
+                </div>
+                <input
+                  type="range" min="0" max="1" step="0.05" value={probability}
+                  onChange={e => setProbability(parseFloat(e.target.value))}
+                  onMouseUp={() => { if (probability !== scenario.probability) updateProb.mutate(probability); }}
+                  style={{ width: '100%', accentColor: meta.color, cursor: 'none' }}
+                />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Window (seconds)
-                </label>
-                <p className="text-sm text-gray-900">{scenario.rate_limit_window}</p>
-              </div>
-            </div>
-          )}
 
-          {scenario.timeout_seconds && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Timeout (seconds)
-              </label>
-              <p className="text-sm text-gray-900">{scenario.timeout_seconds}s</p>
+              {/* Endpoints */}
+              <div style={{ marginBottom: 'var(--space-sm)' }}>
+                <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.65rem', color: 'var(--text-muted)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 }}>Affected Endpoints</p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {scenario.endpoints.map((ep, i) => (
+                    <span key={i} style={{ fontFamily: 'var(--font-body)', fontSize: '0.65rem', padding: '3px 10px', borderRadius: 'var(--radius-pill)', background: 'var(--bg-void)', border: '1px solid rgba(255,255,255,0.07)', color: 'var(--accent-cream)' }}>
+                      {ep}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Methods */}
+              <div style={{ marginBottom: scenario.error_message ? 'var(--space-sm)' : 0 }}>
+                <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.65rem', color: 'var(--text-muted)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 }}>HTTP Methods</p>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {scenario.methods.map((m, i) => (
+                    <span key={i} style={{ fontFamily: 'var(--font-accent)', fontSize: '0.9rem', padding: '2px 10px', borderRadius: 'var(--radius-pill)', background: `${meta.color}20`, border: `1px solid ${meta.color}44`, color: meta.color }}>
+                      {m}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Error message */}
+              {scenario.error_message && (
+                <div>
+                  <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.65rem', color: 'var(--text-muted)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 }}>Error Message</p>
+                  <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', color: 'var(--text-muted)', background: 'var(--bg-void)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(255,255,255,0.05)', lineHeight: 1.5 }}>
+                    {scenario.error_message}
+                  </p>
+                </div>
+              )}
+
+              {/* Rate limit / timeout extra */}
+              {(scenario.rate_limit_requests || scenario.timeout_seconds) && (
+                <div style={{ display: 'flex', gap: 'var(--space-md)', marginTop: 'var(--space-sm)' }}>
+                  {scenario.rate_limit_requests && (
+                    <div>
+                      <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.6rem', color: 'var(--text-muted)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 4 }}>Limit (req)</p>
+                      <p style={{ fontFamily: 'var(--font-accent)', fontSize: '1.4rem', color: meta.color }}>{scenario.rate_limit_requests}</p>
+                    </div>
+                  )}
+                  {scenario.rate_limit_window && (
+                    <div>
+                      <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.6rem', color: 'var(--text-muted)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 4 }}>Window (s)</p>
+                      <p style={{ fontFamily: 'var(--font-accent)', fontSize: '1.4rem', color: meta.color }}>{scenario.rate_limit_window}</p>
+                    </div>
+                  )}
+                  {scenario.timeout_seconds && (
+                    <div>
+                      <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.6rem', color: 'var(--text-muted)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 4 }}>Timeout (s)</p>
+                      <p style={{ fontFamily: 'var(--font-accent)', fontSize: '1.4rem', color: meta.color }}>{scenario.timeout_seconds}s</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
