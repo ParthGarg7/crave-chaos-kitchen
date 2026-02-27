@@ -45,10 +45,10 @@ interface Restaurant {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-    pending:   { label: 'Pending',   color: '#ffc845', bg: 'rgba(255,200,69,0.12)' },
+    pending: { label: 'Pending', color: '#ffc845', bg: 'rgba(255,200,69,0.12)' },
     confirmed: { label: 'Confirmed', color: '#60a5fa', bg: 'rgba(96,165,250,0.12)' },
     preparing: { label: 'Preparing', color: '#fb923c', bg: 'rgba(251,146,60,0.12)' },
-    ready:     { label: 'Ready ✓',  color: '#22c55e', bg: 'rgba(34,197,94,0.12)' },
+    ready: { label: 'Ready ✓', color: '#22c55e', bg: 'rgba(34,197,94,0.12)' },
 };
 
 const NEXT_STATUS: Record<string, string | null> = {
@@ -432,7 +432,7 @@ function NoRestaurantPanel() {
             <motion.button
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
-                onClick={() => navigate('/register-restaurant')}
+                onClick={() => navigate('/setup-restaurant')}
                 style={{
                     padding: '14px 40px', background: 'var(--accent-fire)', color: '#fff',
                     fontFamily: 'var(--font-accent)', fontSize: '1.1rem', letterSpacing: 2,
@@ -451,6 +451,7 @@ export default function RestaurantDashboard() {
     const { user } = useAuthStore();
     const navigate = useNavigate();
 
+    const [allRestaurants, setAllRestaurants] = useState<Restaurant[]>([]);
     const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
     const [orders, setOrders] = useState<RealOrder[]>([]);
     const [menuItems, setMenuItems] = useState<RealMenuItem[]>([]);
@@ -460,6 +461,7 @@ export default function RestaurantDashboard() {
     const [showAddModal, setShowAddModal] = useState(false);
     const [editItem, setEditItem] = useState<RealMenuItem | null>(null);
     const [noRestaurant, setNoRestaurant] = useState(false);
+    const [showRestaurantPicker, setShowRestaurantPicker] = useState(false);
 
     const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -475,18 +477,41 @@ export default function RestaurantDashboard() {
         }
     }, [user, navigate]);
 
+    const loadOrdersForRestaurant = useCallback(async (restId: number) => {
+        try {
+            const ordRes = await orderApi.getRestaurantOrders({ restaurant_id: restId });
+            setOrders(ordRes.data ?? []);
+        } catch {
+            // silently ignore order fetch failures
+        }
+    }, []);
+
+    const selectRestaurant = useCallback((r: Restaurant) => {
+        setRestaurant(r);
+        setMenuItems(r.menu_items ?? []);
+        setShowRestaurantPicker(false);
+        loadOrdersForRestaurant(r.id);
+    }, [loadOrdersForRestaurant]);
+
     const fetchRestaurantData = useCallback(async () => {
         try {
-            const res = await restaurantApi.getMyRestaurant();
-            const r = res.data;
-            setRestaurant(r);
-            setMenuItems(r.menu_items ?? []);
-            setNoRestaurant(false);
-            setError('');
+            const res = await restaurantApi.getMyRestaurants();
+            const list: Restaurant[] = res.data ?? [];
+            setAllRestaurants(list);
 
-            // Also fetch live orders
-            const ordRes = await orderApi.getRestaurantOrders();
-            setOrders(ordRes.data ?? []);
+            if (list.length === 0) {
+                setNoRestaurant(true);
+            } else {
+                setNoRestaurant(false);
+                setError('');
+                // Keep current selection if still valid, otherwise pick first
+                setRestaurant(prev => {
+                    const current = prev ? list.find(r => r.id === prev.id) ?? list[0] : list[0];
+                    setMenuItems(current.menu_items ?? []);
+                    loadOrdersForRestaurant(current.id);
+                    return current;
+                });
+            }
         } catch (err: unknown) {
             const e = err as { response?: { status?: number } };
             if (e?.response?.status === 404) {
@@ -497,7 +522,7 @@ export default function RestaurantDashboard() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [loadOrdersForRestaurant]);
 
     useEffect(() => {
         fetchRestaurantData();
@@ -584,9 +609,59 @@ export default function RestaurantDashboard() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-lg)' }}>
                     <div>
                         <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.65rem', color: 'var(--text-muted)', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 6 }}>Restaurant Dashboard</p>
-                        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(1.8rem, 4vw, 3rem)', lineHeight: 1 }}>
-                            {restaurant?.name ?? (user?.first_name ? `Welcome, ${user.first_name}` : 'Kitchen Control')}
-                        </h1>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(1.8rem, 4vw, 3rem)', lineHeight: 1 }}>
+                                {restaurant?.name ?? (user?.first_name ? `Welcome, ${user.first_name}` : 'Kitchen Control')}
+                            </h1>
+                            {/* Multi-restaurant switcher */}
+                            {allRestaurants.length > 1 && (
+                                <div style={{ position: 'relative' }}>
+                                    <motion.button
+                                        whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
+                                        onClick={() => setShowRestaurantPicker(p => !p)}
+                                        style={{ padding: '6px 14px', background: 'var(--bg-elevated)', border: '1px solid rgba(255,69,0,0.3)', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-body)', fontSize: '0.7rem', color: 'var(--accent-fire)', letterSpacing: 1, cursor: 'none' }}
+                                    >
+                                        🔀 Switch ({allRestaurants.length})
+                                    </motion.button>
+                                    <AnimatePresence>
+                                        {showRestaurantPicker && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                                                style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, minWidth: 220, background: 'var(--bg-surface)', border: '1px solid rgba(255,69,0,0.2)', borderRadius: 'var(--radius-md)', boxShadow: '0 20px 60px rgba(0,0,0,0.6)', overflow: 'hidden', zIndex: 500 }}
+                                            >
+                                                {allRestaurants.map(r => (
+                                                    <button
+                                                        key={r.id}
+                                                        onClick={() => selectRestaurant(r)}
+                                                        style={{ width: '100%', textAlign: 'left', padding: '12px 16px', background: r.id === restaurant?.id ? 'rgba(255,69,0,0.10)' : 'none', borderBottom: '1px solid rgba(255,255,255,0.04)', fontFamily: 'var(--font-body)', fontSize: '0.78rem', color: r.id === restaurant?.id ? 'var(--accent-fire)' : 'var(--accent-cream)', cursor: 'none', transition: 'background 0.15s' }}
+                                                    >
+                                                        {r.id === restaurant?.id ? '✓ ' : ''}{r.name}
+                                                        <span style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2 }}>{r.status?.toUpperCase()}</span>
+                                                    </button>
+                                                ))}
+                                                <button
+                                                    onClick={() => { setShowRestaurantPicker(false); navigate('/setup-restaurant'); }}
+                                                    style={{ width: '100%', textAlign: 'left', padding: '12px 16px', background: 'none', fontFamily: 'var(--font-body)', fontSize: '0.75rem', color: '#22c55e', cursor: 'none' }}
+                                                >
+                                                    + Add Another Restaurant
+                                                </button>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                            )}
+                            {allRestaurants.length === 1 && (
+                                <motion.button
+                                    whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                                    onClick={() => navigate('/setup-restaurant')}
+                                    style={{ padding: '6px 14px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.25)', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-body)', fontSize: '0.7rem', color: '#22c55e', letterSpacing: 1, cursor: 'none' }}
+                                >
+                                    + Add Restaurant
+                                </motion.button>
+                            )}
+                        </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
                             <span style={{
                                 fontFamily: 'var(--font-body)', fontSize: '0.6rem', letterSpacing: 2, textTransform: 'uppercase',

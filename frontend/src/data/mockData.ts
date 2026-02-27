@@ -1,28 +1,28 @@
 // CRAVE v2 — Mock Data & API Layer (prices in ₹)
 
 export const restaurants = [
-    { id: 1, name: "Blaze Pizza Co.", cuisine: "Italian • Artisan", description: "Wood-fired artisan pizzas with locally sourced ingredients and a crispy, smoky finish.", rating: 4.8, time: "25–35 min", priceRange: "$$", emoji: "🍕", color: "#2a1010" },
-    { id: 2, name: "Noodle Nirvana", cuisine: "Pan-Asian • Ramen", description: "Handmade noodles and rich broths from across Asia — ramen, pho, and beyond.", rating: 4.6, time: "20–30 min", priceRange: "₹", emoji: "🍜", color: "#0d1a2a" },
-    { id: 3, name: "El Fuego Tacos", cuisine: "Mexican • Street Food", description: "Authentic Mexican street tacos, burritos, and quesadillas with house-made salsas.", rating: 4.7, time: "15–25 min", priceRange: "₹", emoji: "🌮", color: "#1a1200" },
-    { id: 4, name: "Zen Sushi Bar", cuisine: "Japanese • Premium", description: "Premium sushi and sashimi crafted by master chefs using the freshest fish daily.", rating: 4.9, time: "30–45 min", priceRange: "₹₹₹", emoji: "🍣", color: "#001a15" },
-    { id: 5, name: "The Burger Vault", cuisine: "American • Gourmet", description: "Double-smashed patties, aged cheddar, and sauces made from scratch every morning.", rating: 4.5, time: "20–30 min", priceRange: "₹₹", emoji: "🍔", color: "#1a0d00" },
-    { id: 6, name: "Spice Route", cuisine: "Indian • Contemporary", description: "Modern takes on Indian classics — biryanis, curries, and tandoor-grilled mains.", rating: 4.7, time: "25–40 min", priceRange: "₹₹", emoji: "🥘", color: "#1a0a00" },
+    { id: 1, name: "upes ka food (Swadu).", cuisine: "Italian • Artisan", description: "Wood-fired artisan pizzas with locally sourced ingredients and a crispy, smoky finish.", rating: 4.8, time: "25–35 min", priceRange: "₹₹", emoji: "🍕", color: "#2a1010" },
+    { id: 2, name: "Noodle Nirvana (konoha)", cuisine: "Pan-Asian • Ramen", description: "Handmade noodles and rich broths from across Asia — ramen, pho, and beyond.", rating: 4.6, time: "20–30 min", priceRange: "₹₹", emoji: "🍜", color: "#0d1a2a" },
+    { id: 3, name: "El Fuego Tacos (dominos)", cuisine: "Mexican • Street Food", description: "Authentic Mexican street tacos, burritos, and quesadillas with house-made salsas.", rating: 4.7, time: "15–25 min", priceRange: "₹₹", emoji: "🌮", color: "#1a1200" },
+    { id: 4, name: "Zen Sushi Bar (bunk)", cuisine: "Japanese • Premium", description: "Premium sushi and sashimi crafted by master chefs using the freshest fish daily.", rating: 4.9, time: "30–45 min", priceRange: "₹₹", emoji: "🍣", color: "#001a15" },
+    { id: 5, name: "The Burger Vault (burger belly)", cuisine: "American • Gourmet", description: "Double-smashed patties, aged cheddar, and sauces made from scratch every morning.", rating: 4.5, time: "20–30 min", priceRange: "₹₹", emoji: "🍔", color: "#1a0d00" },
+    { id: 6, name: "Spice Route (spicy bowl)", cuisine: "Indian • Contemporary", description: "Modern takes on Indian classics — biryanis, curries, and tandoor-grilled mains.", rating: 4.7, time: "25–40 min", priceRange: "₹₹", emoji: "🥘", color: "#1a0a00" },
 ];
 
 export const allMenus: Record<number, Record<string, { id: number; name: string; desc: string; price: number; emoji: string }[]>> = {
     1: {
         starters: [
-            { id: 101, name: "Garlic Bread Knots", desc: "Twisted dough, roasted garlic butter, fresh herbs", price: 349, emoji: "🧄" },
-            { id: 102, name: "Burrata Bruschetta", desc: "Heirloom tomato, basil oil, aged balsamic", price: 599, emoji: "🫙" },
+            { id: 101, name: "Garlic Bread Knots", desc: "Twisted dough, roasted garlic butter, fresh herbs", price: 1000, emoji: "🧄" },
+            { id: 102, name: "Burrata Bruschetta", desc: "Heirloom tomato, basil oil, aged balsamic", price: 99, emoji: "🫙" },
         ],
         mains: [
-            { id: 201, name: "Margherita Inferno", desc: "San Marzano tomato, fior di latte, fresh basil, EVOO", price: 849, emoji: "🍕" },
-            { id: 202, name: "Truffle Funghi", desc: "Wild mushroom medley, black truffle, pecorino", price: 999, emoji: "🍄" },
-            { id: 203, name: "Diavola", desc: "Spicy salami, chilli oil, smoked mozzarella", price: 949, emoji: "🌶️" },
+            { id: 201, name: "Margherita Inferno", desc: "San Marzano tomato, fior di latte, fresh basil, EVOO", price: 100000, emoji: "🍕" },
+            { id: 202, name: "Truffle Funghi", desc: "Wild mushroom medley, black truffle, pecorino", price: 199, emoji: "🍄" },
+            { id: 203, name: "Diavola", desc: "Spicy salami, chilli oil, smoked mozzarella", price: 249, emoji: "🌶️" },
         ],
         desserts: [
-            { id: 301, name: "Tiramisu Classico", desc: "Mascarpone cream, espresso-soaked ladyfingers, cocoa", price: 449, emoji: "☕" },
-            { id: 302, name: "Affogato", desc: "Vanilla gelato drowned in a shot of hot espresso", price: 349, emoji: "🍨" },
+            { id: 301, name: "Tiramisu Classico", desc: "Mascarpone cream, espresso-soaked ladyfingers, cocoa", price: 79, emoji: "☕" },
+            { id: 302, name: "Affogato", desc: "Vanilla gelato drowned in a shot of hot espresso", price: 149, emoji: "🍨" },
         ],
     },
     2: {

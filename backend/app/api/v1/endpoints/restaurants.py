@@ -56,12 +56,22 @@ async def list_cuisine_types():
     return [{"value": c.value, "label": c.value.replace("_", " ").title()} for c in CuisineType]
 
 
+@router.get("/my-restaurants", response_model=List[RestaurantResponse])
+async def get_my_restaurants(
+    current_user: User = Depends(require_role(UserRole.RESTAURANT_OWNER)),
+    db: Session = Depends(get_db)
+):
+    """Get all restaurants owned by the authenticated restaurant owner"""
+    restaurants = db.query(Restaurant).filter(Restaurant.owner_id == current_user.id).all()
+    return restaurants
+
+
 @router.get("/my-restaurant", response_model=RestaurantResponse)
 async def get_my_restaurant(
     current_user: User = Depends(require_role(UserRole.RESTAURANT_OWNER)),
     db: Session = Depends(get_db)
 ):
-    """Get the authenticated restaurant owner's restaurant"""
+    """Get the first restaurant owned by the authenticated restaurant owner (legacy)"""
     restaurant = db.query(Restaurant).filter(Restaurant.owner_id == current_user.id).first()
     
     if not restaurant:
@@ -93,19 +103,11 @@ async def create_restaurant(
     current_user: User = Depends(require_role(UserRole.RESTAURANT_OWNER)),
     db: Session = Depends(get_db)
 ):
-    """Create a new restaurant (restaurant owners only)"""
-    # Check if user already has a restaurant
-    existing = db.query(Restaurant).filter(Restaurant.owner_id == current_user.id).first()
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User already has a restaurant"
-        )
-    
+    """Create a new restaurant (restaurant owners only — multiple allowed)"""
     restaurant = Restaurant(
         **restaurant_data.model_dump(),
         owner_id=current_user.id,
-        status=RestaurantStatus.PENDING
+        status=RestaurantStatus.ACTIVE  # Auto-activate for now; admin approval can be added later
     )
     
     db.add(restaurant)

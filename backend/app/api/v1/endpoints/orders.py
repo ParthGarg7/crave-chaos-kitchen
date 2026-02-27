@@ -57,25 +57,38 @@ async def get_my_orders(
 
 @router.get("/restaurant-orders", response_model=List[OrderResponse])
 async def get_restaurant_orders(
+    restaurant_id: int = Query(None, description="Filter by specific restaurant ID (optional for owners with multiple restaurants)"),
     order_status: OrderStatus = Query(None, alias="status"),
     current_user: User = Depends(require_role(UserRole.RESTAURANT_OWNER)),
     db: Session = Depends(get_db)
 ):
-    """Get orders for the restaurant owner's restaurant"""
-    # Get owner's restaurant
-    restaurant = db.query(Restaurant).filter(Restaurant.owner_id == current_user.id).first()
-    
-    if not restaurant:
+    """Get orders for the restaurant owner's restaurants (all or filtered by ID)"""
+    # Get all restaurants owned by this user
+    owned_restaurants = db.query(Restaurant).filter(Restaurant.owner_id == current_user.id).all()
+
+    if not owned_restaurants:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Restaurant not found for this owner"
+            detail="No restaurants found for this owner"
         )
-    
-    query = db.query(Order).filter(Order.restaurant_id == restaurant.id)
-    
+
+    # If a specific restaurant_id is requested, verify ownership
+    if restaurant_id:
+        owned_ids = [r.id for r in owned_restaurants]
+        if restaurant_id not in owned_ids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not own this restaurant"
+            )
+        target_ids = [restaurant_id]
+    else:
+        target_ids = [r.id for r in owned_restaurants]
+
+    query = db.query(Order).filter(Order.restaurant_id.in_(target_ids))
+
     if order_status:
         query = query.filter(Order.status == order_status)
-    
+
     orders = query.order_by(Order.created_at.desc()).all()
     return orders
 
@@ -173,7 +186,7 @@ async def create_order(
     if subtotal < restaurant.min_order_amount:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Minimum order amount is ${restaurant.min_order_amount}"
+            detail=f"Minimum order amount is ₹{restaurant.min_order_amount:.0f}"
         )
     
     # Create order

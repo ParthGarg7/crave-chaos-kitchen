@@ -109,13 +109,16 @@ class RestaurantResponse(RestaurantBase):
 class RestaurantListResponse(BaseModel):
     id: int
     name: str
+    description: Optional[str] = None
     cuisine_type: CuisineType
+    status: RestaurantStatus
     rating: float
     delivery_time_min: int
     delivery_time_max: int
     delivery_fee: float
     min_order_amount: float
-    
+    city: Optional[str] = None
+
     class Config:
         from_attributes = True
 

@@ -12,6 +12,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import FailureSimulatorPage from './pages/FailureSimulatorPage';
 import RestaurantDashboard from './pages/RestaurantDashboard';
+import SetupRestaurantPage from './pages/SetupRestaurantPage';
 import DriverDashboard from './pages/DriverDashboard';
 import AdminPanel from './pages/AdminPanel';
 
@@ -20,7 +21,7 @@ import { useAuthStore } from './stores/authStore';
 import { orderApi } from './services/api';
 
 // ─── Types ───
-export interface CartItem { id: number; name: string; price: number; emoji: string; qty: number; restaurantId?: number }
+export interface CartItem { id: number; name: string; price: number; emoji: string; qty: number; restaurantId: number }
 
 // ─── Custom Cursor ───
 function CustomCursor() {
@@ -386,12 +387,11 @@ function AppContent() {
       return;
     }
 
+    if (cart.length === 0) return;
     setOrderState('loading');
 
     try {
-      // Try the real API first
-      const firstItem = cart[0];
-      const restaurantId = firstItem?.restaurantId ?? 1;
+      const restaurantId = cart[0].restaurantId;
 
       const orderPayload = {
         restaurant_id: restaurantId,
@@ -400,7 +400,7 @@ function AppContent() {
           quantity: item.qty,
         })),
         delivery_address: user?.address ?? '123 Main Street, New Delhi',
-        payment_method: 'cash',  // fixed: was 'cash_on_delivery' which is not a valid backend enum
+        payment_method: 'cash',
         tip: 0,
       };
 
@@ -409,20 +409,26 @@ function AppContent() {
       setOrderState('success');
       setOrderId(String(realOrderId));
       toast.success('Order placed successfully! 🎉');
-    } catch {
-      // Fallback to mock if backend unreachable
-      await new Promise(r => setTimeout(r, 1200));
-      setOrderState('success');
-      setOrderId('CR-' + Math.floor(Math.random() * 9999));
-      toast.success('Order placed! 🎉');
-    }
 
-    setTimeout(() => {
-      setCart([]);
-      setCartOpen(false);
+      setTimeout(() => {
+        setCart([]);
+        setCartOpen(false);
+        setOrderState('idle');
+        navigate('/tracking');
+      }, 1200);
+
+    } catch (err: unknown) {
       setOrderState('idle');
-      navigate('/tracking');
-    }, 1200);
+      const e = err as { response?: { data?: { detail?: string }; status?: number } };
+      const detail = e?.response?.data?.detail;
+      if (detail) {
+        toast.error(detail);
+      } else if (!e?.response) {
+        // Backend unreachable — fall back gracefully
+        toast.error('Could not reach server. Is Docker running?');
+      }
+      // 400/422 messages are shown inline via the detail field above
+    }
   }, [isAuthenticated, user, cart, navigate]);
 
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
@@ -448,6 +454,7 @@ function AppContent() {
             <Route path="/admin" element={<RequireRole role="admin"><PageWrap key="admin"><AdminPanel /></PageWrap></RequireRole>} />
             {/* Role-protected dashboards — auth guards handled inside each dashboard */}
             <Route path="/restaurant-dashboard" element={<PageWrap key="rdash"><RestaurantDashboard /></PageWrap>} />
+            <Route path="/setup-restaurant" element={<PageWrap key="setup-rest"><SetupRestaurantPage /></PageWrap>} />
             <Route path="/driver-dashboard" element={<PageWrap key="ddash"><DriverDashboard /></PageWrap>} />
           </Routes>
         </AnimatePresence>
