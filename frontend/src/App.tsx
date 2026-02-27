@@ -14,6 +14,7 @@ import FailureSimulatorPage from './pages/FailureSimulatorPage';
 import RestaurantDashboard from './pages/RestaurantDashboard';
 import DriverDashboard from './pages/DriverDashboard';
 import AdminPanel from './pages/AdminPanel';
+import PaymentModal, { PaymentMethod } from './components/PaymentModal';
 
 // Auth store & API
 import { useAuthStore } from './stores/authStore';
@@ -232,11 +233,11 @@ function Navbar({ cartCount, onCartClick }: { cartCount: number; onCartClick: ()
 
 // ─── Cart Drawer ───
 function CartDrawer({
-  cart, open, onClose, onUpdate, onRemove, onPlaceOrder, orderState,
+  cart, open, onClose, onUpdate, onRemove, onProceedToPayment, orderState,
 }: {
   cart: CartItem[]; open: boolean; onClose: () => void;
   onUpdate: (id: number, q: number) => void; onRemove: (id: number) => void;
-  onPlaceOrder: () => void; orderState: string;
+  onProceedToPayment: () => void; orderState: string;
 }) {
   const { isAuthenticated } = useAuthStore();
   const navigate = useNavigate();
@@ -245,14 +246,14 @@ function CartDrawer({
   const deliveryFee = cart.length > 0 ? 49 : 0; // ₹49 delivery
   const total = subtotal + deliveryFee;
 
-  const handlePlaceOrder = () => {
+  const handleProceedToPayment = () => {
     if (!isAuthenticated) {
       onClose();
       toast.error('Please login to place an order 🔐');
       navigate('/login');
       return;
     }
-    onPlaceOrder();
+    onProceedToPayment();
   };
 
   return (
@@ -297,11 +298,11 @@ function CartDrawer({
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={handlePlaceOrder}
+                onClick={handleProceedToPayment}
                 disabled={orderState !== 'idle'}
                 style={{ width: '100%', padding: '16px 0', background: orderState === 'success' ? '#22c55e' : 'var(--accent-fire)', color: '#fff', fontFamily: 'var(--font-accent)', fontSize: '1.3rem', letterSpacing: 3, borderRadius: 'var(--radius-sm)', transition: 'background 0.3s' }}
               >
-                {orderState === 'idle' && (isAuthenticated ? 'PLACE ORDER →' : 'LOGIN TO ORDER →')}
+                {orderState === 'idle' && (isAuthenticated ? 'PROCEED TO PAYMENT →' : 'LOGIN TO ORDER →')}
                 {orderState === 'loading' && '⏳ PLACING...'}
                 {orderState === 'success' && 'ORDER PLACED! 🎉'}
               </motion.button>
@@ -359,6 +360,7 @@ function AppContent() {
   const { isAuthenticated, user } = useAuthStore();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
+  const [paymentOpen, setPaymentOpen] = useState(false);
   const [orderState, setOrderState] = useState<'idle' | 'loading' | 'success'>('idle');
   const [orderId, setOrderId] = useState('');
 
@@ -378,15 +380,23 @@ function AppContent() {
     setCart(prev => prev.filter(c => c.id !== id));
   }, []);
 
-  const handlePlaceOrder = useCallback(async () => {
+  const handlePlaceOrder = useCallback(async (paymentMethod: PaymentMethod = 'cash') => {
     if (!isAuthenticated) {
       setCartOpen(false);
+      setPaymentOpen(false);
       toast.error('Please login first 🔐');
       navigate('/login');
       return;
     }
 
     setOrderState('loading');
+
+    // Map PaymentMethod to backend-accepted value
+    const backendPaymentMethod =
+      paymentMethod === 'card' ? 'card' :
+        paymentMethod === 'upi' ? 'upi' :
+          paymentMethod === 'paypal' ? 'paypal' :
+            'cash';
 
     try {
       // Try the real API first
@@ -400,7 +410,7 @@ function AppContent() {
           quantity: item.qty,
         })),
         delivery_address: user?.address ?? '123 Main Street, New Delhi',
-        payment_method: 'cash',  // fixed: was 'cash_on_delivery' which is not a valid backend enum
+        payment_method: backendPaymentMethod,
         tip: 0,
       };
 
@@ -420,10 +430,20 @@ function AppContent() {
     setTimeout(() => {
       setCart([]);
       setCartOpen(false);
+      setPaymentOpen(false);
       setOrderState('idle');
       navigate('/tracking');
     }, 1200);
   }, [isAuthenticated, user, cart, navigate]);
+
+  const handleProceedToPayment = useCallback(() => {
+    setCartOpen(false);
+    setPaymentOpen(true);
+  }, []);
+
+  const handlePaymentConfirmed = useCallback((method: PaymentMethod) => {
+    handlePlaceOrder(method);
+  }, [handlePlaceOrder]);
 
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
   const legacyNavigate = (p: string) => navigate(p === 'hero' ? '/' : `/${p}`);
@@ -431,7 +451,15 @@ function AppContent() {
   return (
     <>
       <Navbar cartCount={cartCount} onCartClick={() => setCartOpen(true)} />
-      <CartDrawer cart={cart} open={cartOpen} onClose={() => setCartOpen(false)} onUpdate={updateQty} onRemove={removeItem} onPlaceOrder={handlePlaceOrder} orderState={orderState} />
+      <CartDrawer cart={cart} open={cartOpen} onClose={() => setCartOpen(false)} onUpdate={updateQty} onRemove={removeItem} onProceedToPayment={handleProceedToPayment} orderState={orderState} />
+      <PaymentModal
+        open={paymentOpen}
+        onClose={() => { setPaymentOpen(false); setCartOpen(true); }}
+        onConfirm={handlePaymentConfirmed}
+        total={cart.reduce((s, i) => s + i.price * i.qty, 0) + (cart.length > 0 ? 49 : 0)}
+        cartItems={cart.map(i => ({ name: i.name, emoji: i.emoji, qty: i.qty, price: i.price }))}
+        orderState={orderState}
+      />
 
       <main>
         <AnimatePresence mode="wait">
