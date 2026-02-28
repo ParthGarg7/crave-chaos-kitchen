@@ -11,6 +11,7 @@ from app.api.v1.endpoints import (
     delivery,
     failure_simulator,
     admin,
+    contact,
 )
 
 api_router = APIRouter()
@@ -23,3 +24,4 @@ api_router.include_router(payments.router)
 api_router.include_router(delivery.router)
 api_router.include_router(failure_simulator.router)
 api_router.include_router(admin.router)
+api_router.include_router(contact.router)

@@ -91,8 +91,7 @@ export default function TrackingPage({ orderId, navigate }: { orderId: string; n
                 </motion.div>
 
                 {/* Bottom */}
-                <div style={{ marginTop: 'var(--space-xl)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Need help? <span style={{ color: 'var(--accent-ember)', borderBottom: '1px solid var(--accent-ember)' }}>Contact Support</span></p>
+                <div style={{ marginTop: 'var(--space-xl)', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
                     <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={() => navigate('browse')} style={{ padding: '10px 24px', border: '1px solid var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: '0.8rem', letterSpacing: 2, textTransform: 'uppercase', borderRadius: 'var(--radius-sm)', color: 'var(--accent-cream)' }}>
                         ORDER AGAIN
                     </motion.button>

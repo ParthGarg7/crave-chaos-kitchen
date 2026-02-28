@@ -33,7 +33,11 @@ api.interceptors.response.use(
       const status = error.response.status;
       const data = error.response.data as { error?: string; message?: string; detail?: string };
 
+      // Handle specific error types
       switch (status) {
+        case 400:
+          toast.error(data.message || 'Bad request');
+          break;
         case 401:
           toast.error('Session expired. Please log in again.');
           localStorage.removeItem('access_token');
@@ -66,7 +70,8 @@ api.interceptors.response.use(
         case 504:
           toast.error('Request timed out.');
           break;
-        // 400 errors are intentionally NOT auto-toasted — callers handle the message
+        default:
+          toast.error(data.message || 'An error occurred');
       }
     } else if (!skipToast && error.request && !error.response) {
       toast.error('Network error. Please check your connection.');
@@ -265,6 +270,17 @@ export const failureSimulatorApi = {
     api.post('/failure-simulator/toggle', null, { params: { enabled } }),
 
   healthCheck: () => api.get('/failure-simulator/health'),
+};
+
+// Contact Support API
+export const contactApi = {
+  submit: (data: { name: string; email: string; message: string }) =>
+    api.post<{
+      success: boolean;
+      message: string;
+      ticket_id: string;
+      timestamp: string;
+    }>('/contact-support', data),
 };
 
 export default api;
