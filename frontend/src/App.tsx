@@ -15,6 +15,7 @@ import RestaurantDashboard from './pages/RestaurantDashboard';
 import DriverDashboard from './pages/DriverDashboard';
 import AdminPanel from './pages/AdminPanel';
 import PaymentModal, { PaymentMethod } from './components/PaymentModal';
+import ContactSupportModal from './components/ContactSupportModal';
 
 // Auth store & API
 import { useAuthStore } from './stores/authStore';
@@ -361,6 +362,7 @@ function AppContent() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
   const [orderState, setOrderState] = useState<'idle' | 'loading' | 'success'>('idle');
   const [orderId, setOrderId] = useState('');
 
@@ -460,6 +462,36 @@ function AppContent() {
         cartItems={cart.map(i => ({ name: i.name, emoji: i.emoji, qty: i.qty, price: i.price }))}
         orderState={orderState}
       />
+
+      <ContactSupportModal open={contactOpen} onClose={() => setContactOpen(false)} />
+
+      {/* Floating Support Button */}
+      <button
+        id="contact-support-btn"
+        onClick={() => setContactOpen(true)}
+        title="Contact Support"
+        style={{
+          position: 'fixed', bottom: 28, right: 28, zIndex: 2500,
+          width: 48, height: 48, borderRadius: '50%',
+          background: 'var(--bg-surface)',
+          border: '1px solid rgba(255,255,255,0.12)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '1.25rem', color: 'var(--accent-cream)',
+          cursor: 'none',
+          transition: 'border-color 0.2s, box-shadow 0.2s',
+        }}
+        onMouseEnter={e => {
+          (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--accent-fire)';
+          (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 8px 32px rgba(0,0,0,0.5), 0 0 16px var(--glow-fire)';
+        }}
+        onMouseLeave={e => {
+          (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.12)';
+          (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 8px 32px rgba(0,0,0,0.5)';
+        }}
+      >
+        💬
+      </button>
 
       <main>
         <AnimatePresence mode="wait">
