@@ -15,6 +15,9 @@ import RestaurantDashboard from './pages/RestaurantDashboard';
 import SetupRestaurantPage from './pages/SetupRestaurantPage';
 import DriverDashboard from './pages/DriverDashboard';
 import AdminPanel from './pages/AdminPanel';
+import DeveloperDashboard from './pages/DeveloperDashboard';
+import ChaosEngineer from './pages/ChaosEngineer';
+import DualView from './pages/DualView';
 import PaymentModal, { PaymentMethod } from './components/PaymentModal';
 import ContactSupportModal from './components/ContactSupportModal';
 
@@ -180,8 +183,8 @@ function Navbar({ cartCount, onCartClick }: { cartCount: number; onCartClick: ()
     { path: '/', label: 'Home' },
     { path: '/browse', label: 'Browse' },
     ...(!isAuthenticated ? [{ path: '/login', label: 'Login' }] : []),
-    // Simulator only visible to admin users
-    ...(user?.role === 'admin' ? [{ path: '/simulator', label: 'Simulator' }] : []),
+    // Admin/developer tools — visible to admin only
+    ...(user?.role === 'admin' ? [{ path: '/developer', label: '🛠 Dev' }] : []),
     ...(user?.role === 'admin' ? [{ path: '/admin', label: 'Admin' }] : []),
   ];
 
@@ -366,6 +369,7 @@ function AppContent() {
   const [contactOpen, setContactOpen] = useState(false);
   const [orderState, setOrderState] = useState<'idle' | 'loading' | 'success'>('idle');
   const [orderId, setOrderId] = useState('');
+  const [paymentError, setPaymentError] = useState('');
 
   const addToCart = useCallback((item: { id: number; name: string; price: number; emoji: string; restaurantId?: number }) => {
     setCart(prev => {
@@ -394,6 +398,7 @@ function AppContent() {
 
     if (cart.length === 0) return;
     setOrderState('loading');
+    setPaymentError('');
 
     // Map PaymentMethod to backend-accepted value
     const backendPaymentMethod =
@@ -434,18 +439,17 @@ function AppContent() {
       setOrderState('idle');
       const e = err as { response?: { data?: { detail?: string }; status?: number } };
       const detail = e?.response?.data?.detail;
-      if (detail) {
-        toast.error(detail);
-      } else if (!e?.response) {
-        // Backend unreachable — fall back gracefully
+      const errorMsg = detail || (e?.response ? 'Payment failed. Please try again.' : 'Could not reach server. Is Docker running?');
+      setPaymentError(errorMsg);
+      if (!e?.response) {
         toast.error('Could not reach server. Is Docker running?');
       }
-      // 400/422 messages are shown inline via the detail field above
     }
   }, [isAuthenticated, user, cart, navigate]);
 
   const handleProceedToPayment = useCallback(() => {
     setCartOpen(false);
+    setPaymentError('');
     setPaymentOpen(true);
   }, []);
 
@@ -462,11 +466,12 @@ function AppContent() {
       <CartDrawer cart={cart} open={cartOpen} onClose={() => setCartOpen(false)} onUpdate={updateQty} onRemove={removeItem} onProceedToPayment={handleProceedToPayment} orderState={orderState} />
       <PaymentModal
         open={paymentOpen}
-        onClose={() => { setPaymentOpen(false); setCartOpen(true); }}
+        onClose={() => { setPaymentOpen(false); setPaymentError(''); setCartOpen(true); }}
         onConfirm={handlePaymentConfirmed}
         total={cart.reduce((s, i) => s + i.price * i.qty, 0) + (cart.length > 0 ? 49 : 0)}
         cartItems={cart.map(i => ({ name: i.name, emoji: i.emoji, qty: i.qty, price: i.price }))}
         orderState={orderState}
+        errorMessage={paymentError}
       />
 
       <ContactSupportModal open={contactOpen} onClose={() => setContactOpen(false)} />
@@ -512,6 +517,11 @@ function AppContent() {
             {/* Admin-only routes */}
             <Route path="/simulator" element={<RequireRole role="admin"><PageWrap key="simulator"><div style={{ paddingTop: '0px' }}><FailureSimulatorPage /></div></PageWrap></RequireRole>} />
             <Route path="/admin" element={<RequireRole role="admin"><PageWrap key="admin"><AdminPanel /></PageWrap></RequireRole>} />
+            {/* Developer/Admin routes */}
+            <Route path="/developer" element={<RequireRole role="admin"><PageWrap key="dev"><DeveloperDashboard /></PageWrap></RequireRole>} />
+            <Route path="/developer/chaos-engineer" element={<RequireRole role="admin"><PageWrap key="chaos"><ChaosEngineer /></PageWrap></RequireRole>} />
+            <Route path="/developer/dual-view" element={<RequireRole role="admin"><DualView /></RequireRole>} />
+            <Route path="/developer/failure-simulator" element={<RequireRole role="admin"><PageWrap key="fsim"><div style={{ paddingTop: '0px' }}><FailureSimulatorPage /></div></PageWrap></RequireRole>} />
             {/* Role-protected dashboards — auth guards handled inside each dashboard */}
             <Route path="/restaurant-dashboard" element={<PageWrap key="rdash"><RestaurantDashboard /></PageWrap>} />
             <Route path="/setup-restaurant" element={<PageWrap key="setup-rest"><SetupRestaurantPage /></PageWrap>} />
