@@ -11,6 +11,7 @@ from app.core.failure_middleware import FailureSimulationMiddleware
 from app.api.v1.router import api_router
 from app.core.logging import logger, log_request
 from app.middleware.api_tracker import ApiTrackerMiddleware
+from app.middleware.chaos_middleware import ChaosMiddleware
 
 # Create FastAPI application
 app = FastAPI(
@@ -47,6 +48,9 @@ app.add_middleware(
 
 # Add failure simulation middleware (before request logging)
 app.add_middleware(FailureSimulationMiddleware)
+
+# Add Chaos Engineer middleware — handles 23 named experiments
+app.add_middleware(ChaosMiddleware)
 
 # Add API tracker middleware for Chaos Engineer dashboard (admin tool)
 app.add_middleware(ApiTrackerMiddleware)
