@@ -32,6 +32,8 @@ class PaymentStatus(str, enum.Enum):
 class PaymentMethod(str, enum.Enum):
     CREDIT_CARD = "credit_card"
     DEBIT_CARD = "debit_card"
+    CARD = "card"       # Frontend shorthand for credit/debit card
+    UPI = "upi"         # UPI / QR Code payment
     PAYPAL = "paypal"
     CASH = "cash"
 
