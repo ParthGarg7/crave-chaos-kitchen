@@ -45,8 +45,11 @@ class FailureSimulationMiddleware(BaseHTTPMiddleware):
         )
         
         if scenario:
+            # Stamp the specific scenario name for the observation layer
+            request.state.observation_failure_type = scenario.name or scenario.failure_type.value
+            
             logger.info(
-                f"Injecting failure: {scenario.failure_type.value} for {method} {endpoint}"
+                f"Injecting failure: {scenario.name or scenario.failure_type.value} for {method} {endpoint}"
             )
             failure_simulator.record_request(failed=True)
             return await self._inject_failure(request, scenario, client_ip)

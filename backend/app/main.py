@@ -12,6 +12,7 @@ from app.api.v1.router import api_router
 from app.core.logging import logger, log_request
 from app.middleware.api_tracker import ApiTrackerMiddleware
 from app.middleware.chaos_middleware import ChaosMiddleware
+from app.middleware.observation import ObservationMiddleware
 
 # Create FastAPI application
 app = FastAPI(
@@ -54,6 +55,9 @@ app.add_middleware(ChaosMiddleware)
 
 # Add API tracker middleware for Chaos Engineer dashboard (admin tool)
 app.add_middleware(ApiTrackerMiddleware)
+
+# Add Observation Layer middleware (outermost layer to record all traffic)
+app.add_middleware(ObservationMiddleware)
 
 
 # Request logging middleware
