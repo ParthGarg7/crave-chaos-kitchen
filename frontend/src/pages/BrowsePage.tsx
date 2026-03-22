@@ -26,11 +26,8 @@ const CHIPS = [
     { label: 'Pizza', emoji: '🍕', value: 'italian' },
     { label: 'Indian', emoji: '🍛', value: 'indian' },
     { label: 'Chinese', emoji: '🥢', value: 'chinese' },
-    { label: 'Mexican', emoji: '🌮', value: 'mexican' },
     { label: 'Burgers', emoji: '🍔', value: 'american' },
     { label: 'Sushi', emoji: '🍣', value: 'japanese' },
-    { label: 'Thai', emoji: '🍜', value: 'thai' },
-    { label: 'Fast Food', emoji: '🍟', value: 'fast_food' },
 ];
 
 interface ApiRestaurant {
