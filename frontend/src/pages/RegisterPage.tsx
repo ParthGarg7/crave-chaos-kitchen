@@ -44,23 +44,22 @@ const RegisterPage = () => {
     width: '100%',
     padding: '13px 16px 13px 42px',
     background: 'var(--bg-elevated)',
-    border: `1px solid ${focusedField === field ? 'var(--accent-fire)' : 'var(--border-subtle)'}`,
+    border: `1px solid ${focusedField === field ? 'var(--accent-fire)' : 'rgba(255,255,255,0.07)'}`,
     borderRadius: 'var(--radius-sm)',
     color: 'var(--accent-cream)',
     fontFamily: 'var(--font-body)',
     fontSize: '0.85rem',
     outline: 'none',
-    boxShadow: focusedField === field ? '0 0 16px var(--glow-fire)' : 'none',
-    transition: 'all 0.2s var(--ease-smooth)',
+    boxShadow: focusedField === field ? '0 0 20px var(--glow-fire)' : 'none',
+    transition: 'border-color 0.2s, box-shadow 0.2s',
     caretColor: 'var(--accent-fire)',
   } as React.CSSProperties);
 
   const labelStyle = (field: string) => ({
     display: 'block',
     fontFamily: 'var(--font-body)',
-    fontSize: '0.66rem',
-    fontWeight: 500 as const,
-    letterSpacing: 2,
+    fontSize: '0.63rem',
+    letterSpacing: 3,
     textTransform: 'uppercase' as const,
     color: focusedField === field ? 'var(--accent-fire)' : 'var(--text-muted)',
     marginBottom: 7,
@@ -91,8 +90,8 @@ const RegisterPage = () => {
       paddingBottom: 'var(--space-xl)',
     }}>
       {/* Background glows */}
-      <div style={{ position: 'absolute', top: -150, left: -200, width: 500, height: 500, borderRadius: '50%', background: 'var(--glow-fire)', filter: 'blur(160px)', opacity: 0.2, pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', bottom: -180, right: -200, width: 450, height: 450, borderRadius: '50%', background: 'var(--glow-ember)', filter: 'blur(140px)', opacity: 0.15, pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', top: -150, left: -200, width: 500, height: 500, borderRadius: '50%', background: 'var(--glow-fire)', filter: 'blur(160px)', opacity: 0.25, pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', bottom: -180, right: -200, width: 450, height: 450, borderRadius: '50%', background: 'var(--glow-ember)', filter: 'blur(140px)', opacity: 0.2, pointerEvents: 'none' }} />
 
       <motion.div
         initial={{ opacity: 0, y: 40, scale: 0.96 }}
@@ -103,8 +102,8 @@ const RegisterPage = () => {
         <div className="glass" style={{
           borderRadius: 'var(--radius-lg)',
           padding: 'var(--space-xl) var(--space-lg)',
-          border: '1px solid var(--border-glow)',
-          boxShadow: '0 40px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.03) inset',
+          border: '1px solid rgba(255, 69, 0, 0.12)',
+          boxShadow: '0 40px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.03) inset',
         }}>
 
           {/* Header */}
@@ -123,17 +122,16 @@ const RegisterPage = () => {
                 justifyContent: 'center',
                 fontSize: '1.6rem',
                 marginBottom: 'var(--space-sm)',
-                boxShadow: '0 4px 24px var(--glow-ember)',
+                boxShadow: '0 0 30px var(--glow-ember)',
               }}
             >
               ✨
             </motion.div>
             <h1 style={{
               fontFamily: 'var(--font-display)',
-              fontWeight: 800,
-              fontSize: '2rem',
+              fontSize: '2.2rem',
               color: 'var(--accent-cream)',
-              letterSpacing: 1,
+              letterSpacing: 2,
               marginBottom: 6,
             }}>
               CREATE ACCOUNT
@@ -141,7 +139,7 @@ const RegisterPage = () => {
             <p style={{
               fontFamily: 'var(--font-sub)',
               fontStyle: 'italic',
-              fontSize: '0.95rem',
+              fontSize: '1rem',
               color: 'var(--text-muted)',
             }}>
               Join CRAVE and satisfy every craving
@@ -150,7 +148,7 @@ const RegisterPage = () => {
 
           {/* Role Selector */}
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} style={{ marginBottom: 'var(--space-md)' }}>
-            <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.66rem', fontWeight: 500, color: 'var(--text-muted)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 10 }}>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.63rem', color: 'var(--text-muted)', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 10 }}>
               Account Type
             </p>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -166,20 +164,19 @@ const RegisterPage = () => {
                     padding: '12px 8px',
                     borderRadius: 'var(--radius-sm)',
                     background: formData.role === role.value
-                      ? 'linear-gradient(135deg, rgba(232,93,4,0.15), rgba(244,140,6,0.08))'
+                      ? 'linear-gradient(135deg, rgba(255,69,0,0.2), rgba(255,140,0,0.1))'
                       : 'var(--bg-elevated)',
                     border: formData.role === role.value
-                      ? '1px solid var(--border-glow)'
-                      : '1px solid var(--border-subtle)',
+                      ? '1px solid rgba(255,69,0, 0.5)'
+                      : '1px solid rgba(255,255,255,0.05)',
                     color: formData.role === role.value ? 'var(--accent-fire)' : 'var(--text-muted)',
                     fontFamily: 'var(--font-body)',
-                    fontSize: '0.68rem',
-                    fontWeight: 500,
-                    letterSpacing: 0.5,
+                    fontSize: '0.65rem',
+                    letterSpacing: 1,
                     textAlign: 'center',
                     cursor: 'none',
-                    transition: 'all 0.2s var(--ease-smooth)',
-                    boxShadow: formData.role === role.value ? '0 4px 12px var(--glow-fire)' : 'none',
+                    transition: 'all 0.2s',
+                    boxShadow: formData.role === role.value ? '0 0 16px var(--glow-fire)' : 'none',
                   }}
                 >
                   <span style={{ display: 'block', fontSize: '1.3rem', marginBottom: 4 }}>{role.icon}</span>
@@ -272,7 +269,7 @@ const RegisterPage = () => {
                   {showPassword ? '🙈' : '👁️'}
                 </button>
               </div>
-              <p style={{ marginTop: 6, fontFamily: 'var(--font-body)', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+              <p style={{ marginTop: 6, fontFamily: 'var(--font-body)', fontSize: '0.62rem', color: 'var(--text-muted)', letterSpacing: 1 }}>
                 Minimum 8 characters
               </p>
             </motion.div>
@@ -287,18 +284,17 @@ const RegisterPage = () => {
                 className="shimmer"
                 style={{
                   width: '100%',
-                  padding: '14px 0',
+                  padding: '16px 0',
                   background: 'linear-gradient(135deg, var(--accent-fire), var(--accent-ember))',
                   color: '#fff',
-                  fontFamily: 'var(--font-display)',
-                  fontWeight: 700,
-                  fontSize: '1rem',
-                  letterSpacing: 2,
+                  fontFamily: 'var(--font-accent)',
+                  fontSize: '1.3rem',
+                  letterSpacing: 4,
                   borderRadius: 'var(--radius-sm)',
                   border: 'none',
                   cursor: registerMutation.isPending ? 'not-allowed' : 'none',
                   opacity: registerMutation.isPending ? 0.7 : 1,
-                  boxShadow: '0 4px 24px var(--glow-fire)',
+                  boxShadow: '0 0 30px var(--glow-fire)',
                   transition: 'opacity 0.2s',
                 }}
               >
@@ -330,8 +326,9 @@ const RegisterPage = () => {
               marginTop: 'var(--space-md)',
               textAlign: 'center',
               fontFamily: 'var(--font-body)',
-              fontSize: '0.78rem',
+              fontSize: '0.75rem',
               color: 'var(--text-muted)',
+              letterSpacing: 1,
             }}
           >
             Already have an account?{' '}

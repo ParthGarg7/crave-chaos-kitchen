@@ -37,6 +37,7 @@ class FailureScenario(BaseModel):
     timeout_seconds: float = 5.0   # Delay before timeout
     error_message: Optional[str] = None
     status_code: Optional[int] = None
+    name: Optional[str] = None  # Added for observation tracking
     
     # Conditional failures
     only_for_users: Optional[List[str]] = None  # Specific user IDs
@@ -85,35 +86,35 @@ DEFAULT_SCENARIOS = {
         enabled=False,
         failure_type=FailureType.SERVER_ERROR,
         probability=0.2,
-        endpoints=["/api/restaurants/*", "/api/orders/*"],
+        endpoints=["/api/v1/restaurants/*", "/api/v1/orders/*", "/api/restaurants/*", "/api/orders/*"],
         error_message="Database connection error. Please try again later."
     ),
     "validation_error": FailureScenario(
         enabled=False,
         failure_type=FailureType.BAD_REQUEST,
         probability=0.3,
-        endpoints=["/api/orders", "/api/cart/items"],
+        endpoints=["/api/v1/orders", "/api/v1/cart/items", "/api/orders", "/api/cart/items"],
         error_message="Invalid request data. Please check your input."
     ),
     "stripe_dependency": FailureScenario(
         enabled=False,
         failure_type=FailureType.DEPENDENCY,
         probability=0.5,
-        endpoints=["/api/payments/*"],
+        endpoints=["/api/v1/payments/*", "/api/payments/*"],
         error_message="Payment service temporarily unavailable."
     ),
     "maps_dependency": FailureScenario(
         enabled=False,
         failure_type=FailureType.DEPENDENCY,
         probability=0.4,
-        endpoints=["/api/delivery/*", "/api/maps/*"],
+        endpoints=["/api/v1/delivery/*", "/api/v1/maps/*", "/api/delivery/*", "/api/maps/*"],
         error_message="Location service temporarily unavailable."
     ),
     "config_error": FailureScenario(
         enabled=False,
         failure_type=FailureType.CONFIGURATION,
         probability=0.2,
-        endpoints=["/api/webhooks/*"],
+        endpoints=["/api/v1/webhooks/*", "/api/webhooks/*"],
         error_message="Service configuration error. Contact support."
     ),
     "service_overload": FailureScenario(
@@ -133,7 +134,12 @@ class FailureSimulator:
     """
     
     def __init__(self):
-        self.state = FailureSimulatorState(scenarios=DEFAULT_SCENARIOS.copy())
+        # Initialize scenarios with their names from keys
+        scenarios = DEFAULT_SCENARIOS.copy()
+        for name, scenario in scenarios.items():
+            scenario.name = name
+            
+        self.state = FailureSimulatorState(scenarios=scenarios)
         self._request_counters: Dict[str, Dict[str, int]] = {}  # For rate limiting
         self._lock = asyncio.Lock()
     

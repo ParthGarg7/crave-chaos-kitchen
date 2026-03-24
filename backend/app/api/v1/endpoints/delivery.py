@@ -4,7 +4,7 @@ Delivery API Endpoints
 from typing import List
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.db.base import get_db
 from app.models.delivery import Delivery, DeliveryStatus, DriverLocation
@@ -25,11 +25,15 @@ async def get_available_deliveries(
     db: Session = Depends(get_db)
 ):
     """Get available deliveries for drivers"""
-    deliveries = db.query(Delivery).filter(
+    deliveries = db.query(Delivery).options(
+        joinedload(Delivery.order).joinedload(Order.restaurant),
+        joinedload(Delivery.order).joinedload(Order.customer),
+        joinedload(Delivery.order).joinedload(Order.items),
+    ).filter(
         Delivery.status == DeliveryStatus.ASSIGNED,
         Delivery.driver_id == None
     ).all()
-    
+
     return deliveries
 
 
@@ -40,11 +44,15 @@ async def get_my_deliveries(
     db: Session = Depends(get_db)
 ):
     """Get current driver's assigned deliveries"""
-    query = db.query(Delivery).filter(Delivery.driver_id == current_user.id)
-    
+    query = db.query(Delivery).options(
+        joinedload(Delivery.order).joinedload(Order.restaurant),
+        joinedload(Delivery.order).joinedload(Order.customer),
+        joinedload(Delivery.order).joinedload(Order.items),
+    ).filter(Delivery.driver_id == current_user.id)
+
     if status:
         query = query.filter(Delivery.status == status)
-    
+
     deliveries = query.order_by(Delivery.assigned_at.desc()).all()
     return deliveries
 

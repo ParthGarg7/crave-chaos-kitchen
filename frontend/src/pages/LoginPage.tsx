@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate, Link } from 'react-router-dom';
@@ -19,7 +19,7 @@ function Particles() {
           background: i % 3 === 0 ? 'var(--accent-fire)' : i % 3 === 1 ? 'var(--accent-ember)' : 'var(--accent-gold)',
           left: `${Math.random() * 100}%`,
           top: `${Math.random() * 100}%`,
-          opacity: Math.random() * 0.4 + 0.08,
+          opacity: Math.random() * 0.5 + 0.1,
           animation: `float-particle-${i} ${Math.random() * 8 + 6}s ease-in-out infinite`,
           animationDelay: `${Math.random() * 4}s`,
         }} />
@@ -53,7 +53,7 @@ const LoginPage = () => {
       // Role-based redirect
       const role = response.data?.user?.role;
       if (role === 'admin') {
-        navigate('/admin');
+        navigate('/developer');
       } else if (role === 'restaurant_owner') {
         navigate('/restaurant-dashboard');
       } else if (role === 'driver') {
@@ -89,8 +89,8 @@ const LoginPage = () => {
       paddingTop: '64px',
     }}>
       {/* Background glows */}
-      <div style={{ position: 'absolute', top: -200, right: -200, width: 500, height: 500, borderRadius: '50%', background: 'var(--glow-fire)', filter: 'blur(160px)', opacity: 0.25, pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', bottom: -200, left: -200, width: 400, height: 400, borderRadius: '50%', background: 'var(--glow-ember)', filter: 'blur(140px)', opacity: 0.15, pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', top: -200, right: -200, width: 500, height: 500, borderRadius: '50%', background: 'var(--glow-fire)', filter: 'blur(160px)', opacity: 0.3, pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', bottom: -200, left: -200, width: 400, height: 400, borderRadius: '50%', background: 'var(--glow-ember)', filter: 'blur(140px)', opacity: 0.2, pointerEvents: 'none' }} />
 
       <Particles />
 
@@ -110,8 +110,8 @@ const LoginPage = () => {
         <div className="glass" style={{
           borderRadius: 'var(--radius-lg)',
           padding: 'var(--space-xl) var(--space-lg)',
-          border: '1px solid var(--border-glow)',
-          boxShadow: '0 40px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.03) inset',
+          border: '1px solid rgba(255, 69, 0, 0.12)',
+          boxShadow: '0 40px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.03) inset',
         }}>
 
           {/* Logo + Head */}
@@ -130,7 +130,7 @@ const LoginPage = () => {
                 justifyContent: 'center',
                 fontSize: '1.6rem',
                 marginBottom: 'var(--space-sm)',
-                boxShadow: '0 4px 24px var(--glow-fire)',
+                boxShadow: '0 0 30px var(--glow-fire)',
               }}
             >
               🔥
@@ -141,10 +141,9 @@ const LoginPage = () => {
               transition={{ delay: 0.3 }}
               style={{
                 fontFamily: 'var(--font-display)',
-                fontWeight: 800,
-                fontSize: '2rem',
+                fontSize: '2.4rem',
                 color: 'var(--accent-cream)',
-                letterSpacing: 1,
+                letterSpacing: 2,
                 marginBottom: 6,
               }}
             >
@@ -157,7 +156,7 @@ const LoginPage = () => {
               style={{
                 fontFamily: 'var(--font-sub)',
                 fontStyle: 'italic',
-                fontSize: '0.95rem',
+                fontSize: '1rem',
                 color: 'var(--text-muted)',
               }}
             >
@@ -174,10 +173,9 @@ const LoginPage = () => {
           >
             <p style={{
               fontFamily: 'var(--font-body)',
-              fontSize: '0.68rem',
-              fontWeight: 500,
+              fontSize: '0.65rem',
               color: 'var(--text-muted)',
-              letterSpacing: 2,
+              letterSpacing: 3,
               textTransform: 'uppercase',
               marginBottom: 10,
             }}>
@@ -196,19 +194,18 @@ const LoginPage = () => {
                     padding: '8px 10px',
                     borderRadius: 'var(--radius-sm)',
                     background: activePreset === idx
-                      ? `linear-gradient(135deg, ${cred.color}22, ${cred.color}0a)`
+                      ? `linear-gradient(135deg, ${cred.color}33, ${cred.color}11)`
                       : 'var(--bg-elevated)',
                     border: activePreset === idx
-                      ? `1px solid ${cred.color}44`
-                      : '1px solid var(--border-subtle)',
+                      ? `1px solid ${cred.color}55`
+                      : '1px solid rgba(255,255,255,0.05)',
                     color: activePreset === idx ? cred.color : 'var(--text-muted)',
                     fontFamily: 'var(--font-body)',
-                    fontSize: '0.72rem',
-                    fontWeight: 500,
-                    letterSpacing: 0.5,
+                    fontSize: '0.7rem',
+                    letterSpacing: 1,
                     textAlign: 'center',
-                    transition: 'all 0.2s var(--ease-smooth)',
-                    boxShadow: activePreset === idx ? `0 4px 12px ${cred.color}22` : 'none',
+                    transition: 'all 0.2s',
+                    boxShadow: activePreset === idx ? `0 0 16px ${cred.color}33` : 'none',
                     cursor: 'none',
                   }}
                 >
@@ -221,9 +218,9 @@ const LoginPage = () => {
 
           {/* Divider */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 'var(--space-md)' }}>
-            <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
-            <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.65rem', fontWeight: 500, color: 'var(--text-muted)', letterSpacing: 1.5 }}>OR ENTER MANUALLY</span>
-            <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
+            <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+            <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.65rem', color: 'var(--text-muted)', letterSpacing: 2 }}>OR ENTER MANUALLY</span>
+            <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
           </div>
 
           {/* Form */}
@@ -233,9 +230,8 @@ const LoginPage = () => {
               <label style={{
                 display: 'block',
                 fontFamily: 'var(--font-body)',
-                fontSize: '0.68rem',
-                fontWeight: 500,
-                letterSpacing: 2,
+                fontSize: '0.65rem',
+                letterSpacing: 3,
                 textTransform: 'uppercase',
                 color: focusedField === 'email' ? 'var(--accent-fire)' : 'var(--text-muted)',
                 marginBottom: 8,
@@ -266,14 +262,14 @@ const LoginPage = () => {
                     width: '100%',
                     padding: '14px 16px 14px 42px',
                     background: 'var(--bg-elevated)',
-                    border: `1px solid ${focusedField === 'email' ? 'var(--accent-fire)' : 'var(--border-subtle)'}`,
+                    border: `1px solid ${focusedField === 'email' ? 'var(--accent-fire)' : 'rgba(255,255,255,0.07)'}`,
                     borderRadius: 'var(--radius-sm)',
                     color: 'var(--accent-cream)',
                     fontFamily: 'var(--font-body)',
                     fontSize: '0.85rem',
                     outline: 'none',
-                    boxShadow: focusedField === 'email' ? '0 0 16px var(--glow-fire)' : 'none',
-                    transition: 'all 0.2s var(--ease-smooth)',
+                    boxShadow: focusedField === 'email' ? '0 0 20px var(--glow-fire)' : 'none',
+                    transition: 'border-color 0.2s, box-shadow 0.2s',
                     caretColor: 'var(--accent-fire)',
                   }}
                 />
@@ -285,9 +281,8 @@ const LoginPage = () => {
               <label style={{
                 display: 'block',
                 fontFamily: 'var(--font-body)',
-                fontSize: '0.68rem',
-                fontWeight: 500,
-                letterSpacing: 2,
+                fontSize: '0.65rem',
+                letterSpacing: 3,
                 textTransform: 'uppercase',
                 color: focusedField === 'password' ? 'var(--accent-fire)' : 'var(--text-muted)',
                 marginBottom: 8,
@@ -318,14 +313,14 @@ const LoginPage = () => {
                     width: '100%',
                     padding: '14px 48px 14px 42px',
                     background: 'var(--bg-elevated)',
-                    border: `1px solid ${focusedField === 'password' ? 'var(--accent-fire)' : 'var(--border-subtle)'}`,
+                    border: `1px solid ${focusedField === 'password' ? 'var(--accent-fire)' : 'rgba(255,255,255,0.07)'}`,
                     borderRadius: 'var(--radius-sm)',
                     color: 'var(--accent-cream)',
                     fontFamily: 'var(--font-body)',
                     fontSize: '0.85rem',
                     outline: 'none',
-                    boxShadow: focusedField === 'password' ? '0 0 16px var(--glow-fire)' : 'none',
-                    transition: 'all 0.2s var(--ease-smooth)',
+                    boxShadow: focusedField === 'password' ? '0 0 20px var(--glow-fire)' : 'none',
+                    transition: 'border-color 0.2s, box-shadow 0.2s',
                     caretColor: 'var(--accent-fire)',
                   }}
                 />
@@ -361,18 +356,17 @@ const LoginPage = () => {
                 className="shimmer"
                 style={{
                   width: '100%',
-                  padding: '14px 0',
+                  padding: '16px 0',
                   background: 'var(--accent-fire)',
                   color: '#fff',
-                  fontFamily: 'var(--font-display)',
-                  fontWeight: 700,
-                  fontSize: '1rem',
-                  letterSpacing: 2,
+                  fontFamily: 'var(--font-accent)',
+                  fontSize: '1.3rem',
+                  letterSpacing: 4,
                   borderRadius: 'var(--radius-sm)',
                   border: 'none',
                   cursor: loginMutation.isPending ? 'not-allowed' : 'none',
                   opacity: loginMutation.isPending ? 0.7 : 1,
-                  boxShadow: '0 4px 24px var(--glow-fire)',
+                  boxShadow: '0 0 30px var(--glow-fire)',
                   transition: 'opacity 0.2s',
                   position: 'relative',
                   overflow: 'hidden',
@@ -411,8 +405,9 @@ const LoginPage = () => {
               marginTop: 'var(--space-md)',
               textAlign: 'center',
               fontFamily: 'var(--font-body)',
-              fontSize: '0.78rem',
+              fontSize: '0.75rem',
               color: 'var(--text-muted)',
+              letterSpacing: 1,
             }}
           >
             No account?{' '}

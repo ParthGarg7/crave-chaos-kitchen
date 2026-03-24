@@ -1,57 +1,39 @@
-import { motion } from 'framer-motion';
+import { Loader2 } from 'lucide-react';
 
 interface LoadingSpinnerProps {
   fullScreen?: boolean;
+  size?: 'sm' | 'md' | 'lg';
   text?: string;
 }
 
-const LoadingSpinner = ({
-  fullScreen = false,
-  text = 'LOADING...',
+const LoadingSpinner = ({ 
+  fullScreen = false, 
+  size = 'md',
+  text = 'Loading...'
 }: LoadingSpinnerProps) => {
+  const sizeClasses = {
+    sm: 'h-4 w-4',
+    md: 'h-8 w-8',
+    lg: 'h-12 w-12'
+  };
+
   const spinner = (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-      <motion.div
-        animate={{ rotate: 360 }}
-        transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-        style={{
-          width: 48,
-          height: 48,
-          border: '3px solid rgba(255,69,0,0.2)',
-          borderTopColor: 'var(--accent-fire)',
-          borderRadius: '50%',
-        }}
-      />
-      {text && (
-        <p style={{
-          fontFamily: 'var(--font-body)',
-          color: 'var(--text-muted)',
-          fontSize: '0.82rem',
-          letterSpacing: 2,
-          textTransform: 'uppercase',
-        }}>
-          {text}
-        </p>
-      )}
+    <div className="flex flex-col items-center justify-center space-y-3">
+      <Loader2 className={`${sizeClasses[size]} animate-spin text-primary-600`} />
+      {text && <p className="text-gray-500 text-sm">{text}</p>}
     </div>
   );
 
   if (fullScreen) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'var(--bg-void)'
-      }}>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
         {spinner}
       </div>
     );
   }
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 0' }}>
+    <div className="flex items-center justify-center py-8">
       {spinner}
     </div>
   );

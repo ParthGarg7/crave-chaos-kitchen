@@ -15,6 +15,7 @@ from app.models.restaurant import Restaurant, MenuItem
 from app.models.user import User, UserRole
 from app.models.delivery import Delivery, DeliveryStatus
 from app.schemas.order import (
+
     OrderCreate, OrderResponse, OrderListResponse, OrderUpdate,
     OrderItemCreate, CartItem, CartResponse, OrderStatusUpdate
 )
@@ -216,7 +217,19 @@ async def create_order(
     
     db.commit()
     db.refresh(order)
-    
+
+    # ── Auto-create Delivery record so drivers can see and accept this order ──
+    # Without this, the delivery queue stays empty and drivers see nothing.
+    delivery = Delivery(
+        order_id=order.id,
+        driver_id=None,  # Unassigned — first driver to accept claims it
+        status=DeliveryStatus.ASSIGNED,
+        estimated_distance_km=round(3.0 + (order.id % 7), 1),  # Mock 3-9 km range
+        estimated_duration_min=15 + (order.id % 20),            # Mock 15-35 min
+    )
+    db.add(delivery)
+    db.commit()
+
     return order
 
 

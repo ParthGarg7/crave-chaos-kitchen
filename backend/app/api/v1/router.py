@@ -12,6 +12,9 @@ from app.api.v1.endpoints import (
     failure_simulator,
     admin,
     contact,
+    developer,
+    chaos_engineer,
+    observation_logs,
 )
 
 api_router = APIRouter()
@@ -25,3 +28,6 @@ api_router.include_router(delivery.router)
 api_router.include_router(failure_simulator.router)
 api_router.include_router(admin.router)
 api_router.include_router(contact.router)
+api_router.include_router(developer.router)
+api_router.include_router(chaos_engineer.router)
+api_router.include_router(observation_logs.router)

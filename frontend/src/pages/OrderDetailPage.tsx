@@ -36,8 +36,8 @@ const OrderDetailPage = () => {
 
   if (!order) {
     return (
-      <div className="min-h-screen bg-void flex items-center justify-center">
-        <p className="text-muted font-body">Order not found</p>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p className="text-gray-500">Order not found</p>
       </div>
     );
   }
@@ -45,38 +45,37 @@ const OrderDetailPage = () => {
   const currentStepIndex = statusSteps.findIndex(s => s.key === order.status);
 
   return (
-    <div className="min-h-screen py-8 pt-24" style={{ background: 'var(--bg-void)' }}>
+    <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Back Link */}
         <Link
           to="/orders"
-          className="inline-flex items-center space-x-2 hover:text-white mb-6 transition-colors"
-          style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-body)' }}
+          className="inline-flex items-center space-x-2 text-gray-600 hover:text-gray-900 mb-6"
         >
           <ChevronLeft className="h-5 w-5" />
           <span>Back to Orders</span>
         </Link>
 
         {/* Header */}
-        <div className="glass rounded-xl p-6 mb-6" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
           <div className="flex items-start justify-between">
             <div>
-              <p style={{ color: 'var(--accent-fire)', fontFamily: 'var(--font-body)', fontSize: '0.85rem', letterSpacing: 1.5, textTransform: 'uppercase', fontWeight: 600 }}>Order #{order.order_number}</p>
-              <h1 className="text-3xl font-bold mt-2" style={{ color: 'var(--accent-cream)', fontFamily: 'var(--font-display)', letterSpacing: -0.5 }}>
+              <p className="text-sm text-gray-500">Order #{order.order_number}</p>
+              <h1 className="text-2xl font-bold text-gray-900 mt-1">
                 Order Details
               </h1>
-              <p className="mt-2 text-sm" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-body)' }}>
+              <p className="text-sm text-gray-500 mt-1">
                 Placed on {new Date(order.created_at).toLocaleString()}
               </p>
             </div>
             <span
-              className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-semibold capitalize"
-              style={{
-                background: order.status === 'delivered' ? 'rgba(34,197,94,0.1)' : order.status === 'cancelled' ? 'rgba(248,113,113,0.1)' : 'rgba(232,93,4,0.1)',
-                color: order.status === 'delivered' ? '#4ade80' : order.status === 'cancelled' ? '#f87171' : 'var(--accent-fire)',
-                border: `1px solid ${order.status === 'delivered' ? 'rgba(34,197,94,0.3)' : order.status === 'cancelled' ? 'rgba(248,113,113,0.3)' : 'rgba(232,93,4,0.3)'}`,
-                fontFamily: 'var(--font-body)'
-              }}
+              className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium capitalize ${
+                order.status === 'delivered'
+                  ? 'bg-green-100 text-green-800'
+                  : order.status === 'cancelled'
+                  ? 'bg-red-100 text-red-800'
+                  : 'bg-blue-100 text-blue-800'
+              }`}
             >
               {order.status.replace('_', ' ')}
             </span>
@@ -85,47 +84,37 @@ const OrderDetailPage = () => {
 
         {/* Status Tracker */}
         {order.status !== 'cancelled' && (
-          <div className="rounded-xl p-6 mb-6 relative overflow-hidden" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
-            <h2 className="text-xl font-bold mb-6" style={{ color: 'var(--accent-cream)', fontFamily: 'var(--font-display)' }}>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
               Order Status
             </h2>
-            <div className="relative mt-8 mb-4">
-              <div className="absolute top-4 left-0 right-0 h-1" style={{ background: 'var(--bg-void)', borderRadius: 'var(--radius-pill)' }}>
+            <div className="relative">
+              <div className="absolute top-4 left-0 right-0 h-1 bg-gray-200">
                 <div
-                  className="h-full transition-all duration-500 ease-out"
+                  className="h-full bg-primary-600 transition-all"
                   style={{
                     width: `${((currentStepIndex + 1) / statusSteps.length) * 100}%`,
-                    background: 'linear-gradient(90deg, var(--accent-ember), var(--accent-fire))',
-                    boxShadow: '0 0 10px var(--glow-fire)',
-                    borderRadius: 'var(--radius-pill)'
                   }}
                 />
               </div>
-              <div className="relative flex justify-between z-10">
+              <div className="relative flex justify-between">
                 {statusSteps.map((step, index) => (
                   <div key={step.key} className="flex flex-col items-center">
                     <div
-                      className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shadow-lg transition-colors duration-300 ${
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
                         index <= currentStepIndex
-                          ? 'text-white'
-                          : 'text-gray-500'
+                          ? 'bg-primary-600 text-white'
+                          : 'bg-gray-200 text-gray-500'
                       }`}
-                      style={{
-                        background: index <= currentStepIndex ? 'var(--accent-fire)' : 'var(--bg-surface)',
-                        border: index <= currentStepIndex ? 'none' : '1px solid var(--border-subtle)',
-                        boxShadow: index <= currentStepIndex ? '0 0 15px var(--glow-fire)' : 'none',
-                        fontFamily: 'var(--font-display)'
-                      }}
                     >
-                      {index <= currentStepIndex ? '✓' : index + 1}
+                      {index + 1}
                     </div>
                     <span
-                      className={`text-xs mt-3 text-center w-24 font-medium transition-colors duration-300 ${
+                      className={`text-xs mt-2 text-center w-20 ${
                         index <= currentStepIndex
-                          ? 'text-white'
-                          : 'text-gray-500'
+                          ? 'text-primary-600 font-medium'
+                          : 'text-gray-400'
                       }`}
-                      style={{ fontFamily: 'var(--font-body)' }}
                     >
                       {step.label}
                     </span>
@@ -137,116 +126,106 @@ const OrderDetailPage = () => {
         )}
 
         {/* Order Items */}
-        <div className="rounded-xl p-8 mb-6" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}>
-          <h2 className="text-xl font-bold mb-6" style={{ color: 'var(--accent-cream)', fontFamily: 'var(--font-display)' }}>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
             Order Items
           </h2>
           <div className="space-y-4">
             {order.items.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center justify-between py-4 border-b last:border-0"
-                style={{ borderColor: 'var(--border-subtle)' }}
+                className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0"
               >
                 <div>
-                  <p className="font-semibold text-lg" style={{ color: 'var(--accent-cream)', fontFamily: 'var(--font-body)' }}>
-                    <span style={{ color: 'var(--accent-fire)', marginRight: 8 }}>{item.quantity}x</span> {item.item_name}
+                  <p className="font-medium text-gray-900">
+                    {item.quantity}x {item.item_name}
                   </p>
                   {item.special_instructions && (
-                    <p className="text-sm mt-1" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-body)' }}>
-                      📝 {item.special_instructions}
+                    <p className="text-sm text-gray-500">
+                      Note: {item.special_instructions}
                     </p>
                   )}
                 </div>
-                <p className="font-bold text-lg" style={{ color: 'var(--accent-cream)', fontFamily: 'var(--font-display)' }}>
-                  ₹{item.subtotal.toFixed(2)}
+                <p className="font-medium text-gray-900">
+                  ${item.subtotal.toFixed(2)}
                 </p>
               </div>
             ))}
           </div>
 
           {/* Totals */}
-          <div className="mt-6 pt-6 space-y-3" style={{ borderTop: '1px solid var(--border-subtle)', fontFamily: 'var(--font-body)' }}>
-            <div className="flex justify-between text-sm" style={{ color: 'var(--text-muted)' }}>
-              <span>Subtotal</span>
-              <span style={{ color: 'white' }}>₹{order.subtotal.toFixed(2)}</span>
+          <div className="border-t border-gray-200 mt-4 pt-4 space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Subtotal</span>
+              <span>${order.subtotal.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-sm" style={{ color: 'var(--text-muted)' }}>
-              <span>Delivery Fee</span>
-              <span style={{ color: 'white' }}>₹{order.delivery_fee.toFixed(2)}</span>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Delivery Fee</span>
+              <span>${order.delivery_fee.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-sm" style={{ color: 'var(--text-muted)' }}>
-              <span>Tax</span>
-              <span style={{ color: 'white' }}>₹{order.tax.toFixed(2)}</span>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Tax</span>
+              <span>${order.tax.toFixed(2)}</span>
             </div>
             {order.tip > 0 && (
-              <div className="flex justify-between text-sm" style={{ color: 'var(--text-muted)' }}>
-                <span>Tip</span>
-                <span style={{ color: '#4ade80' }}>₹{order.tip.toFixed(2)}</span>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Tip</span>
+                <span>${order.tip.toFixed(2)}</span>
               </div>
             )}
-            <div className="flex justify-between text-xl font-bold pt-4 mt-2" style={{ borderTop: '1px solid var(--border-subtle)', color: 'var(--accent-gold)', fontFamily: 'var(--font-display)' }}>
+            <div className="flex justify-between text-lg font-semibold pt-2 border-t border-gray-200">
               <span>Total</span>
-              <span>₹{order.total.toFixed(2)}</span>
+              <span>${order.total.toFixed(2)}</span>
             </div>
           </div>
         </div>
 
-        {/* Delivery & Payment Container */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-20">
-            {/* Delivery Info */}
-            <div className="rounded-xl p-6" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}>
-              <h2 className="text-xl font-bold mb-6" style={{ color: 'var(--accent-cream)', fontFamily: 'var(--font-display)' }}>
-                Delivery Information
-              </h2>
-              <div className="space-y-5">
-                <div className="flex items-start space-x-4">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(232,93,4,0.1)' }}>
-                      <MapPin className="h-5 w-5" style={{ color: 'var(--accent-fire)' }} />
-                  </div>
-                  <div>
-                    <p className="font-semibold mb-1" style={{ color: 'var(--accent-cream)', fontFamily: 'var(--font-body)' }}>Delivery Address</p>
-                    <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-body)' }}>{order.delivery_address}</p>
-                  </div>
-                </div>
-                {order.delivery_instructions && (
-                  <div className="flex items-start space-x-4">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.05)' }}>
-                        <Package className="h-5 w-5 text-gray-400" />
-                    </div>
-                    <div>
-                      <p className="font-semibold mb-1" style={{ color: 'var(--accent-cream)', fontFamily: 'var(--font-body)' }}>Delivery Instructions</p>
-                      <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-body)' }}>{order.delivery_instructions}</p>
-                    </div>
-                  </div>
-                )}
+        {/* Delivery Info */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            Delivery Information
+          </h2>
+          <div className="space-y-4">
+            <div className="flex items-start space-x-3">
+              <MapPin className="h-5 w-5 text-gray-400 mt-0.5" />
+              <div>
+                <p className="font-medium text-gray-900">Delivery Address</p>
+                <p className="text-gray-600">{order.delivery_address}</p>
               </div>
             </div>
-
-            {/* Payment Info */}
-            <div className="rounded-xl p-6" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}>
-              <h2 className="text-xl font-bold mb-6" style={{ color: 'var(--accent-cream)', fontFamily: 'var(--font-display)' }}>
-                Payment Information
-              </h2>
-              <div className="flex items-start space-x-4">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(34,197,94,0.1)' }}>
-                    <CreditCard className="h-5 w-5" style={{ color: '#4ade80' }} />
-                </div>
+            {order.delivery_instructions && (
+              <div className="flex items-start space-x-3">
+                <Package className="h-5 w-5 text-gray-400 mt-0.5" />
                 <div>
-                  <p className="font-semibold mb-1" style={{ color: 'var(--accent-cream)', fontFamily: 'var(--font-body)' }}>
-                    {order.payment_method.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                  </p>
-                  <p className="text-sm mb-1" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-body)' }}>
-                    Status: <span style={{ color: order.payment_status === 'completed' ? '#4ade80' : 'var(--accent-fire)', textTransform: 'capitalize' }}>{order.payment_status}</span>
-                  </p>
-                  {order.payment_transaction_id && (
-                    <p className="text-xs mt-2" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-body)', opacity: 0.7 }}>
-                      Txn: {order.payment_transaction_id}
-                    </p>
-                  )}
+                  <p className="font-medium text-gray-900">Delivery Instructions</p>
+                  <p className="text-gray-600">{order.delivery_instructions}</p>
                 </div>
               </div>
+            )}
+          </div>
+        </div>
+
+        {/* Payment Info */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            Payment Information
+          </h2>
+          <div className="flex items-start space-x-3">
+            <CreditCard className="h-5 w-5 text-gray-400 mt-0.5" />
+            <div>
+              <p className="font-medium text-gray-900">
+                {order.payment_method.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+              </p>
+              <p className="text-gray-600 capitalize">
+                Status: {order.payment_status}
+              </p>
+              {order.payment_transaction_id && (
+                <p className="text-sm text-gray-500">
+                  Transaction: {order.payment_transaction_id}
+                </p>
+              )}
             </div>
+          </div>
         </div>
       </div>
     </div>

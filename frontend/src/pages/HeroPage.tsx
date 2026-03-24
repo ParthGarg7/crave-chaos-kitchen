@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import * as THREE from 'three';
+import type { Page } from '../App';
+
 // ─── Three.js 3D Globe ───
 function Globe() {
     const mountRef = useRef<HTMLDivElement>(null);
@@ -20,43 +22,43 @@ function Globe() {
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         el.appendChild(renderer.domElement);
 
-        // Low-poly 90s wireframe shape
-        const geo = new THREE.IcosahedronGeometry(2.5, 0); // 0 detail for sharp triangles
-        const mat = new THREE.MeshBasicMaterial({ color: 0xff00ff, wireframe: true, transparent: true, opacity: 0.8 });
+        // Wireframe globe
+        const geo = new THREE.IcosahedronGeometry(2.5, 2);
+        const mat = new THREE.MeshBasicMaterial({ color: 0xff4500, wireframe: true, transparent: true, opacity: 0.15 });
         const globe = new THREE.Mesh(geo, mat);
         scene.add(globe);
 
-        // Inner solid shape
-        const innerGeo = new THREE.IcosahedronGeometry(2.4, 0);
-        const innerMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.3 });
+        // Glowing inner sphere
+        const innerGeo = new THREE.SphereGeometry(2.2, 32, 32);
+        const innerMat = new THREE.MeshBasicMaterial({ color: 0xff4500, transparent: true, opacity: 0.03 });
         scene.add(new THREE.Mesh(innerGeo, innerMat));
 
         // Floating food emoji sprites
-        const emojis = ['🍕', '👾', '🌮', '💾', '🍔', '☎️', '🍱', '📺', '🍰', '🕹️'];
+        const emojis = ['🍕', '🍜', '🌮', '🍣', '🍔', '🥘', '🍱', '🫕', '🍰', '🍗'];
         const sprites: THREE.Sprite[] = [];
         emojis.forEach((em, i) => {
             const canvas = document.createElement('canvas');
             canvas.width = 64; canvas.height = 64;
             const ctx = canvas.getContext('2d')!;
-            ctx.font = '48px "VT323", monospace';
+            ctx.font = '48px serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(em, 32, 34);
             const tex = new THREE.CanvasTexture(canvas);
-            const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 1 });
+            const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0.7 });
             const sprite = new THREE.Sprite(spriteMat);
-            const r = 3.5 + Math.random() * 1.5;
+            const r = 3.2 + Math.random() * 1.2;
             const angle = (i / emojis.length) * Math.PI * 2;
             sprite.position.set(Math.cos(angle) * r, (Math.random() - 0.5) * 3, Math.sin(angle) * r);
-            sprite.scale.set(0.8, 0.8, 1);
+            sprite.scale.set(0.6, 0.6, 1);
             sprite.userData = { radius: r, angle, speed: 0.1 + Math.random() * 0.15, yOff: Math.random() * Math.PI * 2 };
             scene.add(sprite);
             sprites.push(sprite);
         });
 
         // Lights
-        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-        const pt = new THREE.PointLight(0xff00ff, 2.0, 20);
+        scene.add(new THREE.AmbientLight(0xff8c00, 0.3));
+        const pt = new THREE.PointLight(0xff4500, 1.5, 20);
         pt.position.set(3, 3, 3);
         scene.add(pt);
 
@@ -127,58 +129,64 @@ function Counter({ end, suffix }: { end: number; suffix: string }) {
 }
 
 // ─── Stagger variants ───
-const container = { hidden: {}, show: { transition: { staggerChildren: 0.15, delayChildren: 0.4 } } };
-const word = { hidden: { opacity: 0, y: 50 }, show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' as const } } };
+const container = { hidden: {}, show: { transition: { staggerChildren: 0.2, delayChildren: 0.5 } } };
+const word = { hidden: { opacity: 0, y: 60 }, show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 25 } } };
+const fadeIn = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { duration: 0.6 } } };
 
-export default function HeroPage({ navigate }: { navigate: (p: string) => void }) {
+export default function HeroPage({ navigate }: { navigate: (p: Page) => void }) {
     return (
-        <section style={{ minHeight: '100vh', display: 'flex', position: 'relative', overflow: 'hidden', background: 'var(--bg-void)' }}>
-            {/* Background elements (Cleaned for light mode) */}
-            <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'linear-gradient(to bottom, transparent, var(--bg-surface))', zIndex: 0 }} />
+        <section style={{ minHeight: '100vh', display: 'flex', position: 'relative', overflow: 'hidden' }}>
+            {/* Background glow */}
+            <div style={{ position: 'absolute', bottom: -200, left: -200, width: 600, height: 600, borderRadius: '50%', background: 'var(--glow-fire)', filter: 'blur(200px)', opacity: 0.4, pointerEvents: 'none' }} />
+            {/* Scan line */}
+            <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+                <div style={{ width: '100%', height: 1, background: 'rgba(255,69,0,0.06)', animation: 'scanline 8s linear infinite' }} />
+            </div>
 
             <div className="hero-split" style={{ display: 'flex', width: '100%', maxWidth: 1400, margin: '0 auto', padding: 'var(--space-2xl) var(--space-lg)', paddingTop: 100, alignItems: 'center', gap: 'var(--space-xl)', position: 'relative', zIndex: 1 }}>
-                {/* Left Bento Area */}
+                {/* Left 55% */}
                 <div className="hero-left" style={{ width: '55%', minHeight: '70vh', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                    
-                    <motion.div variants={container} initial="hidden" animate="show" style={{ display: 'flex', gap: 'var(--space-xs)', marginBottom: 'var(--space-md)', alignItems: 'center', background: 'var(--accent-lime)', padding: '8px 16px', width: 'fit-content', border: '4px solid var(--border-subtle)', boxShadow: '4px 4px 0 #000' }}>
-                        <span style={{ width: 12, height: 12, background: 'var(--accent-cream)' }} />
-                        <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.9rem', letterSpacing: 1, textTransform: 'uppercase', color: 'var(--accent-cream)', fontWeight: 700 }}>SYSTEM: ONLINE</span>
+                    {/* Eyebrow */}
+                    <motion.div variants={container} initial="hidden" animate="show" style={{ display: 'flex', gap: 'var(--space-md)', marginBottom: 'var(--space-lg)' }}>
+                        {['LATE NIGHT', '•', 'PREMIUM DELIVERY', '•', '30 MIN'].map((t, i) => (
+                            <motion.span key={i} variants={fadeIn} style={{ fontFamily: 'var(--font-body)', fontSize: '0.7rem', letterSpacing: 4, textTransform: 'uppercase', color: 'var(--text-muted)' }}>{t}</motion.span>
+                        ))}
                     </motion.div>
 
                     {/* Headline */}
-                    <motion.h1 variants={container} initial="hidden" animate="show" style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(4rem, 8vw, 7.5rem)', lineHeight: 0.9, letterSpacing: -2, marginBottom: 'var(--space-lg)', fontWeight: 400, color: 'var(--accent-cream)', textShadow: '4px 4px 0 var(--accent-cyan)' }}>
-                        {['RADICAL', 'FLAVOR.', 'DELIVERED.'].map((w, i) => (
-                            <motion.span key={i} variants={word} style={{ display: 'block', color: i === 0 ? 'var(--accent-fire)' : 'inherit' }}>{w}</motion.span>
+                    <motion.h1 variants={container} initial="hidden" animate="show" style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(3.5rem, 8vw, 8rem)', lineHeight: 0.95, marginBottom: 'var(--space-lg)', fontWeight: 900 }}>
+                        {['HUNGER', 'HAS NO', 'PATIENCE.'].map((w, i) => (
+                            <motion.span key={i} variants={word} style={{ display: 'block' }}>{w}</motion.span>
                         ))}
                     </motion.h1>
 
                     {/* Sub */}
-                    <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.2 }} style={{ fontFamily: 'var(--font-body)', fontSize: '1.2rem', color: 'var(--text-muted)', maxWidth: 480, lineHeight: 1.6, marginBottom: 'var(--space-xl)', fontWeight: 700 }}>
-                        FOOD IN THE FAST LANE. HIGH SCORES IN EVERY BITE.
+                    <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.2 }} style={{ fontFamily: 'var(--font-sub)', fontStyle: 'italic', fontSize: '1.25rem', color: 'var(--text-muted)', maxWidth: 440, lineHeight: 1.6, marginBottom: 'var(--space-xl)' }}>
+                        Discover restaurants that cook with obsession. Delivered while it's still perfect.
                     </motion.p>
 
                     {/* CTAs */}
-                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.5 }} style={{ display: 'flex', gap: 'var(--space-md)', flexWrap: 'wrap', marginBottom: 'var(--space-2xl)' }}>
-                        <motion.button whileHover={{ y: -4, boxShadow: '8px 8px 0 #000' }} whileTap={{ scale: 0.98, boxShadow: '2px 2px 0 #000', y: 2 }} onClick={() => navigate('browse')} style={{ padding: '16px 36px', background: 'var(--accent-cyan)', color: 'var(--accent-cream)', fontFamily: 'var(--font-display)', fontSize: '1.8rem', fontWeight: 700, letterSpacing: 1, border: '4px solid #000', boxShadow: '4px 4px 0 #000', transition: 'all 0.1s', cursor: 'pointer', textTransform: 'uppercase' }}>
-                            START_RUN
+                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.5 }} style={{ display: 'flex', gap: 'var(--space-md)', flexWrap: 'wrap', marginBottom: 'var(--space-xl)' }}>
+                        <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={() => navigate('browse')} className="shimmer" style={{ padding: '16px 36px', background: 'var(--accent-fire)', color: '#fff', fontFamily: 'var(--font-body)', fontSize: '0.85rem', letterSpacing: 3, textTransform: 'uppercase', borderRadius: 'var(--radius-sm)', fontWeight: 500, boxShadow: '0 0 40px var(--glow-fire)' }}>
+                            EXPLORE RESTAURANTS →
                         </motion.button>
-                        <motion.button whileHover={{ y: -4, boxShadow: '8px 8px 0 #000' }} whileTap={{ scale: 0.98, boxShadow: '2px 2px 0 #000', y: 2 }} style={{ padding: '16px 36px', background: 'var(--bg-surface)', border: '4px solid #000', color: 'var(--accent-cream)', fontFamily: 'var(--font-display)', fontSize: '1.8rem', fontWeight: 700, letterSpacing: 1, boxShadow: '4px 4px 0 #000', transition: 'all 0.1s', cursor: 'pointer', textTransform: 'uppercase' }}>
-                            READ_MANUAL
+                        <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} style={{ padding: '16px 36px', border: '1px solid var(--text-muted)', color: 'var(--accent-cream)', fontFamily: 'var(--font-body)', fontSize: '0.85rem', letterSpacing: 3, textTransform: 'uppercase', borderRadius: 'var(--radius-sm)' }}>
+                            HOW IT WORKS ↓
                         </motion.button>
                     </motion.div>
 
                     {/* Stats */}
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 2 }} style={{ display: 'flex', gap: 'var(--space-md)' }}>
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 2 }} style={{ display: 'flex', gap: 'var(--space-lg)', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                         {[
-                            { val: 99, suf: '+', label: 'LEVELS', bg: 'var(--accent-fire)' },
-                            { val: 15, suf: 'M', label: 'PING (SPEED)', bg: 'var(--accent-gold)' },
-                            { val: 10, suf: 'K', label: 'PLAYERS', bg: 'var(--accent-lime)' },
+                            { val: 247, suf: '', label: 'restaurants' },
+                            { val: 18, suf: '', label: 'min avg delivery' },
+                            { val: 4, suf: '.9★', label: 'rated' },
                         ].map((s, i) => (
-                            <div key={i} style={{ background: s.bg, padding: '20px', border: '4px solid var(--border-subtle)', boxShadow: '4px 4px 0 #000', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                                <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '2.5rem', color: '#000', letterSpacing: -1, textShadow: '2px 2px 0 #fff' }}>
+                            <div key={i} style={{ display: 'flex', flexDirection: 'column', paddingRight: 'var(--space-lg)', borderRight: i < 2 ? '1px solid rgba(255,255,255,0.08)' : 'none' }}>
+                                <span style={{ fontFamily: 'var(--font-accent)', fontSize: '1.8rem', color: 'var(--accent-cream)' }}>
                                     <Counter end={s.val} suffix={s.suf} />
                                 </span>
-                                <span style={{ fontFamily: 'var(--font-body)', fontWeight: 700, color: '#000', marginTop: 8, fontSize: '0.9rem', background: '#fff', border: '2px solid #000', padding: '2px 6px' }}>{s.label}</span>
+                                <span style={{ letterSpacing: 2, textTransform: 'uppercase', marginTop: 4 }}>{s.label}</span>
                             </div>
                         ))}
                     </motion.div>

@@ -3,9 +3,9 @@ Database Initialization Script
 Creates tables and seeds sample data
 """
 import sys
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
-from app.db.base import Base, engine, SessionLocal
+from app.db.base import Base, get_engine, init_db as initialize_engine
 from app.models.user import User, UserRole
 from app.models.restaurant import Restaurant, MenuItem, RestaurantStatus, CuisineType
 from app.core.config import settings
@@ -15,7 +15,8 @@ from app.api.v1.endpoints.auth import get_password_hash
 def create_tables():
     """Create all database tables"""
     print("Creating database tables...")
-    Base.metadata.create_all(bind=engine)
+    initialize_engine()  # Ensure engine is initialised before use
+    Base.metadata.create_all(bind=get_engine())
     print("✅ Tables created successfully")
 
 
@@ -278,8 +279,9 @@ def init_database():
     
     # Create tables
     create_tables()
-    
-    # Create session
+
+    # Build a session factory from the (now-initialised) engine
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=get_engine())
     db = SessionLocal()
     
     try:

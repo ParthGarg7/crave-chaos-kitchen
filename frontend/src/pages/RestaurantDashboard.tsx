@@ -45,7 +45,7 @@ interface Restaurant {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-    pending: { label: 'Pending', color: '#ffba08', bg: 'rgba(255,200,69,0.12)' },
+    pending: { label: 'Pending', color: '#ffc845', bg: 'rgba(255,200,69,0.12)' },
     confirmed: { label: 'Confirmed', color: '#60a5fa', bg: 'rgba(96,165,250,0.12)' },
     preparing: { label: 'Preparing', color: '#fb923c', bg: 'rgba(251,146,60,0.12)' },
     ready: { label: 'Ready ✓', color: '#22c55e', bg: 'rgba(34,197,94,0.12)' },
@@ -76,7 +76,7 @@ function StatCard({ emoji, label, value, color }: { emoji: string; label: string
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                     <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.65rem', color: 'var(--text-muted)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 }}>{label}</p>
-                    <p style={{ fontFamily: 'var(--font-display)', fontSize: '2.4rem', color: color || 'var(--accent-cream)', lineHeight: 1 }}>{value}</p>
+                    <p style={{ fontFamily: 'var(--font-accent)', fontSize: '2.4rem', color: color || 'var(--accent-cream)', lineHeight: 1 }}>{value}</p>
                 </div>
                 <span style={{ fontSize: '2rem' }}>{emoji}</span>
             </div>
@@ -219,7 +219,7 @@ function AddItemModal({
                         disabled={saving}
                         style={{
                             padding: '14px 0', background: 'var(--accent-fire)', color: '#fff',
-                            fontFamily: 'var(--font-display)', fontSize: '1.1rem', letterSpacing: 2,
+                            fontFamily: 'var(--font-accent)', fontSize: '1.1rem', letterSpacing: 2,
                             borderRadius: 'var(--radius-sm)', border: 'none', opacity: saving ? 0.7 : 1,
                             boxShadow: '0 0 24px var(--glow-fire)', cursor: 'none',
                         }}
@@ -249,7 +249,7 @@ function OrderCard({ order, onAdvance }: { order: RealOrder; onAdvance: (id: num
         >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                 <div>
-                    <p style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', letterSpacing: 2 }}>#{order.order_number}</p>
+                    <p style={{ fontFamily: 'var(--font-accent)', fontSize: '1.2rem', letterSpacing: 2 }}>#{order.order_number}</p>
                     <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                         {new Date(order.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                     </p>
@@ -275,7 +275,7 @@ function OrderCard({ order, onAdvance }: { order: RealOrder; onAdvance: (id: num
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                     <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.65rem', color: 'var(--text-muted)' }}>📍 {order.delivery_address.slice(0, 40)}...</p>
-                    <p style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', color: 'var(--accent-gold)', marginTop: 2 }}>₹{order.total.toLocaleString('en-IN')}</p>
+                    <p style={{ fontFamily: 'var(--font-accent)', fontSize: '1.4rem', color: 'var(--accent-gold)', marginTop: 2 }}>₹{order.total.toLocaleString('en-IN')}</p>
                 </div>
                 {nextLabel && nextStatus && (
                     <motion.button
@@ -354,7 +354,7 @@ function MenuItemRow({
                 <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2 }}>{item.category}</p>
             </div>
 
-            <p style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', color: 'var(--accent-gold)', minWidth: 70, textAlign: 'right' }}>₹{item.price}</p>
+            <p style={{ fontFamily: 'var(--font-accent)', fontSize: '1.2rem', color: 'var(--accent-gold)', minWidth: 70, textAlign: 'right' }}>₹{item.price}</p>
 
             {/* Edit */}
             <button
@@ -435,7 +435,7 @@ function NoRestaurantPanel() {
                 onClick={() => navigate('/setup-restaurant')}
                 style={{
                     padding: '14px 40px', background: 'var(--accent-fire)', color: '#fff',
-                    fontFamily: 'var(--font-display)', fontSize: '1.1rem', letterSpacing: 2,
+                    fontFamily: 'var(--font-accent)', fontSize: '1.1rem', letterSpacing: 2,
                     borderRadius: 'var(--radius-sm)', border: 'none',
                     boxShadow: '0 0 30px var(--glow-fire)', cursor: 'none',
                 }}
@@ -667,8 +667,8 @@ export default function RestaurantDashboard() {
                                 fontFamily: 'var(--font-body)', fontSize: '0.6rem', letterSpacing: 2, textTransform: 'uppercase',
                                 padding: '3px 10px', borderRadius: 'var(--radius-pill)',
                                 background: restaurant?.status === 'active' ? 'rgba(34,197,94,0.12)' : 'rgba(255,200,69,0.12)',
-                                color: restaurant?.status === 'active' ? '#22c55e' : '#ffba08',
-                                border: `1px solid ${restaurant?.status === 'active' ? '#22c55e44' : '#ffba0844'}`,
+                                color: restaurant?.status === 'active' ? '#22c55e' : '#ffc845',
+                                border: `1px solid ${restaurant?.status === 'active' ? '#22c55e44' : '#ffc84544'}`,
                             }}>
                                 {restaurant?.status?.toUpperCase()}
                             </span>
@@ -683,7 +683,7 @@ export default function RestaurantDashboard() {
                             transition={{ repeat: Infinity, duration: 1.5 }}
                             style={{ background: 'rgba(255,69,0,0.15)', border: '1px solid rgba(255,69,0,0.4)', borderRadius: 'var(--radius-sm)', padding: '10px 20px', textAlign: 'center' }}
                         >
-                            <p style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', color: 'var(--accent-fire)', lineHeight: 1 }}>{pendingCount}</p>
+                            <p style={{ fontFamily: 'var(--font-accent)', fontSize: '2rem', color: 'var(--accent-fire)', lineHeight: 1 }}>{pendingCount}</p>
                             <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.65rem', color: 'var(--accent-fire)', letterSpacing: 2, textTransform: 'uppercase' }}>New Orders</p>
                         </motion.div>
                     )}

@@ -18,7 +18,7 @@ function StatChip({ label, value, accent }: { label: string; value: string | num
       minWidth: 140, flex: '1 1 140px',
     }}>
       <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.6rem', color: 'var(--text-muted)', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 8 }}>{label}</p>
-      <p style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', color: accent || 'var(--accent-cream)', lineHeight: 1 }}>{value}</p>
+      <p style={{ fontFamily: 'var(--font-accent)', fontSize: '2rem', color: accent || 'var(--accent-cream)', lineHeight: 1 }}>{value}</p>
     </div>
   );
 }

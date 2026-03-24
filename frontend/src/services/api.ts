@@ -283,4 +283,13 @@ export const contactApi = {
     }>('/contact-support', data),
 };
 
+// Chaos Engineer API (admin only)
+export const chaosApi = {
+  getExperiments: () => api.get('/chaos/experiments'),
+  toggleExperiment: (id: string) => api.post(`/chaos/experiments/${id}/toggle`),
+  reset: () => api.post('/chaos/reset'),
+  getImpactLog: (limit = 100) => api.get('/chaos/impact-log', { params: { limit } }),
+  getState: () => api.get('/chaos/state'),
+};
+
 export default api;

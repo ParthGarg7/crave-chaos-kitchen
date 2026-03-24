@@ -33,7 +33,7 @@ const ROLE_INFO: Record<string, { label: string; color: string; emoji: string }>
 function StatPill({ label, value, color }: { label: string; value: string | number; color: string }) {
     return (
         <div className="glass" style={{ borderRadius: 'var(--radius-md)', padding: '16px 20px', border: `1px solid ${color}22`, textAlign: 'center' }}>
-            <p style={{ fontFamily: 'var(--font-display)', fontSize: '2.2rem', color, lineHeight: 1, marginBottom: 4 }}>{value}</p>
+            <p style={{ fontFamily: 'var(--font-accent)', fontSize: '2.2rem', color, lineHeight: 1, marginBottom: 4 }}>{value}</p>
             <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.6rem', color: 'var(--text-muted)', letterSpacing: 2, textTransform: 'uppercase' }}>{label}</p>
         </div>
     );
@@ -238,7 +238,7 @@ function SimulatorPanel() {
                         { label: 'Active Scenarios', val: metrics.active_scenarios },
                     ].map(({ label, val }) => (
                         <div key={label} style={{ background: 'var(--bg-elevated)', borderRadius: 'var(--radius-sm)', padding: '10px 12px', textAlign: 'center' }}>
-                            <p style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', color: 'var(--accent-cream)' }}>{val}</p>
+                            <p style={{ fontFamily: 'var(--font-accent)', fontSize: '1.2rem', color: 'var(--accent-cream)' }}>{val}</p>
                             <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.6rem', color: 'var(--text-muted)', letterSpacing: 1 }}>{label}</p>
                         </div>
                     ))}

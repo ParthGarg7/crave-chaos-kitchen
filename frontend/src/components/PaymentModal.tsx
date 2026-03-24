@@ -18,6 +18,7 @@ interface PaymentModalProps {
     total: number;
     cartItems: CartSummaryItem[];
     orderState: 'idle' | 'loading' | 'success';
+    errorMessage?: string; // Inline error from order creation (shown as red banner)
 }
 
 // ─── Inline SVG QR Code (decorative, represents UPI/QR) ──────
@@ -101,7 +102,7 @@ function PayInput({
                         width: '100%',
                         padding: icon ? '12px 12px 12px 38px' : '12px 14px',
                         background: 'var(--bg-elevated)',
-                        border: `1px solid ${focused ? 'var(--accent-fire)' : 'rgba(255,255,255,0.06)'}`,
+                        border: `1px solid ${focused ? 'var(--accent-fire)' : 'rgba(255,255,255,0.08)'}`,
                         borderRadius: 'var(--radius-sm)',
                         color: 'var(--accent-cream)',
                         fontFamily: 'var(--font-body)',
@@ -129,11 +130,11 @@ function TabBtn({
             style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center',
                 gap: 5, padding: '10px 8px', borderRadius: 'var(--radius-sm)',
-                background: active ? 'rgba(232,93,4,0.14)' : 'var(--bg-elevated)',
+                background: active ? 'rgba(255,69,0,0.14)' : 'var(--bg-elevated)',
                 border: `1px solid ${active ? 'var(--accent-fire)' : 'rgba(255,255,255,0.06)'}`,
                 cursor: 'none', flex: 1,
                 transition: 'all 0.2s',
-                boxShadow: active ? '0 0 12px rgba(232,93,4,0.18)' : 'none',
+                boxShadow: active ? '0 0 12px rgba(255,69,0,0.18)' : 'none',
             }}
         >
             <span style={{ fontSize: '1.3rem' }}>{icon}</span>
@@ -149,7 +150,7 @@ function TabBtn({
 
 // ─── Main Component ───────────────────────────────────────────
 export default function PaymentModal({
-    open, onClose, onConfirm, total, cartItems, orderState,
+    open, onClose, onConfirm, total, cartItems, orderState, errorMessage = '',
 }: PaymentModalProps) {
     const [tab, setTab] = useState<PaymentMethod>('card');
 
@@ -683,6 +684,25 @@ export default function PaymentModal({
                             borderTop: '1px solid rgba(255,255,255,0.05)',
                             flexShrink: 0,
                         }}>
+                            {/* Error banner — shown when order creation fails */}
+                            {errorMessage && orderState === 'idle' && (
+                                <div style={{
+                                    marginBottom: 12,
+                                    padding: '10px 14px',
+                                    background: 'rgba(248,81,73,0.1)',
+                                    border: '1px solid rgba(248,81,73,0.35)',
+                                    borderRadius: 8,
+                                    display: 'flex', alignItems: 'flex-start', gap: 8,
+                                }}>
+                                    <span style={{ fontSize: '1rem', flexShrink: 0 }}>⚠️</span>
+                                    <p style={{
+                                        fontFamily: 'var(--font-body)', fontSize: '0.72rem',
+                                        color: '#f85149', lineHeight: 1.5, margin: 0,
+                                    }}>
+                                        {errorMessage}
+                                    </p>
+                                </div>
+                            )}
                             <motion.button
                                 whileHover={orderState === 'idle' ? { scale: 1.02 } : {}}
                                 whileTap={orderState === 'idle' ? { scale: 0.98 } : {}}

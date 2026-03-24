@@ -1,34 +1,21 @@
 /* ============================================================
-   CRAVE v5 — "Retro Y2K" Global Styles
+   CRAVE v2 — "Michelin Midnight" Global Styles
    ============================================================ */
 
-/* Colors - Retro Y2K / Brutalist Theme */
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&family=DM+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700;1,900&display=swap');
+
 :root {
-  /* Core Backgrounds */
-  --bg-void: #f0f0f0;      /* Main app background */
-  --bg-surface: #ffffff;   /* Primary cards & bento boxes */
-  --bg-elevated: #e0e0e0;  /* Secondary/nested surfaces */
-  
-  /* Primary Y2K Accents */
-  --accent-fire: #ff00ff;  /* Magenta CTA */
-  --accent-ember: #ff00cc;
-  --accent-gold: #ffff00;  /* Yellow star / highlight */
-  --accent-cyan: #00ffff;  /* Cyan highlights */
-  --accent-lime: #00ff00;  /* Green highlights */
-  
-  --accent-cream: #000000; /* Primary text (Solid Black) */
-  --text-muted: #333333;   /* Secondary text */
-  
-  --glow-fire: rgba(255, 0, 255, 0.4);
-  --bg-glass: rgba(255, 255, 255, 0.9);
-  
-  /* Brutalist Borders & Shadows */
-  --border-subtle: #000000; /* Heavy black lines everywhere */
-  --border-glow: #000000;
-  
-  /* Hard drop shadows instead of soft blurs */
-  --shadow-bento: 4px 4px 0px #000000;
-  --shadow-hover: 8px 8px 0px #000000;
+  /* Colors */
+  --bg-void: #080608;
+  --bg-surface: #110f12;
+  --bg-elevated: #1c191e;
+  --accent-fire: #ff4500;
+  --accent-ember: #ff8c00;
+  --accent-gold: #ffc845;
+  --accent-cream: #fff5e6;
+  --text-muted: #7a6f6f;
+  --glow-fire: rgba(255, 69, 0, 0.35);
+  --glow-ember: rgba(255, 140, 0, 0.25);
 
   /* Spacing */
   --space-xs: 0.5rem;
@@ -36,24 +23,19 @@
   --space-md: 1.5rem;
   --space-lg: 2.5rem;
   --space-xl: 4rem;
-  --space-2xl: 8rem;
+  --space-2xl: 7rem;
 
-  /* Radii - Sharp or slightly rounded for 90s feel */
-  --radius-xs: 0px;
-  --radius-sm: 4px;
-  --radius-md: 4px;
-  --radius-lg: 8px;
-  --radius-pill: 9999px;
+  /* Radii */
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-pill: 100px;
 
-  /* Fonts - Pixel & Monospace */
-  --font-display: 'VT323', monospace;
-  --font-sub: 'VT323', monospace;
-  --font-body: 'Space Mono', monospace;
-  --font-accent: 'VT323', monospace;
-
-  /* Transitions */
-  --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* Fonts */
+  --font-display: 'Playfair Display', serif;
+  --font-sub: 'Cormorant Garamond', serif;
+  --font-body: 'DM Mono', monospace;
+  --font-accent: 'Bebas Neue', sans-serif;
 }
 
 *,
@@ -72,12 +54,10 @@ html {
 
 body {
   background: var(--bg-void);
-  /* Retro dot grid background */
-  background-image: radial-gradient(#cccccc 1px, transparent 1px);
-  background-size: 20px 20px;
   color: var(--accent-cream);
   font-family: var(--font-body);
   overflow-x: hidden;
+  cursor: none;
   line-height: 1.6;
 }
 
@@ -98,8 +78,7 @@ h4,
 h5,
 h6 {
   margin: 0;
-  line-height: 1.1;
-  font-family: var(--font-display);
+  line-height: 0.95;
 }
 
 a {
@@ -132,7 +111,7 @@ img {
 
 /* Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -141,11 +120,11 @@ img {
 
 ::-webkit-scrollbar-thumb {
   background: var(--bg-elevated);
-  border-radius: var(--radius-pill);
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--border-subtle);
+  background: var(--accent-fire);
 }
 
 /* ============================================================
@@ -160,7 +139,7 @@ img {
   pointer-events: none;
   z-index: 10000;
   animation: grain-shift 8s steps(10) infinite;
-  opacity: 0.35;
+  opacity: 0.6;
 }
 
 @keyframes grain-shift {
@@ -220,7 +199,7 @@ img {
 .shimmer {
   background: linear-gradient(90deg,
       transparent 0%,
-      rgba(232, 93, 4, 0.06) 50%,
+      rgba(255, 69, 0, 0.05) 50%,
       transparent 100%);
   background-size: 200% 100%;
   animation: shimmer 2.5s ease-in-out infinite;
@@ -328,12 +307,13 @@ img {
 }
 
 /* ============================================================
-   GLASSY SURFACE UTILITY (Retrofitted for Brutalist OS window)
+   GLASSY SURFACE UTILITY
    ============================================================ */
 .glass {
-  background: var(--bg-surface);
-  border: 4px solid var(--accent-cream);
-  box-shadow: var(--shadow-bento);
+  background: rgba(17, 15, 18, 0.7);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 /* ============================================================

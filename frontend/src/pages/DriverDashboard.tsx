@@ -28,12 +28,12 @@ interface DeliveryItem {
 }
 
 const STATUS_FLOW = {
-    assigned:      { label: 'Available',          color: '#ffba08', next: null,            nextLabel: '' },
+    assigned:      { label: 'Available',          color: '#ffc845', next: null,            nextLabel: '' },
     accepted:      { label: 'Head to Restaurant', color: '#60a5fa', next: 'at_restaurant',  nextLabel: 'Arrived at Restaurant', emoji: '🏃' },
     at_restaurant: { label: 'At Restaurant',      color: '#fb923c', next: 'picked_up',      nextLabel: 'Order Picked Up',       emoji: '🏪' },
     picked_up:     { label: 'Picked Up',          color: '#fb923c', next: 'in_transit',     nextLabel: 'En Route',              emoji: '🛵' },
-    in_transit:    { label: 'En Route',           color: '#ffba08', next: 'delivered',      nextLabel: 'Mark Delivered',        emoji: '📍' },
-    nearby:        { label: 'Nearby',             color: '#ffba08', next: 'delivered',      nextLabel: 'Mark Delivered',        emoji: '📍' },
+    in_transit:    { label: 'En Route',           color: '#ffc845', next: 'delivered',      nextLabel: 'Mark Delivered',        emoji: '📍' },
+    nearby:        { label: 'Nearby',             color: '#ffc845', next: 'delivered',      nextLabel: 'Mark Delivered',        emoji: '📍' },
     arrived:       { label: 'Arrived',            color: '#a78bfa', next: 'delivered',      nextLabel: 'Confirm Delivery',      emoji: '🚪' },
     delivered:     { label: 'Delivered ✓',        color: '#22c55e', next: null,             nextLabel: '',                      emoji: '🎉' },
     failed:        { label: 'Failed',             color: '#f87171', next: null,             nextLabel: '',                      emoji: '❌' },
@@ -46,7 +46,7 @@ function StatCard({ emoji, label, value, color }: { emoji: string; label: string
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                     <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.65rem', color: 'var(--text-muted)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 }}>{label}</p>
-                    <p style={{ fontFamily: 'var(--font-display)', fontSize: '2.4rem', color: color || 'var(--accent-cream)', lineHeight: 1 }}>{value}</p>
+                    <p style={{ fontFamily: 'var(--font-accent)', fontSize: '2.4rem', color: color || 'var(--accent-cream)', lineHeight: 1 }}>{value}</p>
                 </div>
                 <span style={{ fontSize: '2rem' }}>{emoji}</span>
             </div>
@@ -64,11 +64,11 @@ function AvailableCard({ delivery, onAccept }: { delivery: DeliveryItem; onAccep
             style={{ borderRadius: 'var(--radius-md)', padding: 'var(--space-md)', border: '1px solid rgba(255,255,255,0.05)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
                 <div>
-                    <p style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', letterSpacing: 2 }}>#{order?.order_number ?? delivery.order_id}</p>
+                    <p style={{ fontFamily: 'var(--font-accent)', fontSize: '1.2rem', letterSpacing: 2 }}>#{order?.order_number ?? delivery.order_id}</p>
                     <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.72rem', color: 'var(--accent-ember)', marginTop: 2 }}>🍽️ {order?.restaurant?.name ?? 'Restaurant'}</p>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                    <p style={{ fontFamily: 'var(--font-display)', fontSize: '1.6rem', color: '#22c55e' }}>₹{estimatedEarnings}</p>
+                    <p style={{ fontFamily: 'var(--font-accent)', fontSize: '1.6rem', color: '#22c55e' }}>₹{estimatedEarnings}</p>
                     <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.65rem', color: 'var(--text-muted)' }}>Est. earnings</p>
                 </div>
             </div>
@@ -112,7 +112,7 @@ function ActiveCard({ delivery, onAdvance }: { delivery: DeliveryItem; onAdvance
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                 <div>
                     <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.65rem', color: 'var(--text-muted)', letterSpacing: 3, textTransform: 'uppercase' }}>Active Delivery</p>
-                    <p style={{ fontFamily: 'var(--font-display)', fontSize: '1.6rem', letterSpacing: 2 }}>#{order?.order_number ?? delivery.order_id}</p>
+                    <p style={{ fontFamily: 'var(--font-accent)', fontSize: '1.6rem', letterSpacing: 2 }}>#{order?.order_number ?? delivery.order_id}</p>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: `${cfg.color}15`, border: `1px solid ${cfg.color}44`, borderRadius: 'var(--radius-sm)', padding: '8px 16px' }}>
                     <span style={{ fontSize: '1.4rem' }}>{(cfg as { emoji?: string }).emoji ?? '🛵'}</span>
@@ -143,7 +143,7 @@ function ActiveCard({ delivery, onAdvance }: { delivery: DeliveryItem; onAdvance
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <p style={{ fontFamily: 'var(--font-display)', fontSize: '1.6rem', color: '#22c55e' }}>
+                <p style={{ fontFamily: 'var(--font-accent)', fontSize: '1.6rem', color: '#22c55e' }}>
                     ₹{order?.total?.toLocaleString('en-IN') ?? '—'}
                 </p>
                 {cfg.next && (

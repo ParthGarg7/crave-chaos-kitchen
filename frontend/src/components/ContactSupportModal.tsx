@@ -104,7 +104,7 @@ export default function ContactSupportModal({ open, onClose }: Props) {
         width: '100%',
         padding: '12px 14px',
         background: 'var(--bg-elevated)',
-        border: '1px solid var(--border-subtle)',
+        border: '1px solid rgba(255,255,255,0.08)',
         borderRadius: 'var(--radius-sm)',
         color: 'var(--accent-cream)',
         fontFamily: 'var(--font-body)',
@@ -159,7 +159,7 @@ export default function ContactSupportModal({ open, onClose }: Props) {
                             width: '100%', maxWidth: 500,
                             maxHeight: 'calc(100vh - 48px)',
                             background: 'var(--bg-surface)',
-                            border: '1px solid var(--border-subtle)',
+                            border: '1px solid rgba(255,255,255,0.07)',
                             borderRadius: 'var(--radius-md)',
                             boxShadow: '0 32px 80px rgba(0,0,0,0.7)',
                             zIndex: 3001,
@@ -171,11 +171,11 @@ export default function ContactSupportModal({ open, onClose }: Props) {
                         {/* Header */}
                         <div style={{
                             padding: '24px 28px 20px',
-                            borderBottom: '1px solid var(--border-subtle)',
+                            borderBottom: '1px solid rgba(255,255,255,0.05)',
                             display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
                         }}>
                             <div>
-                                <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.6rem', marginBottom: 4 }}>
+                                <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.6rem', marginBottom: 4 }}>
                                     CONTACT SUPPORT
                                 </h2>
                                 <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
@@ -214,7 +214,7 @@ export default function ContactSupportModal({ open, onClose }: Props) {
                                             display: 'inline-block', padding: '8px 20px',
                                             background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)',
                                             borderRadius: 'var(--radius-pill)',
-                                            fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.9rem', color: '#4ade80',
+                                            fontFamily: 'var(--font-accent)', fontSize: '0.9rem', color: '#4ade80',
                                             letterSpacing: 2, marginBottom: 24,
                                         }}>
                                             {ticket.ticket_id}
@@ -226,7 +226,7 @@ export default function ContactSupportModal({ open, onClose }: Props) {
                                             style={{
                                                 padding: '12px 36px',
                                                 background: 'var(--accent-fire)', color: '#fff',
-                                                fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1rem', letterSpacing: 2,
+                                                fontFamily: 'var(--font-accent)', fontSize: '1rem', letterSpacing: 2,
                                                 borderRadius: 'var(--radius-sm)',
                                             }}
                                         >
@@ -253,7 +253,7 @@ export default function ContactSupportModal({ open, onClose }: Props) {
                                             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
                                                 <span style={{ fontSize: '1.2rem' }}>⚠️</span>
                                                 <span style={{
-                                                    fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.78rem',
+                                                    fontFamily: 'var(--font-accent)', fontSize: '0.78rem',
                                                     letterSpacing: 2, color: '#f87171',
                                                 }}>
                                                     {apiError.status ? `HTTP ${apiError.status}` : 'ERROR'}
@@ -270,7 +270,7 @@ export default function ContactSupportModal({ open, onClose }: Props) {
                                                 style={{
                                                     flex: 1, padding: '12px 0',
                                                     background: 'var(--accent-fire)', color: '#fff',
-                                                    fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1rem', letterSpacing: 2,
+                                                    fontFamily: 'var(--font-accent)', fontSize: '1rem', letterSpacing: 2,
                                                     borderRadius: 'var(--radius-sm)',
                                                 }}
                                             >
@@ -283,7 +283,7 @@ export default function ContactSupportModal({ open, onClose }: Props) {
                                                     padding: '12px 20px',
                                                     background: 'transparent', color: 'var(--text-muted)',
                                                     fontFamily: 'var(--font-body)', fontSize: '0.82rem',
-                                                    border: '1px solid var(--border-subtle)',
+                                                    border: '1px solid rgba(255,255,255,0.08)',
                                                     borderRadius: 'var(--radius-sm)',
                                                 }}
                                             >
@@ -316,7 +316,7 @@ export default function ContactSupportModal({ open, onClose }: Props) {
                                                 disabled={formState === 'loading'}
                                                 style={inputStyle}
                                                 onFocus={e => (e.target.style.borderColor = 'var(--accent-fire)')}
-                                                onBlur={e => (e.target.style.borderColor = 'var(--border-subtle)')}
+                                                onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.08)')}
                                             />
                                         </div>
 
@@ -332,7 +332,7 @@ export default function ContactSupportModal({ open, onClose }: Props) {
                                                 disabled={formState === 'loading'}
                                                 style={inputStyle}
                                                 onFocus={e => (e.target.style.borderColor = 'var(--accent-fire)')}
-                                                onBlur={e => (e.target.style.borderColor = 'var(--border-subtle)')}
+                                                onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.08)')}
                                             />
                                         </div>
 
@@ -354,7 +354,7 @@ export default function ContactSupportModal({ open, onClose }: Props) {
                                                 disabled={formState === 'loading'}
                                                 style={{ ...inputStyle, resize: 'vertical', minHeight: 110 }}
                                                 onFocus={e => (e.target.style.borderColor = 'var(--accent-fire)')}
-                                                onBlur={e => (e.target.style.borderColor = 'var(--border-subtle)')}
+                                                onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.08)')}
                                             />
                                             {message.length > 0 && message.length < 10 && (
                                                 <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.7rem', color: '#f87171', marginTop: 4 }}>
@@ -373,7 +373,7 @@ export default function ContactSupportModal({ open, onClose }: Props) {
                                                 width: '100%', padding: '14px 0',
                                                 background: isValid ? 'var(--accent-fire)' : 'rgba(255,255,255,0.06)',
                                                 color: isValid ? '#fff' : 'var(--text-muted)',
-                                                fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.1rem', letterSpacing: 3,
+                                                fontFamily: 'var(--font-accent)', fontSize: '1.1rem', letterSpacing: 3,
                                                 borderRadius: 'var(--radius-sm)',
                                                 transition: 'background 0.25s, color 0.25s',
                                                 cursor: isValid && formState !== 'loading' ? 'none' : 'not-allowed',

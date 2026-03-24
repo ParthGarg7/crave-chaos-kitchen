@@ -15,6 +15,9 @@ import RestaurantDashboard from './pages/RestaurantDashboard';
 import SetupRestaurantPage from './pages/SetupRestaurantPage';
 import DriverDashboard from './pages/DriverDashboard';
 import AdminPanel from './pages/AdminPanel';
+import DeveloperDashboard from './pages/DeveloperDashboard';
+import ChaosEngineer from './pages/ChaosEngineer';
+import DualView from './pages/DualView';
 import PaymentModal, { PaymentMethod } from './components/PaymentModal';
 import ContactSupportModal from './components/ContactSupportModal';
 
@@ -46,8 +49,8 @@ function CustomCursor() {
     const loop = () => {
       pos.current.x += (target.current.x - pos.current.x) * 0.15;
       pos.current.y += (target.current.y - pos.current.y) * 0.15;
-      if (dot.current) { dot.current.style.transform = `translate(${target.current.x - 5}px, ${target.current.y - 5}px)`; }
-      if (ring.current) { ring.current.style.transform = `translate(${pos.current.x - 16}px, ${pos.current.y - 16}px) scale(${hovering ? 1.6 : 1})`; }
+      if (dot.current) { dot.current.style.transform = `translate(${target.current.x - 6}px, ${target.current.y - 6}px)`; }
+      if (ring.current) { ring.current.style.transform = `translate(${pos.current.x - 18}px, ${pos.current.y - 18}px) scale(${hovering ? 1.8 : 1})`; }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -55,8 +58,8 @@ function CustomCursor() {
   }, [hovering]);
 
   return <>
-    <div ref={dot} style={{ position: 'fixed', width: 14, height: 14, background: 'var(--accent-fire)', pointerEvents: 'none', zIndex: 99999, transition: 'background 0.2s' }} />
-    <div ref={ring} style={{ position: 'fixed', width: 44, height: 44, border: '4px solid var(--accent-cyan)', pointerEvents: 'none', zIndex: 99998, transition: 'transform 0.1s ease-out', opacity: hovering ? 1 : 0.4 }} />
+    <div ref={dot} style={{ position: 'fixed', width: 12, height: 12, borderRadius: '50%', background: 'var(--accent-fire)', pointerEvents: 'none', zIndex: 99999, transition: 'background 0.2s' }} />
+    <div ref={ring} style={{ position: 'fixed', width: 36, height: 36, borderRadius: '50%', border: '1.5px solid var(--accent-fire)', pointerEvents: 'none', zIndex: 99998, transition: 'transform 0.15s ease-out, opacity 0.2s', opacity: hovering ? 0.5 : 0.3 }} />
   </>;
 }
 
@@ -68,8 +71,12 @@ function ProfileDropdown({ onClose }: { onClose: () => void }) {
   const handleLogout = () => {
     clearAuth();
     toast.success('See you soon! 👋');
-    navigate('/');
     onClose();
+    // Delay navigation to allow Zustand state update to complete and Navbar to re-render
+    // This prevents the race condition where buttons are recreated during navigation
+    requestAnimationFrame(() => {
+      navigate('/');
+    });
   };
 
   const getDashboard = () => {
@@ -85,42 +92,42 @@ function ProfileDropdown({ onClose }: { onClose: () => void }) {
       initial={{ opacity: 0, y: 8, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 8, scale: 0.95 }}
-      transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 0.15 }}
       style={{
         position: 'absolute', top: 'calc(100% + 12px)', right: 0, minWidth: 220,
-        background: 'var(--bg-surface)', border: '4px solid var(--border-subtle)',
-        boxShadow: 'var(--shadow-hover)',
+        background: 'var(--bg-surface)', border: '1px solid rgba(255,255,255,0.07)',
+        borderRadius: 'var(--radius-md)', boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
         overflow: 'hidden', zIndex: 2000,
       }}
     >
       {/* User info */}
-      <div style={{ padding: '20px 24px', borderBottom: '4px solid var(--border-subtle)', background: 'var(--bg-elevated)' }}>
-        <p style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', color: 'var(--accent-cream)', fontWeight: 700 }}>
+      <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.82rem', color: 'var(--accent-cream)', fontWeight: 600 }}>
           {user?.first_name} {user?.last_name}
         </p>
-        <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{user?.email}</p>
+        <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2 }}>{user?.email}</p>
         <span style={{
-          display: 'inline-block', marginTop: 12, fontFamily: 'var(--font-body)', fontSize: '0.8rem',
-          letterSpacing: 1.5, textTransform: 'uppercase', padding: '4px 12px', fontWeight: 600,
-          background: 'var(--accent-lime)',
-          color: 'var(--accent-cream)', border: '2px solid var(--border-subtle)', boxShadow: '2px 2px 0 #000'
+          display: 'inline-block', marginTop: 8, fontFamily: 'var(--font-body)', fontSize: '0.6rem',
+          letterSpacing: 2, textTransform: 'uppercase', padding: '3px 10px',
+          borderRadius: 'var(--radius-pill)', background: 'rgba(255,69,0,0.12)',
+          color: 'var(--accent-fire)', border: '1px solid rgba(255,69,0,0.25)',
         }}>
           {user?.role?.replace('_', ' ')}
         </span>
       </div>
 
       {/* Links */}
-      <div style={{ padding: '12px 0', background: 'var(--bg-surface)' }}>
+      <div style={{ padding: '8px 0' }}>
         {dash && (
           <button
             onClick={() => { navigate(dash.path); onClose(); }}
             style={{
-              width: '100%', textAlign: 'left', padding: '12px 24px', cursor: 'pointer',
-              fontFamily: 'var(--font-body)', fontSize: '0.85rem', color: 'var(--accent-cream)', fontWeight: 500,
-              background: 'none', border: 'none', transition: 'all 0.2s var(--ease-smooth)',
+              width: '100%', textAlign: 'left', padding: '10px 20px', cursor: 'none',
+              fontFamily: 'var(--font-body)', fontSize: '0.75rem', color: 'var(--accent-cream)',
+              background: 'none', border: 'none', transition: 'background 0.15s',
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.03)'; e.currentTarget.style.paddingLeft = '28px'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.paddingLeft = '24px'; }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'none')}
           >
             {dash.label}
           </button>
@@ -129,12 +136,12 @@ function ProfileDropdown({ onClose }: { onClose: () => void }) {
         <button
           onClick={handleLogout}
           style={{
-            width: '100%', textAlign: 'left', padding: '12px 24px', cursor: 'pointer',
-            fontFamily: 'var(--font-body)', fontSize: '0.85rem', color: '#ff3b30', fontWeight: 500,
-            background: 'none', border: 'none', transition: 'all 0.2s var(--ease-smooth)',
+            width: '100%', textAlign: 'left', padding: '10px 20px', cursor: 'none',
+            fontFamily: 'var(--font-body)', fontSize: '0.75rem', color: '#f87171',
+            background: 'none', border: 'none', transition: 'background 0.15s',
           }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255, 59, 48, 0.08)'; e.currentTarget.style.paddingLeft = '28px'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.paddingLeft = '24px'; }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(248,113,113,0.08)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'none')}
         >
           🚪 Sign Out
         </button>
@@ -180,45 +187,27 @@ function Navbar({ cartCount, onCartClick }: { cartCount: number; onCartClick: ()
     { path: '/', label: 'Home' },
     { path: '/browse', label: 'Browse' },
     ...(!isAuthenticated ? [{ path: '/login', label: 'Login' }] : []),
-    // Simulator only visible to admin users
-    ...(user?.role === 'admin' ? [{ path: '/simulator', label: 'Simulator' }] : []),
+    // Admin/developer tools — visible to admin only
+    ...(user?.role === 'admin' ? [{ path: '/developer', label: '🛠 Dev' }] : []),
     ...(user?.role === 'admin' ? [{ path: '/admin', label: 'Admin' }] : []),
   ];
 
   return (
-    <nav style={{
-      position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1000,
-      padding: '0 var(--space-lg)',
-      borderBottom: '4px solid var(--border-subtle)',
-      transition: 'background 0.2s',
-      background: scrolled ? 'var(--bg-void)' : 'var(--bg-surface)',
-    }}>
-      <div style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 72 }}>
-        <button onClick={() => navigate('/')} style={{
-          fontFamily: 'var(--font-display)', fontSize: '2.5rem',
-          color: 'var(--accent-fire)', fontWeight: 800, letterSpacing: -0.5,
-          textShadow: '3px 3px 0 var(--accent-cyan)'
-        }}>crave.</button>
+    <nav className="glass" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1000, padding: '0 var(--space-lg)', borderBottom: scrolled ? '1px solid var(--glow-fire)' : '1px solid transparent', transition: 'border-color 0.3s' }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 64 }}>
+        <button onClick={() => navigate('/')} style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '1.8rem', color: 'var(--accent-fire)', fontWeight: 700, letterSpacing: 2 }}>CRAVE</button>
         <div style={{ display: 'flex', gap: 'var(--space-lg)', alignItems: 'center' }}>
           {navLinks.map(link => (
-            <button key={link.path} onClick={() => navigate(link.path)} style={{
-              fontFamily: 'var(--font-body)', fontSize: '1rem', fontWeight: 600,
-              color: 'var(--accent-cream)', background: location.pathname === link.path ? 'var(--accent-lime)' : 'transparent',
-              border: location.pathname === link.path ? '2px solid var(--border-subtle)' : '2px solid transparent',
-              boxShadow: location.pathname === link.path ? '2px 2px 0 #000' : 'none',
-              textTransform: 'uppercase', letterSpacing: 1, position: 'relative',
-              padding: '6px 12px', transition: 'all 0.2s', cursor: 'pointer'
-            }}>
+            <button key={link.path} onClick={() => navigate(link.path)} style={{ fontFamily: 'var(--font-body)', fontSize: '0.8rem', color: location.pathname === link.path ? 'var(--accent-cream)' : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 2, position: 'relative', padding: '4px 0', transition: 'color 0.2s' }}>
               {link.label}
+              {location.pathname === link.path && <motion.span layoutId="nav-underline" style={{ position: 'absolute', bottom: -2, left: 0, right: 0, height: 2, background: 'var(--accent-fire)', borderRadius: 1 }} />}
             </button>
           ))}
 
           {/* Cart */}
-          <button onClick={onCartClick} style={{ position: 'relative', padding: '8px 16px', background: 'var(--accent-cyan)', border: '2px solid var(--border-subtle)', boxShadow: '4px 4px 0 #000', animation: bounce ? 'shake 0.4s ease' : 'none', transition: 'transform 0.2s', cursor: 'pointer' }} onMouseEnter={e => e.currentTarget.style.transform = 'translate(-2px, -2px)'} onMouseLeave={e => e.currentTarget.style.transform = 'translate(0, 0)'}>
-            <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 700, color: '#000' }}>CART</span>
-            <AnimatePresence>
-              {cartCount > 0 && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} style={{ position: 'absolute', top: -10, right: -10, background: 'var(--accent-fire)', color: '#fff', fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: '0.9rem', width: 28, height: 28, border: '2px solid #000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{cartCount}</motion.span>}
-            </AnimatePresence>
+          <button onClick={onCartClick} style={{ position: 'relative', padding: 8, animation: bounce ? 'shake 0.4s ease' : 'none' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cream)" strokeWidth="1.5"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0" /></svg>
+            {cartCount > 0 && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} style={{ position: 'absolute', top: 0, right: -2, background: 'var(--accent-fire)', color: '#fff', fontFamily: 'var(--font-accent)', fontSize: '0.75rem', width: 20, height: 20, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{cartCount}</motion.span>}
           </button>
 
           {/* Profile avatar (when authenticated) */}
@@ -229,12 +218,13 @@ function Navbar({ cartCount, onCartClick }: { cartCount: number; onCartClick: ()
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setProfileOpen(prev => !prev)}
                 style={{
-                  width: 40, height: 40, borderRadius: '50%',
-                  background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)',
+                  width: 36, height: 36, borderRadius: '50%',
+                  background: 'linear-gradient(135deg, var(--accent-fire), var(--accent-ember))',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.1rem', color: 'var(--accent-fire)',
-                  boxShadow: profileOpen ? 'var(--shadow-hover)' : 'var(--shadow-bento)',
-                  transition: 'all 0.2s var(--ease-smooth)', cursor: 'pointer',
+                  fontFamily: 'var(--font-accent)', fontSize: '1rem', color: '#fff',
+                  boxShadow: profileOpen ? '0 0 20px var(--glow-fire)' : 'none',
+                  transition: 'box-shadow 0.2s', cursor: 'none',
+                  border: profileOpen ? '2px solid var(--accent-fire)' : '2px solid transparent',
                 }}
               >
                 {user.first_name?.charAt(0).toUpperCase() || '?'}
@@ -278,29 +268,26 @@ function CartDrawer({
   return (
     <AnimatePresence>
       {open && <>
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)', zIndex: 2000 }} />
-        <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: '100%', maxWidth: 500, background: 'var(--bg-void)', borderLeft: '6px solid var(--border-subtle)', boxShadow: '-16px 0 0px rgba(0,0,0,1)', zIndex: 2001, display: 'flex', flexDirection: 'column' }}>
-          <div style={{ padding: 'var(--space-lg)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '4px solid var(--border-subtle)', background: 'var(--accent-cyan)' }}>
-            <div>
-              <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '2.5rem', letterSpacing: -0.5, color: '#000', textShadow: '2px 2px 0 #fff' }}>YOUR CART</h2>
-              <p style={{ fontFamily: 'var(--font-body)', fontSize: '1rem', color: '#000', fontWeight: 600 }}>Ready for satisfaction?</p>
-            </div>
-            <button onClick={onClose} style={{ width: 44, height: 44, background: 'var(--accent-fire)', border: '4px solid var(--border-subtle)', boxShadow: '4px 4px 0 #000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', color: '#fff', transition: 'all 0.1s', cursor: 'pointer' }} onMouseEnter={e => { e.currentTarget.style.transform = 'translate(2px, 2px)'; e.currentTarget.style.boxShadow = '2px 2px 0 #000'; }} onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '4px 4px 0 #000'; }}>✕</button>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', zIndex: 2000 }} />
+        <motion.div initial={{ x: 480 }} animate={{ x: 0 }} exit={{ x: 480 }} transition={{ type: 'spring', damping: 25, stiffness: 300 }} style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: '100%', maxWidth: 480, background: 'var(--bg-surface)', borderLeft: '1px solid rgba(255,255,255,0.05)', zIndex: 2001, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ padding: 'var(--space-lg)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.8rem' }}>YOUR ORDER</h2>
+            <button onClick={onClose} style={{ fontSize: '1.5rem', color: 'var(--text-muted)' }}>✕</button>
           </div>
           <div style={{ flex: 1, overflowY: 'auto', padding: 'var(--space-md)' }}>
-            {cart.length === 0 ? <p style={{ color: 'var(--text-muted)', textAlign: 'center', marginTop: '30vh', fontFamily: 'var(--font-body)', fontSize: '1.1rem' }}>No cravings added yet.</p> : (
+            {cart.length === 0 ? <p style={{ color: 'var(--text-muted)', textAlign: 'center', marginTop: 'var(--space-xl)' }}>Your cart is empty</p> : (
               <AnimatePresence>
                 {cart.map(item => (
-                  <motion.div key={item.id} layout initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, scale: 0.95 }} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)', padding: 'var(--space-md)', background: 'var(--bg-surface)', marginBottom: 'var(--space-sm)', border: '4px solid var(--border-subtle)', boxShadow: 'var(--shadow-bento)'}}>
-                    <span style={{ fontSize: '2.5rem', width: 60, height: 60, background: 'var(--bg-elevated)', border: '2px solid #000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{item.emoji}</span>
+                  <motion.div key={item.id} layout initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -100 }} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', padding: 'var(--space-sm)', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-sm)', marginBottom: 'var(--space-xs)' }}>
+                    <span style={{ fontSize: '1.8rem', width: 44, textAlign: 'center' }}>{item.emoji}</span>
                     <div style={{ flex: 1 }}>
-                      <p style={{ fontSize: '1.4rem', fontWeight: 700, fontFamily: 'var(--font-display)', color: 'var(--accent-cream)', marginBottom: 2 }}>{item.name}</p>
-                      <p style={{ fontFamily: 'var(--font-body)', fontWeight: 600, color: 'var(--text-muted)', fontSize: '1rem' }}>₹{(item.price * item.qty).toLocaleString('en-IN')}</p>
+                      <p style={{ fontSize: '0.85rem', fontWeight: 500 }}>{item.name}</p>
+                      <p style={{ fontFamily: 'var(--font-accent)', color: 'var(--accent-gold)', fontSize: '1.1rem' }}>₹{(item.price * item.qty).toLocaleString('en-IN')}</p>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--accent-yellow)', padding: '4px 8px', border: '2px solid var(--border-subtle)', boxShadow: '2px 2px 0 #000' }}>
-                      <button onClick={() => item.qty <= 1 ? onRemove(item.id) : onUpdate(item.id, item.qty - 1)} style={{ width: 32, height: 32, background: '#fff', border: '2px solid #000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', color: '#000', cursor: 'pointer' }}>−</button>
-                      <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.2rem', width: 24, textAlign: 'center', color: 'var(--accent-cream)' }}>{item.qty}</span>
-                      <button onClick={() => onUpdate(item.id, item.qty + 1)} style={{ width: 32, height: 32, background: '#fff', border: '2px solid #000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', color: '#000', cursor: 'pointer' }}>+</button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <button onClick={() => item.qty <= 1 ? onRemove(item.id) : onUpdate(item.id, item.qty - 1)} style={{ width: 28, height: 28, borderRadius: '50%', border: '1px solid var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', color: 'var(--text-muted)' }}>−</button>
+                      <span style={{ fontFamily: 'var(--font-accent)', fontSize: '1.1rem', width: 20, textAlign: 'center' }}>{item.qty}</span>
+                      <button onClick={() => onUpdate(item.id, item.qty + 1)} style={{ width: 28, height: 28, borderRadius: '50%', border: '1px solid var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', color: 'var(--text-muted)' }}>+</button>
                     </div>
                   </motion.div>
                 ))}
@@ -308,26 +295,26 @@ function CartDrawer({
             )}
           </div>
           {cart.length > 0 && (
-            <div style={{ padding: 'var(--space-lg)', borderTop: '4px solid var(--border-subtle)', background: 'var(--bg-surface)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', marginBottom: 8 }}><span>Subtotal</span><span style={{fontWeight: 700}}>₹{subtotal.toLocaleString('en-IN')}</span></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', marginBottom: 20 }}><span>Delivery Fee</span><span style={{fontWeight: 700}}>₹{deliveryFee}</span></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '2rem', fontFamily: 'var(--font-display)', fontWeight: 800, marginBottom: 'var(--space-lg)' }}><span style={{color: 'var(--accent-cream)'}}>Total</span><span style={{ color: 'var(--accent-fire)', textShadow: '2px 2px 0 #000' }}>₹{total.toLocaleString('en-IN')}</span></div>
+            <div style={{ padding: 'var(--space-lg)', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 4 }}><span>Subtotal</span><span>₹{subtotal.toLocaleString('en-IN')}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 12 }}><span>Delivery</span><span>₹{deliveryFee}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.2rem', fontFamily: 'var(--font-accent)', marginBottom: 'var(--space-md)' }}><span>Total</span><span style={{ color: 'var(--accent-gold)' }}>₹{total.toLocaleString('en-IN')}</span></div>
               {!isAuthenticated && (
-                <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.95rem', background: 'var(--accent-gold)', border: '2px solid #000', padding: '8px', textAlign: 'center', marginBottom: 16, fontWeight: 700, boxShadow: '2px 2px 0 #000' }}>
-                  🔐 Sign in to complete your order
+                <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.72rem', color: 'var(--accent-fire)', textAlign: 'center', marginBottom: 12, letterSpacing: 1 }}>
+                  🔐 Login required to place order
                 </p>
               )}
-              <button
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={handleProceedToPayment}
                 disabled={orderState !== 'idle'}
-                style={{ width: '100%', padding: '18px 0', background: orderState === 'success' ? 'var(--accent-lime)' : 'var(--accent-fire)', color: '#fff', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.5rem', letterSpacing: 2, border: '4px solid var(--border-subtle)', boxShadow: '6px 6px 0 #000', cursor: 'pointer', transition: 'transform 0.1s', textShadow: '2px 2px 0 #000' }}
-                onMouseEnter={e => e.currentTarget.style.transform = 'translate(-2px, -2px)'}
-                onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                style={{ width: '100%', padding: '16px 0', background: orderState === 'success' ? '#22c55e' : 'var(--accent-fire)', color: '#fff', fontFamily: 'var(--font-accent)', fontSize: '1.3rem', letterSpacing: 3, borderRadius: 'var(--radius-sm)', transition: 'background 0.3s' }}
               >
-                {orderState === 'idle' && (isAuthenticated ? 'CHECKOUT NOW >' : 'LOGIN TO ORDER >')}
-                {orderState === 'loading' && 'PROCESSING...'}
-                {orderState === 'success' && 'CONFIRMED!'}
-              </button>
+                {orderState === 'idle' && (isAuthenticated ? 'PROCEED TO PAYMENT →' : 'LOGIN TO ORDER →')}
+                {orderState === 'loading' && '⏳ PLACING...'}
+                {orderState === 'success' && 'ORDER PLACED! 🎉'}
+              </motion.button>
             </div>
           )}
         </motion.div>
@@ -386,13 +373,13 @@ function AppContent() {
   const [contactOpen, setContactOpen] = useState(false);
   const [orderState, setOrderState] = useState<'idle' | 'loading' | 'success'>('idle');
   const [orderId, setOrderId] = useState('');
+  const [paymentError, setPaymentError] = useState('');
 
   const addToCart = useCallback((item: { id: number; name: string; price: number; emoji: string; restaurantId?: number }) => {
-    setCart((prev: CartItem[]) => {
+    setCart(prev => {
       const existing = prev.find(c => c.id === item.id);
       if (existing) return prev.map(c => c.id === item.id ? { ...c, qty: c.qty + 1 } : c);
-      // Fallback to 1 if missing for safety
-      return [...prev, { ...item, qty: 1, restaurantId: item.restaurantId ?? 1 }];
+      return [...prev, { ...item, qty: 1 }];
     });
   }, []);
 
@@ -415,6 +402,7 @@ function AppContent() {
 
     if (cart.length === 0) return;
     setOrderState('loading');
+    setPaymentError('');
 
     // Map PaymentMethod to backend-accepted value
     const backendPaymentMethod =
@@ -455,18 +443,17 @@ function AppContent() {
       setOrderState('idle');
       const e = err as { response?: { data?: { detail?: string }; status?: number } };
       const detail = e?.response?.data?.detail;
-      if (detail) {
-        toast.error(detail);
-      } else if (!e?.response) {
-        // Backend unreachable — fall back gracefully
+      const errorMsg = detail || (e?.response ? 'Payment failed. Please try again.' : 'Could not reach server. Is Docker running?');
+      setPaymentError(errorMsg);
+      if (!e?.response) {
         toast.error('Could not reach server. Is Docker running?');
       }
-      // 400/422 messages are shown inline via the detail field above
     }
   }, [isAuthenticated, user, cart, navigate]);
 
   const handleProceedToPayment = useCallback(() => {
     setCartOpen(false);
+    setPaymentError('');
     setPaymentOpen(true);
   }, []);
 
@@ -477,17 +464,31 @@ function AppContent() {
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
   const legacyNavigate = (p: string) => navigate(p === 'hero' ? '/' : `/${p}`);
 
+  // Restore focus to the main content area after logout to ensure buttons are accessible
+  useEffect(() => {
+    if (!isAuthenticated && location.pathname === '/') {
+      // Small timeout to ensure DOM is ready
+      setTimeout(() => {
+        const mainEl = document.querySelector('main');
+        if (mainEl) {
+          (mainEl as HTMLElement).focus({ preventScroll: true });
+        }
+      }, 100);
+    }
+  }, [isAuthenticated, location.pathname]);
+
   return (
     <>
       <Navbar cartCount={cartCount} onCartClick={() => setCartOpen(true)} />
       <CartDrawer cart={cart} open={cartOpen} onClose={() => setCartOpen(false)} onUpdate={updateQty} onRemove={removeItem} onProceedToPayment={handleProceedToPayment} orderState={orderState} />
       <PaymentModal
         open={paymentOpen}
-        onClose={() => { setPaymentOpen(false); setCartOpen(true); }}
+        onClose={() => { setPaymentOpen(false); setPaymentError(''); setCartOpen(true); }}
         onConfirm={handlePaymentConfirmed}
         total={cart.reduce((s, i) => s + i.price * i.qty, 0) + (cart.length > 0 ? 49 : 0)}
         cartItems={cart.map(i => ({ name: i.name, emoji: i.emoji, qty: i.qty, price: i.price }))}
         orderState={orderState}
+        errorMessage={paymentError}
       />
 
       <ContactSupportModal open={contactOpen} onClose={() => setContactOpen(false)} />
@@ -501,22 +502,20 @@ function AppContent() {
           position: 'fixed', bottom: 28, right: 28, zIndex: 2500,
           width: 48, height: 48, borderRadius: '50%',
           background: 'var(--bg-surface)',
-          border: '1px solid var(--border-subtle)',
+          border: '1px solid rgba(255,255,255,0.12)',
           boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: '1.25rem', color: 'var(--accent-cream)',
           cursor: 'none',
-          transition: 'all 0.2s var(--ease-smooth)',
+          transition: 'border-color 0.2s, box-shadow 0.2s',
         }}
         onMouseEnter={e => {
           (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--accent-fire)';
           (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 8px 32px rgba(0,0,0,0.5), 0 0 16px var(--glow-fire)';
-          (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px)';
         }}
         onMouseLeave={e => {
-          (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border-subtle)';
+          (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.12)';
           (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 8px 32px rgba(0,0,0,0.5)';
-          (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
         }}
       >
         💬
@@ -525,7 +524,7 @@ function AppContent() {
       <main>
         <AnimatePresence mode="wait">
           <Routes location={location} key={location.pathname}>
-            <Route path="/" element={<PageWrap key="hero"><HeroPage navigate={legacyNavigate} /></PageWrap>} />
+            <Route path="/" element={<PageWrap key={`hero-${isAuthenticated}`}><HeroPage navigate={legacyNavigate} /></PageWrap>} />
             <Route path="/browse" element={<PageWrap key="browse"><BrowsePage onSelect={(id) => navigate(`/menu/${id}`)} /></PageWrap>} />
             {/* Fixed: now passes the actual :id param from the URL instead of hardcoded 1 */}
             <Route path="/menu/:id" element={<MenuPageWrapper cart={cart} addToCart={addToCart} updateQty={updateQty} onViewCart={() => setCartOpen(true)} />} />
@@ -535,6 +534,11 @@ function AppContent() {
             {/* Admin-only routes */}
             <Route path="/simulator" element={<RequireRole role="admin"><PageWrap key="simulator"><div style={{ paddingTop: '0px' }}><FailureSimulatorPage /></div></PageWrap></RequireRole>} />
             <Route path="/admin" element={<RequireRole role="admin"><PageWrap key="admin"><AdminPanel /></PageWrap></RequireRole>} />
+            {/* Developer/Admin routes */}
+            <Route path="/developer" element={<RequireRole role="admin"><PageWrap key="dev"><DeveloperDashboard /></PageWrap></RequireRole>} />
+            <Route path="/developer/chaos-engineer" element={<RequireRole role="admin"><PageWrap key="chaos"><ChaosEngineer /></PageWrap></RequireRole>} />
+            <Route path="/developer/dual-view" element={<RequireRole role="admin"><DualView /></RequireRole>} />
+            <Route path="/developer/failure-simulator" element={<RequireRole role="admin"><PageWrap key="fsim"><div style={{ paddingTop: '0px' }}><FailureSimulatorPage /></div></PageWrap></RequireRole>} />
             {/* Role-protected dashboards — auth guards handled inside each dashboard */}
             <Route path="/restaurant-dashboard" element={<PageWrap key="rdash"><RestaurantDashboard /></PageWrap>} />
             <Route path="/setup-restaurant" element={<PageWrap key="setup-rest"><SetupRestaurantPage /></PageWrap>} />

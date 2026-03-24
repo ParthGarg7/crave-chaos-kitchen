@@ -163,7 +163,7 @@ export default function SetupRestaurantPage() {
                                 background: i <= step ? 'var(--accent-fire)' : 'var(--bg-elevated)',
                                 border: i <= step ? 'none' : '1px solid rgba(255,255,255,0.1)',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                fontFamily: 'var(--font-display)', fontSize: '0.75rem', color: '#fff',
+                                fontFamily: 'var(--font-accent)', fontSize: '0.75rem', color: '#fff',
                                 boxShadow: i === step ? '0 0 16px var(--glow-fire)' : 'none',
                                 transition: 'all 0.3s',
                             }}>
@@ -336,7 +336,7 @@ export default function SetupRestaurantPage() {
                             <motion.button
                                 whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
                                 onClick={next}
-                                style={{ flex: 2, padding: '14px 0', background: 'var(--accent-fire)', color: '#fff', fontFamily: 'var(--font-display)', fontSize: '1.1rem', letterSpacing: 2, borderRadius: 'var(--radius-sm)', border: 'none', boxShadow: '0 0 24px var(--glow-fire)' }}
+                                style={{ flex: 2, padding: '14px 0', background: 'var(--accent-fire)', color: '#fff', fontFamily: 'var(--font-accent)', fontSize: '1.1rem', letterSpacing: 2, borderRadius: 'var(--radius-sm)', border: 'none', boxShadow: '0 0 24px var(--glow-fire)' }}
                             >
                                 Next →
                             </motion.button>
@@ -345,7 +345,7 @@ export default function SetupRestaurantPage() {
                                 whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
                                 onClick={handleSubmit}
                                 disabled={saving}
-                                style={{ flex: 2, padding: '14px 0', background: saving ? 'var(--bg-elevated)' : 'var(--accent-fire)', color: '#fff', fontFamily: 'var(--font-display)', fontSize: '1.1rem', letterSpacing: 2, borderRadius: 'var(--radius-sm)', border: 'none', boxShadow: saving ? 'none' : '0 0 24px var(--glow-fire)', transition: 'all 0.3s', opacity: saving ? 0.7 : 1 }}
+                                style={{ flex: 2, padding: '14px 0', background: saving ? 'var(--bg-elevated)' : 'var(--accent-fire)', color: '#fff', fontFamily: 'var(--font-accent)', fontSize: '1.1rem', letterSpacing: 2, borderRadius: 'var(--radius-sm)', border: 'none', boxShadow: saving ? 'none' : '0 0 24px var(--glow-fire)', transition: 'all 0.3s', opacity: saving ? 0.7 : 1 }}
                             >
                                 {saving ? '⏳ Creating...' : '🚀 Launch Restaurant'}
                             </motion.button>
