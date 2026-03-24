@@ -155,21 +155,21 @@ export default function PaymentModal({
     const [tab, setTab] = useState<PaymentMethod>('card');
 
     // Card fields
-    const [cardNumber, setCardNumber] = useState('');
-    const [expiry, setExpiry] = useState('');
-    const [cvv, setCvv] = useState('');
+    const [cardNumber, setCardNumber] = useState('1234 5678 9012 3456');
+    const [expiry, setExpiry] = useState('12/26');
+    const [cvv, setCvv] = useState('123');
     const [cardError, setCardError] = useState('');
 
     // UPI
-    const [upiId, setUpiId] = useState('');
+    const [upiId, setUpiId] = useState('craveuser@upi');
     const [upiMode, setUpiMode] = useState<'qr' | 'id'>('qr');
 
     // Reset state when modal opens
     useEffect(() => {
         if (open) {
             setTab('card');
-            setCardNumber(''); setExpiry(''); setCvv(''); setCardError('');
-            setUpiId(''); setUpiMode('qr');
+            setCardNumber('1234 5678 9012 3456'); setExpiry('12/26'); setCvv('123'); setCardError('');
+            setUpiId('craveuser@upi'); setUpiMode('qr');
         }
     }, [open]);
 

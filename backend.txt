@@ -1,0 +1,100 @@
+﻿crave-backend  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/cors.py", line 146, in simple_response
+crave-backend  |     await self.app(scope, receive, send)
+crave-backend  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/exceptions.py", line 79, in __call__
+crave-backend  |     raise exc
+crave-backend  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/exceptions.py", line 68, in __call__
+crave-backend  |     await self.app(scope, receive, sender)
+crave-backend  |   File "/usr/local/lib/python3.11/site-packages/fastapi/middleware/asyncexitstack.py", line 20, in __call__
+crave-backend  |     raise e
+crave-backend  |   File "/usr/local/lib/python3.11/site-packages/fastapi/middleware/asyncexitstack.py", line 17, in __call__
+crave-backend  |     await self.app(scope, receive, send)
+crave-backend  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 718, in __call__
+crave-backend  |     await route.handle(scope, receive, send)
+crave-backend  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 276, in handle
+crave-backend  |     await self.app(scope, receive, send)
+crave-backend  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 66, in app
+crave-backend  |     response = await func(request)
+crave-backend  |                ^^^^^^^^^^^^^^^^^^^
+crave-backend  |   File "/usr/local/lib/python3.11/site-packages/fastapi/routing.py", line 274, in app
+crave-backend  |     raw_response = await run_endpoint_function(
+crave-backend  |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+crave-backend  |   File "/usr/local/lib/python3.11/site-packages/fastapi/routing.py", line 191, in run_endpoint_function
+crave-backend  |     return await dependant.call(**values)
+crave-backend  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+crave-backend  |   File "/app/app/api/v1/endpoints/orders.py", line 211, in create_order
+crave-backend  |     db.flush()  # Get order ID
+crave-backend  |     ^^^^^^^^^^
+crave-backend  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 4312, in flush
+crave-backend  |     self._flush(objects)
+crave-backend  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 4447, in _flush
+crave-backend  |     with util.safe_reraise():
+crave-backend  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/util/langhelpers.py", line 146, in __exit__
+crave-backend  |     raise exc_value.with_traceback(exc_tb)
+crave-backend  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 4408, in _flush
+crave-backend  |     flush_context.execute()
+crave-backend  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/unitofwork.py", line 466, in execute
+crave-backend  |     rec.execute(self)
+crave-backend  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/unitofwork.py", line 642, in execute
+crave-backend  |     util.preloaded.orm_persistence.save_obj(
+crave-backend  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/persistence.py", line 93, in save_obj
+crave-backend  |     _emit_insert_statements(
+crave-backend  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/persistence.py", line 1226, in _emit_insert_statements
+crave-backend  |     result = connection.execute(
+crave-backend  |              ^^^^^^^^^^^^^^^^^^^
+crave-backend  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1416, in execute
+crave-backend  |     return meth(
+crave-backend  |            ^^^^^
+crave-backend  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/sql/elements.py", line 516, in _execute_on_connection
+crave-backend  |     return connection._execute_clauseelement(
+crave-backend  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+crave-backend  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1639, in _execute_clauseelement
+crave-backend  |     ret = self._execute_context(
+crave-backend  |           ^^^^^^^^^^^^^^^^^^^^^^
+crave-backend  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1848, in _execute_context
+crave-backend  |     return self._exec_single_context(
+crave-backend  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+crave-backend  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1988, in _exec_single_context
+crave-backend  |     self._handle_dbapi_exception(
+crave-backend  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 2343, in _handle_dbapi_exception
+crave-backend  |     raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+crave-backend  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1969, in _exec_single_context
+crave-backend  |     self.dialect.do_execute(
+crave-backend  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 922, in do_execute
+crave-backend  |     cursor.execute(statement, parameters)
+crave-backend  | sqlalchemy.exc.DataError: (psycopg2.errors.InvalidTextRepresentation) invalid input value for enum paymentmethod: "UPI"
+crave-backend  | LINE 1: ...ULL, 1995.0, 49.0, 159.6, 0.0, 2203.6, 'PENDING', 'UPI', NUL...
+crave-backend  |                                                              ^
+crave-backend  | 
+crave-backend  | [SQL: INSERT INTO orders (order_number, customer_id, restaurant_id, status, delivery_address, delivery_latitude, delivery_longitude, delivery_instructions, subtotal, delivery_fee, tax, tip, total, payment_status, payment_method, payment_transaction_id, updated_at, confirmed_at, prepared_at, picked_up_at, delivered_at, estimated_delivery_time, actual_delivery_time) VALUES (%(order_number)s, %(customer_id)s, %(restaurant_id)s, %(status)s, %(delivery_address)s, %(delivery_latitude)s, %(delivery_longitude)s, %(delivery_instructions)s, %(subtotal)s, %(delivery_fee)s, %(tax)s, %(tip)s, %(total)s, %(payment_status)s, %(payment_method)s, %(payment_transaction_id)s, %(updated_at)s, %(confirmed_at)s, %(prepared_at)s, %(picked_up_at)s, %(delivered_at)s, %(estimated_delivery_time)s, %(actual_delivery_time)s) RETURNING orders.id, orders.created_at]
+crave-backend  | [parameters: {'order_number': 'ORD-20260324-UAWCSB', 'customer_id': 1, 'restaurant_id': 1, 'status': 'PENDING', 'delivery_address': '123 Main St, New York, NY 10001', 'delivery_latitude': None, 'delivery_longitude': None, 'delivery_instructions': None, 'subtotal': 1995.0, 'delivery_fee': 49.0, 'tax': 159.6, 'tip': 0.0, 'total': 2203.6, 'payment_status': 'PENDING', 'payment_method': 'UPI', 'payment_transaction_id': None, 'updated_at': None, 'confirmed_at': None, 'prepared_at': None, 'picked_up_at': None, 'delivered_at': None, 'estimated_delivery_time': None, 'actual_delivery_time': None}]
+crave-backend  | (Background on this error at: https://sqlalche.me/e/20/9h9h)
+crave-backend  | {"method": "GET", "path": "/health", "status_code": 200, "duration_ms": 1.57, "client_ip": "127.0.0.1", "event": "api_request", "logger": "app.main", "level": "info", "timestamp": "2026-03-24T12:31:43.135325Z"}
+crave-backend  | INFO:     127.0.0.1:48678 - "GET /health HTTP/1.1" 200 OK
+crave-backend  | {"method": "GET", "path": "/health", "status_code": 200, "duration_ms": 1.8, "client_ip": "127.0.0.1", "event": "api_request", "logger": "app.main", "level": "info", "timestamp": "2026-03-24T12:31:53.233650Z"}
+crave-backend  | INFO:     127.0.0.1:53884 - "GET /health HTTP/1.1" 200 OK
+crave-backend  | {"method": "GET", "path": "/health", "status_code": 200, "duration_ms": 2.14, "client_ip": "127.0.0.1", "event": "api_request", "logger": "app.main", "level": "info", "timestamp": "2026-03-24T12:32:03.358608Z"}
+crave-backend  | INFO:     127.0.0.1:51088 - "GET /health HTTP/1.1" 200 OK
+crave-backend  | {"method": "GET", "path": "/health", "status_code": 200, "duration_ms": 1.99, "client_ip": "127.0.0.1", "event": "api_request", "logger": "app.main", "level": "info", "timestamp": "2026-03-24T12:32:13.516357Z"}
+crave-backend  | INFO:     127.0.0.1:41316 - "GET /health HTTP/1.1" 200 OK
+crave-backend  | {"method": "GET", "path": "/health", "status_code": 200, "duration_ms": 1.72, "client_ip": "127.0.0.1", "event": "api_request", "logger": "app.main", "level": "info", "timestamp": "2026-03-24T12:32:23.643660Z"}
+crave-backend  | INFO:     127.0.0.1:59174 - "GET /health HTTP/1.1" 200 OK
+crave-backend  | {"method": "GET", "path": "/health", "status_code": 200, "duration_ms": 2.44, "client_ip": "127.0.0.1", "event": "api_request", "logger": "app.main", "level": "info", "timestamp": "2026-03-24T12:32:33.769304Z"}
+crave-backend  | INFO:     127.0.0.1:36058 - "GET /health HTTP/1.1" 200 OK
+crave-backend  | {"method": "GET", "path": "/health", "status_code": 200, "duration_ms": 2.63, "client_ip": "127.0.0.1", "event": "api_request", "logger": "app.main", "level": "info", "timestamp": "2026-03-24T12:32:43.873497Z"}
+crave-backend  | INFO:     127.0.0.1:49608 - "GET /health HTTP/1.1" 200 OK
+crave-backend  | {"method": "GET", "path": "/health", "status_code": 200, "duration_ms": 1.58, "client_ip": "127.0.0.1", "event": "api_request", "logger": "app.main", "level": "info", "timestamp": "2026-03-24T12:32:53.992585Z"}
+crave-backend  | INFO:     127.0.0.1:53088 - "GET /health HTTP/1.1" 200 OK
+crave-backend  | {"method": "GET", "path": "/health", "status_code": 200, "duration_ms": 1.57, "client_ip": "127.0.0.1", "event": "api_request", "logger": "app.main", "level": "info", "timestamp": "2026-03-24T12:33:04.093226Z"}
+crave-backend  | INFO:     127.0.0.1:60188 - "GET /health HTTP/1.1" 200 OK
+crave-backend  | {"method": "GET", "path": "/health", "status_code": 200, "duration_ms": 8.31, "client_ip": "127.0.0.1", "event": "api_request", "logger": "app.main", "level": "info", "timestamp": "2026-03-24T12:33:14.235300Z"}
+crave-backend  | INFO:     127.0.0.1:47556 - "GET /health HTTP/1.1" 200 OK
+crave-backend  | {"method": "GET", "path": "/health", "status_code": 200, "duration_ms": 1.4, "client_ip": "127.0.0.1", "event": "api_request", "logger": "app.main", "level": "info", "timestamp": "2026-03-24T12:33:24.379964Z"}
+crave-backend  | INFO:     127.0.0.1:45112 - "GET /health HTTP/1.1" 200 OK
+crave-backend  | {"method": "GET", "path": "/health", "status_code": 200, "duration_ms": 1.35, "client_ip": "127.0.0.1", "event": "api_request", "logger": "app.main", "level": "info", "timestamp": "2026-03-24T12:33:53.804995Z"}
+crave-backend  | INFO:     127.0.0.1:43486 - "GET /health HTTP/1.1" 200 OK
+crave-backend  | {"method": "GET", "path": "/health", "status_code": 200, "duration_ms": 4.05, "client_ip": "127.0.0.1", "event": "api_request", "logger": "app.main", "level": "info", "timestamp": "2026-03-24T12:33:44.642361Z"}
+crave-backend  | INFO:     127.0.0.1:51440 - "GET /health HTTP/1.1" 200 OK
+crave-backend  | {"method": "GET", "path": "/health", "status_code": 200, "duration_ms": 4.8, "client_ip": "127.0.0.1", "event": "api_request", "logger": "app.main", "level": "info", "timestamp": "2026-03-24T12:33:54.752880Z"}
+crave-backend  | INFO:     127.0.0.1:46948 - "GET /health HTTP/1.1" 200 OK
+crave-backend  | {"method": "GET", "path": "/health", "status_code": 200, "duration_ms": 4.98, "client_ip": "127.0.0.1", "event": "api_request", "logger": "app.main", "level": "info", "timestamp": "2026-03-24T12:34:04.887807Z"}
+crave-backend  | INFO:     127.0.0.1:42178 - "GET /health HTTP/1.1" 200 OK

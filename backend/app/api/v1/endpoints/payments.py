@@ -108,6 +108,7 @@ async def get_payment_methods():
             {"id": "debit_card", "name": "Debit Card", "icon": "credit_card"},
             {"id": "paypal", "name": "PayPal", "icon": "paypal"},
             {"id": "cash", "name": "Cash on Delivery", "icon": "money"},
+            {"id": "upi", "name": "UPI", "icon": "qr_code"},
         ]
     }
 
