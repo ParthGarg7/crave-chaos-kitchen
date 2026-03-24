@@ -1,9 +1,9 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { 
-  ChevronLeft, 
-  Package, 
-  MapPin, 
+import {
+  ChevronLeft,
+  Package,
+  MapPin,
   CreditCard,
   Clock
 } from 'lucide-react';
@@ -69,13 +69,12 @@ const OrderDetailPage = () => {
               </p>
             </div>
             <span
-              className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium capitalize ${
-                order.status === 'delivered'
-                  ? 'bg-green-100 text-green-800'
-                  : order.status === 'cancelled'
+              className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium capitalize ${order.status === 'delivered'
+                ? 'bg-green-100 text-green-800'
+                : order.status === 'cancelled'
                   ? 'bg-red-100 text-red-800'
                   : 'bg-blue-100 text-blue-800'
-              }`}
+                }`}
             >
               {order.status.replace('_', ' ')}
             </span>
@@ -101,20 +100,18 @@ const OrderDetailPage = () => {
                 {statusSteps.map((step, index) => (
                   <div key={step.key} className="flex flex-col items-center">
                     <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                        index <= currentStepIndex
-                          ? 'bg-primary-600 text-white'
-                          : 'bg-gray-200 text-gray-500'
-                      }`}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${index <= currentStepIndex
+                        ? 'bg-primary-600 text-white'
+                        : 'bg-gray-200 text-gray-500'
+                        }`}
                     >
                       {index + 1}
                     </div>
                     <span
-                      className={`text-xs mt-2 text-center w-20 ${
-                        index <= currentStepIndex
-                          ? 'text-primary-600 font-medium'
-                          : 'text-gray-400'
-                      }`}
+                      className={`text-xs mt-2 text-center w-20 ${index <= currentStepIndex
+                        ? 'text-primary-600 font-medium'
+                        : 'text-gray-400'
+                        }`}
                     >
                       {step.label}
                     </span>
