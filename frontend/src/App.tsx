@@ -71,8 +71,12 @@ function ProfileDropdown({ onClose }: { onClose: () => void }) {
   const handleLogout = () => {
     clearAuth();
     toast.success('See you soon! 👋');
-    navigate('/');
     onClose();
+    // Delay navigation to allow Zustand state update to complete and Navbar to re-render
+    // This prevents the race condition where buttons are recreated during navigation
+    requestAnimationFrame(() => {
+      navigate('/');
+    });
   };
 
   const getDashboard = () => {
@@ -460,6 +464,19 @@ function AppContent() {
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
   const legacyNavigate = (p: string) => navigate(p === 'hero' ? '/' : `/${p}`);
 
+  // Restore focus to the main content area after logout to ensure buttons are accessible
+  useEffect(() => {
+    if (!isAuthenticated && location.pathname === '/') {
+      // Small timeout to ensure DOM is ready
+      setTimeout(() => {
+        const mainEl = document.querySelector('main');
+        if (mainEl) {
+          (mainEl as HTMLElement).focus({ preventScroll: true });
+        }
+      }, 100);
+    }
+  }, [isAuthenticated, location.pathname]);
+
   return (
     <>
       <Navbar cartCount={cartCount} onCartClick={() => setCartOpen(true)} />
@@ -507,7 +524,7 @@ function AppContent() {
       <main>
         <AnimatePresence mode="wait">
           <Routes location={location} key={location.pathname}>
-            <Route path="/" element={<PageWrap key="hero"><HeroPage navigate={legacyNavigate} /></PageWrap>} />
+            <Route path="/" element={<PageWrap key={`hero-${isAuthenticated}`}><HeroPage navigate={legacyNavigate} /></PageWrap>} />
             <Route path="/browse" element={<PageWrap key="browse"><BrowsePage onSelect={(id) => navigate(`/menu/${id}`)} /></PageWrap>} />
             {/* Fixed: now passes the actual :id param from the URL instead of hardcoded 1 */}
             <Route path="/menu/:id" element={<MenuPageWrapper cart={cart} addToCart={addToCart} updateQty={updateQty} onViewCart={() => setCartOpen(true)} />} />
