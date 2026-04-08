@@ -2,14 +2,16 @@
 Payment API Endpoints
 Simulates payment processing with Stripe integration
 """
-import random
 import asyncio
+import random
+import re
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.base import get_db
-from app.models.order import Order, PaymentStatus
+from app.core.failure_config import failure_simulator
+from app.models.order import Order, PaymentMethod, PaymentStatus
 from app.models.user import User
 from app.schemas.order import PaymentCreate, PaymentResponse
 from app.api.v1.endpoints.auth import get_current_user
@@ -18,7 +20,7 @@ router = APIRouter(prefix="/payments", tags=["Payments"])
 
 
 # Simulated payment gateway responses
-PAYMENT_RESPONSES = [
+CARD_FAILURE_RESPONSES = [
     {"success": True, "message": "Payment processed successfully"},
     {"success": False, "message": "Card declined - insufficient funds", "decline_code": "insufficient_funds"},
     {"success": False, "message": "Card declined - incorrect CVV", "decline_code": "incorrect_cvv"},
@@ -26,10 +28,58 @@ PAYMENT_RESPONSES = [
     {"success": False, "message": "Processing error", "decline_code": "processing_error"},
 ]
 
+UPI_FAILURE_RESPONSES = [
+    {"success": False, "message": "UPI ID not found", "decline_code": "upi_id_not_found"},
+    {"success": False, "message": "UPI PIN verification failed", "decline_code": "upi_pin_failed"},
+    {"success": False, "message": "UPI bank server timeout", "decline_code": "upi_timeout"},
+]
+
 
 def generate_transaction_id() -> str:
     """Generate a mock transaction ID"""
     return f"txn_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{random.randint(1000, 9999)}"
+
+
+def _requires_card_details(payment_method: PaymentMethod) -> bool:
+    return payment_method in {
+        PaymentMethod.CARD,
+        PaymentMethod.CREDIT_CARD,
+        PaymentMethod.DEBIT_CARD,
+    }
+
+
+def _validate_payment_input(payment_data: PaymentCreate, payment_method: PaymentMethod) -> None:
+    """Validate gateway input based on selected payment method."""
+    if _requires_card_details(payment_method):
+        if not payment_data.card_number or len(payment_data.card_number.strip()) < 12:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Valid card number is required for card payments",
+            )
+        if not payment_data.cvv or not re.fullmatch(r"\d{3,4}", payment_data.cvv.strip()):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Valid CVV is required for card payments",
+            )
+        if not payment_data.expiry_month or not payment_data.expiry_year:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Card expiry month and year are required for card payments",
+            )
+
+    if payment_method == PaymentMethod.UPI:
+        if not payment_data.upi_id or "@" not in payment_data.upi_id:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Valid UPI ID is required for UPI payments",
+            )
+
+
+def _select_failure(payment_method: PaymentMethod) -> dict:
+    """Return realistic failure reason based on payment method."""
+    if payment_method == PaymentMethod.UPI:
+        return random.choice(UPI_FAILURE_RESPONSES)
+    return random.choice([r for r in CARD_FAILURE_RESPONSES if not r["success"]])
 
 
 @router.post("/process", response_model=PaymentResponse)
@@ -60,12 +110,19 @@ async def process_payment(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Order already paid"
         )
+
+    # Validate method-specific payment details before simulating gateway result
+    _validate_payment_input(payment_data, order.payment_method)
     
     # Simulate payment processing delay
     await asyncio.sleep(random.uniform(0.5, 2.0))
     
-    # Simulate payment result (90% success rate normally)
-    if random.random() < 0.9:
+    # Simulate payment result (method-specific success rates)
+    success_probability = failure_simulator.state.payment_success_rate_card
+    if order.payment_method == PaymentMethod.UPI:
+        success_probability = failure_simulator.state.payment_success_rate_upi
+
+    if random.random() < success_probability:
         # Success
         order.payment_status = PaymentStatus.COMPLETED
         order.payment_transaction_id = generate_transaction_id()
@@ -86,7 +143,7 @@ async def process_payment(
         order.payment_status = PaymentStatus.FAILED
         db.commit()
         
-        failure = random.choice([r for r in PAYMENT_RESPONSES if not r["success"]])
+        failure = _select_failure(order.payment_method)
         
         raise HTTPException(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
@@ -104,6 +161,7 @@ async def get_payment_methods():
     """Get available payment methods"""
     return {
         "methods": [
+            {"id": "card", "name": "Card", "icon": "credit_card"},
             {"id": "credit_card", "name": "Credit Card", "icon": "credit_card"},
             {"id": "debit_card", "name": "Debit Card", "icon": "credit_card"},
             {"id": "paypal", "name": "PayPal", "icon": "paypal"},

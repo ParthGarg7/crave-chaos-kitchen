@@ -1,10 +1,13 @@
 import time
 import uuid
 from datetime import datetime, timezone
+from typing import Optional
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 from app.core.observation_store import observation_store
+from app.db.base import get_session_factory
+from app.models.api_call_log import ApiCallLog
 
 # Paths to exclude from observation (avoid recursive noise and unrelated paths)
 _EXCLUDED_PATHS = {
@@ -15,6 +18,43 @@ _EXCLUDED_PATHS = {
     "/redoc",
     "/openapi.json",
 }
+
+
+def _persist_api_log(
+    *,
+    request_id: str,
+    method: str,
+    endpoint: str,
+    status_code: int,
+    response_time_ms: float,
+    service_name: str,
+    failure_type: str,
+    client_ip: Optional[str],
+    error_message: Optional[str] = None,
+) -> None:
+    """Persist one API call log row to DB."""
+    session_factory = get_session_factory()
+    db = session_factory()
+    try:
+        db.add(
+            ApiCallLog(
+                request_id=request_id,
+                method=method,
+                endpoint=endpoint,
+                status_code=status_code,
+                response_time_ms=response_time_ms,
+                service_name=service_name,
+                failure_type=failure_type,
+                client_ip=client_ip,
+                error_message=error_message,
+            )
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
+    finally:
+        db.close()
+
 
 class ObservationMiddleware(BaseHTTPMiddleware):
     """
@@ -60,6 +100,17 @@ class ObservationMiddleware(BaseHTTPMiddleware):
                 "failure_type": failure_type
             }
             await observation_store.push_log(log_entry)
+            _persist_api_log(
+                request_id=request_id,
+                method=request.method,
+                endpoint=path,
+                status_code=500,
+                response_time_ms=duration_ms,
+                service_name="demo-food-delivery",
+                failure_type=failure_type,
+                client_ip=request.client.host if request.client else "unknown",
+                error_message=str(exc),
+            )
             raise exc
 
         # 3. Capture response metadata
@@ -82,5 +133,15 @@ class ObservationMiddleware(BaseHTTPMiddleware):
         
         # Record asynchronously but await to ensure it's pushed (short operation)
         await observation_store.push_log(log_entry)
+        _persist_api_log(
+            request_id=request_id,
+            method=request.method,
+            endpoint=path,
+            status_code=response.status_code,
+            response_time_ms=duration_ms,
+            service_name="demo-food-delivery",
+            failure_type=failure_type,
+            client_ip=request.client.host if request.client else "unknown",
+        )
 
         return response

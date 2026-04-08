@@ -59,6 +59,8 @@ class FailureSimulatorMetrics(BaseModel):
     failure_rate: float
     active_scenarios: int
     total_scenarios: int
+    payment_success_rate_card: float
+    payment_success_rate_upi: float
     last_updated: str
 
 

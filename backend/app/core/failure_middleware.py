@@ -7,10 +7,12 @@ import time
 import random
 from typing import Optional
 from fastapi import Request, Response
+from jose import JWTError, jwt
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
 from app.core.failure_config import failure_simulator, FailureType
+from app.core.config import settings
 from app.core.logging import logger
 
 
@@ -45,6 +47,12 @@ class FailureSimulationMiddleware(BaseHTTPMiddleware):
         )
         
         if scenario:
+            if scenario.failure_type == FailureType.RATE_LIMIT:
+                limited = await self._check_rate_limit_only(request, scenario, client_ip)
+                if not limited:
+                    failure_simulator.record_request(failed=False)
+                    return await call_next(request)
+
             # Stamp the specific scenario name for the observation layer
             request.state.observation_failure_type = scenario.name or scenario.failure_type.value
             
@@ -61,10 +69,14 @@ class FailureSimulationMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
     
     def _extract_user_from_token(self, auth_header: str) -> Optional[str]:
-        """Extract user ID from JWT token (simplified)"""
-        # In production, properly decode and validate JWT
-        # For now, return a placeholder
-        return None
+        """Extract user ID from JWT token."""
+        try:
+            token = auth_header.split(" ", 1)[1]
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+            user_id = payload.get("sub")
+            return str(user_id) if user_id is not None else None
+        except (JWTError, IndexError, ValueError):
+            return None
     
     async def _inject_failure(
         self, 
@@ -105,35 +117,16 @@ class FailureSimulationMiddleware(BaseHTTPMiddleware):
         
         # Default fallback
         return self._inject_server_error(scenario)
+
+    async def _check_rate_limit_only(self, request, scenario, client_ip: str) -> bool:
+        """Only check and increment counters, return True if request must be blocked."""
+        endpoint = request.url.path
+        key = f"{client_ip}:{endpoint}"
+        return await failure_simulator.check_rate_limit(key, scenario)
     
     async def _inject_rate_limit(self, request, scenario, client_ip: str) -> Response:
         """Inject rate limit failure (429)"""
-        # Create rate limit key
-        endpoint = request.url.path
-        key = f"{client_ip}:{endpoint}"
-        
-        # Check if rate limit exceeded
-        is_limited = await failure_simulator.check_rate_limit(key, scenario)
-        
-        if is_limited:
-            return JSONResponse(
-                status_code=429,
-                content={
-                    "error": "RateLimitExceeded",
-                    "message": scenario.error_message or "Too many requests. Please slow down.",
-                    "retry_after": scenario.rate_limit_window,
-                    "limit": scenario.rate_limit_requests,
-                    "window": scenario.rate_limit_window
-                },
-                headers={
-                    "X-RateLimit-Limit": str(scenario.rate_limit_requests),
-                    "X-RateLimit-Window": str(scenario.rate_limit_window),
-                    "Retry-After": str(scenario.rate_limit_window)
-                }
-            )
-        
-        # If not limited yet, let the request through
-        # (it will be counted and may fail on next request)
+        # Rate-limit breach only: this response is returned when counter exceeded.
         return JSONResponse(
             status_code=429,
             content={

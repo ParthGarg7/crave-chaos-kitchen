@@ -37,6 +37,13 @@ def get_engine():
     return _engine
 
 
+def get_session_factory():
+    """Return the session factory, initialising if necessary."""
+    if _SessionLocal is None:
+        init_db()
+    return _SessionLocal
+
+
 def get_db() -> Generator[Session, None, None]:
     """Dependency to get database session"""
     if _SessionLocal is None:

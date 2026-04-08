@@ -152,6 +152,31 @@ async def set_global_failure_rate(rate: float = Query(..., ge=0.0, le=1.0), _: U
     }
 
 
+@router.post("/payment-config")
+async def set_payment_config(
+    card_success_rate: float = Query(..., ge=0.0, le=1.0),
+    upi_success_rate: float = Query(..., ge=0.0, le=1.0),
+    _: User = _admin,
+):
+    """Configure payment gateway success rates for card and UPI (admin only)."""
+    failure_simulator.state.payment_success_rate_card = card_success_rate
+    failure_simulator.state.payment_success_rate_upi = upi_success_rate
+    return {
+        "message": "Payment gateway simulator config updated",
+        "payment_success_rate_card": card_success_rate,
+        "payment_success_rate_upi": upi_success_rate,
+    }
+
+
+@router.get("/payment-config")
+async def get_payment_config(_: User = _admin):
+    """Get payment gateway simulator success-rate configuration."""
+    return {
+        "payment_success_rate_card": failure_simulator.state.payment_success_rate_card,
+        "payment_success_rate_upi": failure_simulator.state.payment_success_rate_upi,
+    }
+
+
 @router.get("/presets", response_model=Dict[str, PresetScenario])
 async def list_presets(_: User = _admin):
     """List available failure presets (admin only)"""

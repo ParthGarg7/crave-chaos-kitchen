@@ -13,6 +13,8 @@ from app.core.logging import logger, log_request
 from app.middleware.api_tracker import ApiTrackerMiddleware
 from app.middleware.chaos_middleware import ChaosMiddleware
 from app.middleware.observation import ObservationMiddleware
+from app.db.base import Base, get_engine, init_db
+import app.models  # noqa: F401 - ensure models are imported for metadata
 
 # Create FastAPI application
 app = FastAPI(
@@ -136,6 +138,9 @@ async def global_exception_handler(request: Request, exc: Exception):
 @app.on_event("startup")
 async def startup_event():
     """Initialize application on startup"""
+    init_db()
+    Base.metadata.create_all(bind=get_engine())
+
     logger.info(
         "Application starting",
         app_name=settings.APP_NAME,

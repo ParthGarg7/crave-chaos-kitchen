@@ -5,6 +5,7 @@ from app.models.user import User, UserRole
 from app.models.restaurant import Restaurant, MenuItem, RestaurantStatus, CuisineType
 from app.models.order import Order, OrderItem, OrderStatus, PaymentStatus, PaymentMethod
 from app.models.delivery import Delivery, DeliveryStatus, DriverLocation
+from app.models.api_call_log import ApiCallLog
 
 __all__ = [
     "User",
@@ -21,4 +22,5 @@ __all__ = [
     "Delivery",
     "DeliveryStatus",
     "DriverLocation",
+    "ApiCallLog",
 ]

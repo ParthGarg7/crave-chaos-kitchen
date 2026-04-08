@@ -5,10 +5,11 @@ from typing import List
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import update
 
 from app.db.base import get_db
 from app.models.delivery import Delivery, DeliveryStatus, DriverLocation
-from app.models.order import Order, OrderStatus
+from app.models.order import Order, OrderStatus, PaymentStatus
 from app.models.user import User, UserRole
 from app.schemas.delivery import (
     DeliveryResponse, DeliveryListResponse, DeliveryAssign,
@@ -92,27 +93,30 @@ async def accept_delivery(
     db: Session = Depends(get_db)
 ):
     """Accept a delivery assignment"""
-    delivery = db.query(Delivery).filter(Delivery.id == delivery_id).first()
-    
-    if not delivery:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Delivery not found"
+    updated_rows = db.execute(
+        update(Delivery)
+        .where(Delivery.id == delivery_id, Delivery.driver_id.is_(None))
+        .values(
+            driver_id=current_user.id,
+            status=DeliveryStatus.ACCEPTED,
+            accepted_at=datetime.utcnow(),
         )
-    
-    if delivery.driver_id is not None:
+    ).rowcount
+
+    if updated_rows == 0:
+        existing_delivery = db.query(Delivery).filter(Delivery.id == delivery_id).first()
+        if not existing_delivery:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Delivery not found"
+            )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Delivery already assigned to another driver"
         )
-    
-    delivery.driver_id = current_user.id
-    delivery.status = DeliveryStatus.ACCEPTED
-    delivery.accepted_at = datetime.utcnow()
-    
+
     db.commit()
-    db.refresh(delivery)
-    
+    delivery = db.query(Delivery).filter(Delivery.id == delivery_id).first()
     return delivery
 
 
@@ -262,7 +266,7 @@ async def complete_delivery(
     # Update order
     delivery.order.status = OrderStatus.DELIVERED
     delivery.order.delivered_at = datetime.utcnow()
-    delivery.order.payment_status = "completed"
+    delivery.order.payment_status = PaymentStatus.COMPLETED
     
     db.commit()
     db.refresh(delivery)

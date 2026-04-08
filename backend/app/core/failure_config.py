@@ -53,6 +53,8 @@ class FailureSimulatorState(BaseModel):
     global_failure_rate: float = 0.0  # Override all scenarios
     request_count: int = 0
     failure_count: int = 0
+    payment_success_rate_card: float = Field(0.9, ge=0.0, le=1.0)
+    payment_success_rate_upi: float = Field(0.82, ge=0.0, le=1.0)
     last_updated: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -62,7 +64,7 @@ DEFAULT_SCENARIOS = {
         enabled=False,
         failure_type=FailureType.RATE_LIMIT,
         probability=0.5,
-        endpoints=["/api/restaurants", "/api/orders"],
+        endpoints=["/api/v1/restaurants", "/api/v1/orders", "/api/restaurants", "/api/orders"],
         rate_limit_requests=5,
         rate_limit_window=60,
         error_message="Rate limit exceeded. Try again later."
@@ -290,6 +292,8 @@ class FailureSimulator:
             "failure_rate": (failures / total * 100) if total > 0 else 0.0,
             "active_scenarios": sum(1 for s in self.state.scenarios.values() if s.enabled),
             "total_scenarios": len(self.state.scenarios),
+            "payment_success_rate_card": self.state.payment_success_rate_card,
+            "payment_success_rate_upi": self.state.payment_success_rate_upi,
             "last_updated": self.state.last_updated.isoformat()
         }
 

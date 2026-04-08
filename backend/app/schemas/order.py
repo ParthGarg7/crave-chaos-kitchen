@@ -114,6 +114,7 @@ class PaymentCreate(BaseModel):
     expiry_month: Optional[str] = None
     expiry_year: Optional[str] = None
     cvv: Optional[str] = None
+    upi_id: Optional[str] = None
 
 
 class PaymentResponse(BaseModel):
