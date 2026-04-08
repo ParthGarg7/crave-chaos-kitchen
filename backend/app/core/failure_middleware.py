@@ -92,31 +92,38 @@ class FailureSimulationMiddleware(BaseHTTPMiddleware):
             return await self._inject_rate_limit(request, scenario, client_ip)
         
         elif failure_type == FailureType.TIMEOUT:
-            return await self._inject_timeout(scenario)
+            return await self._inject_timeout(request, scenario)
         
         elif failure_type == FailureType.AUTHENTICATION:
-            return self._inject_auth_failure(scenario)
+            return self._inject_auth_failure(request, scenario)
         
         elif failure_type == FailureType.AUTHORIZATION:
-            return self._inject_forbidden(scenario)
+            return self._inject_forbidden(request, scenario)
         
         elif failure_type == FailureType.SERVER_ERROR:
-            return self._inject_server_error(scenario)
+            return self._inject_server_error(request, scenario)
         
         elif failure_type == FailureType.SERVICE_UNAVAILABLE:
-            return self._inject_service_unavailable(scenario)
+            return self._inject_service_unavailable(request, scenario)
         
         elif failure_type == FailureType.BAD_REQUEST:
-            return self._inject_bad_request(scenario)
+            return self._inject_bad_request(request, scenario)
         
         elif failure_type == FailureType.DEPENDENCY:
-            return self._inject_dependency_failure(scenario)
+            return self._inject_dependency_failure(request, scenario)
         
         elif failure_type == FailureType.CONFIGURATION:
-            return self._inject_config_error(scenario)
+            return self._inject_config_error(request, scenario)
         
         # Default fallback
-        return self._inject_server_error(scenario)
+        return self._inject_server_error(request, scenario)
+
+    def _failure_context(self, request: Request, scenario) -> dict:
+        return {
+            "scenario": scenario.name or scenario.failure_type.value,
+            "endpoint": request.url.path,
+            "method": request.method,
+        }
 
     async def _check_rate_limit_only(self, request, scenario, client_ip: str) -> bool:
         """Only check and increment counters, return True if request must be blocked."""
@@ -132,12 +139,13 @@ class FailureSimulationMiddleware(BaseHTTPMiddleware):
             content={
                 "error": "RateLimitExceeded",
                 "message": scenario.error_message or "Rate limit exceeded.",
-                "retry_after": scenario.rate_limit_window
+                "retry_after": scenario.rate_limit_window,
+                "affected_api": self._failure_context(request, scenario),
             },
             headers={"Retry-After": str(scenario.rate_limit_window)}
         )
     
-    async def _inject_timeout(self, scenario) -> Response:
+    async def _inject_timeout(self, request: Request, scenario) -> Response:
         """Inject timeout failure (408/504)"""
         # Simulate delay before timeout
         delay = scenario.timeout_seconds or random.uniform(5, 15)
@@ -149,34 +157,37 @@ class FailureSimulationMiddleware(BaseHTTPMiddleware):
             content={
                 "error": "GatewayTimeout",
                 "message": scenario.error_message or "Request timed out. Please try again.",
-                "timeout_seconds": delay
+                "timeout_seconds": delay,
+                "affected_api": self._failure_context(request, scenario),
             }
         )
     
-    def _inject_auth_failure(self, scenario) -> Response:
+    def _inject_auth_failure(self, request: Request, scenario) -> Response:
         """Inject authentication failure (401)"""
         return JSONResponse(
             status_code=401,
             content={
                 "error": "Unauthorized",
                 "message": scenario.error_message or "Authentication required. Please log in.",
-                "auth_url": "/api/auth/login"
+                "auth_url": "/api/auth/login",
+                "affected_api": self._failure_context(request, scenario),
             },
             headers={"WWW-Authenticate": "Bearer"}
         )
     
-    def _inject_forbidden(self, scenario) -> Response:
+    def _inject_forbidden(self, request: Request, scenario) -> Response:
         """Inject authorization failure (403)"""
         return JSONResponse(
             status_code=403,
             content={
                 "error": "Forbidden",
                 "message": scenario.error_message or "You don't have permission to access this resource.",
-                "required_role": "admin"
+                "required_role": "admin",
+                "affected_api": self._failure_context(request, scenario),
             }
         )
     
-    def _inject_server_error(self, scenario) -> Response:
+    def _inject_server_error(self, request: Request, scenario) -> Response:
         """Inject server error (500)"""
         error_messages = [
             "Internal server error occurred.",
@@ -191,23 +202,25 @@ class FailureSimulationMiddleware(BaseHTTPMiddleware):
                 "error": "InternalServerError",
                 "message": scenario.error_message or random.choice(error_messages),
                 "request_id": f"req_{random.randint(10000, 99999)}",
-                "timestamp": time.time()
+                "timestamp": time.time(),
+                "affected_api": self._failure_context(request, scenario),
             }
         )
     
-    def _inject_service_unavailable(self, scenario) -> Response:
+    def _inject_service_unavailable(self, request: Request, scenario) -> Response:
         """Inject service unavailable (503)"""
         return JSONResponse(
             status_code=503,
             content={
                 "error": "ServiceUnavailable",
                 "message": scenario.error_message or "Service temporarily unavailable. Please try again later.",
-                "retry_after": 30
+                "retry_after": 30,
+                "affected_api": self._failure_context(request, scenario),
             },
             headers={"Retry-After": "30"}
         )
     
-    def _inject_bad_request(self, scenario) -> Response:
+    def _inject_bad_request(self, request: Request, scenario) -> Response:
         """Inject bad request error (400)"""
         validation_errors = {
             "field_errors": [
@@ -222,11 +235,12 @@ class FailureSimulationMiddleware(BaseHTTPMiddleware):
             content={
                 "error": "BadRequest",
                 "message": scenario.error_message or "Invalid request data.",
-                "validation_errors": validation_errors["field_errors"]
+                "validation_errors": validation_errors["field_errors"],
+                "affected_api": self._failure_context(request, scenario),
             }
         )
     
-    def _inject_dependency_failure(self, scenario) -> Response:
+    def _inject_dependency_failure(self, request: Request, scenario) -> Response:
         """Inject dependency failure (502/503/504)"""
         dependency_errors = [
             {
@@ -254,12 +268,13 @@ class FailureSimulationMiddleware(BaseHTTPMiddleware):
                 "error": error["error"],
                 "message": scenario.error_message or error["message"],
                 "dependency": "external_service",
-                "retry_after": 60
+                "retry_after": 60,
+                "affected_api": self._failure_context(request, scenario),
             },
             headers={"Retry-After": "60"}
         )
     
-    def _inject_config_error(self, scenario) -> Response:
+    def _inject_config_error(self, request: Request, scenario) -> Response:
         """Inject configuration error (500)"""
         return JSONResponse(
             status_code=500,
@@ -267,6 +282,7 @@ class FailureSimulationMiddleware(BaseHTTPMiddleware):
                 "error": "ConfigurationError",
                 "message": scenario.error_message or "Service configuration error.",
                 "details": "Missing required environment variable: API_KEY",
-                "contact": "support@fooddelivery.com"
+                "contact": "support@fooddelivery.com",
+                "affected_api": self._failure_context(request, scenario),
             }
         )

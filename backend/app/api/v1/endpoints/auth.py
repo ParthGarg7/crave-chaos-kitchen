@@ -117,6 +117,18 @@ def require_role(role: UserRole):
     return role_checker
 
 
+def require_exact_role(role: UserRole):
+    """Dependency factory to require one exact role (no admin override)."""
+    async def role_checker(current_user: User = Depends(get_current_user)) -> User:
+        if current_user.role != role:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"This action requires {role.value} role"
+            )
+        return current_user
+    return role_checker
+
+
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     """Register a new user"""

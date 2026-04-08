@@ -65,6 +65,16 @@ def seed_users(db: Session):
             "role": UserRole.ADMIN,
             "is_active": True,
             "is_verified": True
+        },
+        {
+            "email": "developer@example.com",
+            "password": "developer123",
+            "first_name": "Dev",
+            "last_name": "Ops",
+            "phone": "+1-555-0104",
+            "role": UserRole.DEVELOPER,
+            "is_active": True,
+            "is_verified": True
         }
     ]
     
@@ -297,6 +307,7 @@ def init_database():
         print("  Restaurant: restaurant@example.com / password123")
         print("  Driver: driver@example.com / password123")
         print("  Admin: admin@example.com / admin123")
+        print("  Developer: developer@example.com / developer123")
         
     except Exception as e:
         print(f"❌ Error seeding database: {e}")

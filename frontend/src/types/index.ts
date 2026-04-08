@@ -5,7 +5,7 @@ export interface User {
   first_name: string;
   last_name: string;
   phone?: string;
-  role: 'customer' | 'restaurant_owner' | 'driver' | 'admin';
+  role: 'customer' | 'restaurant_owner' | 'driver' | 'developer' | 'admin';
   is_active: boolean;
   address?: string;
   created_at: string;

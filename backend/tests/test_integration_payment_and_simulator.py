@@ -42,15 +42,15 @@ def _seed_base_records(db):
         role=UserRole.RESTAURANT_OWNER,
         is_active=True,
     )
-    admin = User(
-        email="admin@test.com",
+    developer = User(
+        email="developer@test.com",
         hashed_password="hashed",
-        first_name="Admin",
+        first_name="Dev",
         last_name="User",
-        role=UserRole.ADMIN,
+        role=UserRole.DEVELOPER,
         is_active=True,
     )
-    db.add_all([customer, owner, admin])
+    db.add_all([customer, owner, developer])
     db.flush()
 
     restaurant = Restaurant(
@@ -69,13 +69,13 @@ def _seed_base_records(db):
     )
     db.add(restaurant)
     db.flush()
-    return customer, admin, restaurant
+    return customer, developer, restaurant
 
 
 def test_payment_gateway_config_controls_upi_and_card_flows(monkeypatch):
     SessionLocal = _build_test_db()
     db = SessionLocal()
-    customer, admin, restaurant = _seed_base_records(db)
+    customer, developer, restaurant = _seed_base_records(db)
 
     upi_order = Order(
         order_number="ORD-UPI-1",
@@ -120,8 +120,8 @@ def test_payment_gateway_config_controls_upi_and_card_flows(monkeypatch):
     app.dependency_overrides[get_db] = override_get_db
     client = TestClient(app)
 
-    # Admin config: force UPI failures and card success
-    app.dependency_overrides[get_current_user] = lambda: admin
+    # Developer config: force UPI failures and card success
+    app.dependency_overrides[get_current_user] = lambda: developer
     config_resp = client.post(
         "/api/v1/failure-simulator/payment-config?card_success_rate=1.0&upi_success_rate=0.0"
     )

@@ -1,6 +1,6 @@
 """
 Chaos Engineer API Endpoints
-Admin-only control plane for the 23 chaos experiments.
+Developer-only control plane for the 23 chaos experiments.
 All experiment state is kept entirely in memory — no DB writes.
 State resets to all-disabled on every server restart.
 """
@@ -14,11 +14,11 @@ from typing import Any, Deque, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from app.api.v1.endpoints.auth import require_role
+from app.api.v1.endpoints.auth import require_exact_role
 from app.models.user import User, UserRole
 
 router = APIRouter(prefix="/chaos", tags=["Chaos Engineer"])
-_admin = Depends(require_role(UserRole.ADMIN))
+_developer = Depends(require_exact_role(UserRole.DEVELOPER))
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -381,8 +381,8 @@ class StateResponse(BaseModel):
 # ─────────────────────────────────────────────────────────────────
 
 @router.get("/experiments", response_model=ExperimentsListResponse)
-async def list_experiments(_: User = _admin) -> ExperimentsListResponse:
-    """List all 23 chaos experiments with their current enabled state. Admin only."""
+async def list_experiments(_: User = _developer) -> ExperimentsListResponse:
+    """List all 23 chaos experiments with their current enabled state. Developer only."""
     experiments = []
     for defn in EXPERIMENT_DEFS:
         experiments.append(
@@ -409,8 +409,8 @@ async def list_experiments(_: User = _admin) -> ExperimentsListResponse:
 
 
 @router.post("/experiments/{experiment_id}/toggle", response_model=ToggleResponse)
-async def toggle_experiment(experiment_id: str, _: User = _admin) -> ToggleResponse:
-    """Toggle a single experiment on or off. Admin only."""
+async def toggle_experiment(experiment_id: str, _: User = _developer) -> ToggleResponse:
+    """Toggle a single experiment on or off. Developer only."""
     if experiment_id not in chaos_state.enabled:
         raise HTTPException(status_code=404, detail=f"Experiment '{experiment_id}' not found")
     new_state = chaos_state.toggle(experiment_id)
@@ -424,8 +424,8 @@ async def toggle_experiment(experiment_id: str, _: User = _admin) -> ToggleRespo
 
 
 @router.post("/reset", response_model=ResetResponse)
-async def reset_all_experiments(_: User = _admin) -> ResetResponse:
-    """Emergency kill-switch: deactivate all 23 experiments simultaneously. Admin only."""
+async def reset_all_experiments(_: User = _developer) -> ResetResponse:
+    """Emergency kill-switch: deactivate all 23 experiments simultaneously. Developer only."""
     chaos_state.reset_all()
     return ResetResponse(
         reset=True,
@@ -436,15 +436,15 @@ async def reset_all_experiments(_: User = _admin) -> ResetResponse:
 
 
 @router.get("/impact-log", response_model=ImpactLogResponse)
-async def get_impact_log(limit: int = 100, _: User = _admin) -> ImpactLogResponse:
-    """Return the last N impact log entries (requests affected by chaos experiments). Admin only."""
+async def get_impact_log(limit: int = 100, _: User = _developer) -> ImpactLogResponse:
+    """Return the last N impact log entries (requests affected by chaos experiments). Developer only."""
     entries = list(chaos_state.impact_log)[:limit]
     return ImpactLogResponse(entries=entries, total=len(chaos_state.impact_log))
 
 
 @router.get("/state", response_model=StateResponse)
-async def get_state(_: User = _admin) -> StateResponse:
-    """Lightweight summary of the current chaos state. Admin only."""
+async def get_state(_: User = _developer) -> StateResponse:
+    """Lightweight summary of the current chaos state. Developer only."""
     return StateResponse(
         active_count=chaos_state.active_count,
         total_count=len(EXPERIMENT_DEFS),

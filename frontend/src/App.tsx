@@ -81,6 +81,7 @@ function ProfileDropdown({ onClose }: { onClose: () => void }) {
 
   const getDashboard = () => {
     if (user?.role === 'admin') return { path: '/admin', label: '⚙️ Admin Panel' };
+    if (user?.role === 'developer') return { path: '/developer', label: '🧪 Developer Tools' };
     if (user?.role === 'restaurant_owner') return { path: '/restaurant-dashboard', label: '🍽️ My Kitchen' };
     if (user?.role === 'driver') return { path: '/driver-dashboard', label: '🛵 My Deliveries' };
     return null;
@@ -187,8 +188,7 @@ function Navbar({ cartCount, onCartClick }: { cartCount: number; onCartClick: ()
     { path: '/', label: 'Home' },
     { path: '/browse', label: 'Browse' },
     ...(!isAuthenticated ? [{ path: '/login', label: 'Login' }] : []),
-    // Admin/developer tools — visible to admin only
-    ...(user?.role === 'admin' ? [{ path: '/developer', label: '🛠 Dev' }] : []),
+    ...(user?.role === 'developer' ? [{ path: '/developer', label: '🛠 Dev' }] : []),
     ...(user?.role === 'admin' ? [{ path: '/admin', label: 'Admin' }] : []),
   ];
 
@@ -531,14 +531,14 @@ function AppContent() {
             <Route path="/tracking" element={<PageWrap key="track"><TrackingPage orderId={orderId} navigate={legacyNavigate} /></PageWrap>} />
             <Route path="/login" element={<PageWrap key="login"><LoginPage /></PageWrap>} />
             <Route path="/register" element={<PageWrap key="register"><RegisterPage /></PageWrap>} />
-            {/* Admin-only routes */}
-            <Route path="/simulator" element={<RequireRole role="admin"><PageWrap key="simulator"><div style={{ paddingTop: '0px' }}><FailureSimulatorPage /></div></PageWrap></RequireRole>} />
+            {/* Developer-only simulator route (legacy path preserved) */}
+            <Route path="/simulator" element={<RequireRole role="developer"><PageWrap key="simulator"><div style={{ paddingTop: '0px' }}><FailureSimulatorPage /></div></PageWrap></RequireRole>} />
             <Route path="/admin" element={<RequireRole role="admin"><PageWrap key="admin"><AdminPanel /></PageWrap></RequireRole>} />
-            {/* Developer/Admin routes */}
-            <Route path="/developer" element={<RequireRole role="admin"><PageWrap key="dev"><DeveloperDashboard /></PageWrap></RequireRole>} />
-            <Route path="/developer/chaos-engineer" element={<RequireRole role="admin"><PageWrap key="chaos"><ChaosEngineer /></PageWrap></RequireRole>} />
-            <Route path="/developer/dual-view" element={<RequireRole role="admin"><DualView /></RequireRole>} />
-            <Route path="/developer/failure-simulator" element={<RequireRole role="admin"><PageWrap key="fsim"><div style={{ paddingTop: '0px' }}><FailureSimulatorPage /></div></PageWrap></RequireRole>} />
+            {/* Developer-only routes */}
+            <Route path="/developer" element={<RequireRole role="developer"><PageWrap key="dev"><DeveloperDashboard /></PageWrap></RequireRole>} />
+            <Route path="/developer/chaos-engineer" element={<RequireRole role="developer"><PageWrap key="chaos"><ChaosEngineer /></PageWrap></RequireRole>} />
+            <Route path="/developer/dual-view" element={<RequireRole role="developer"><DualView /></RequireRole>} />
+            <Route path="/developer/failure-simulator" element={<RequireRole role="developer"><PageWrap key="fsim"><div style={{ paddingTop: '0px' }}><FailureSimulatorPage /></div></PageWrap></RequireRole>} />
             {/* Role-protected dashboards — auth guards handled inside each dashboard */}
             <Route path="/restaurant-dashboard" element={<PageWrap key="rdash"><RestaurantDashboard /></PageWrap>} />
             <Route path="/setup-restaurant" element={<PageWrap key="setup-rest"><SetupRestaurantPage /></PageWrap>} />

@@ -1,10 +1,10 @@
 """
-Developer API Endpoints — for Chaos Engineer dashboard (admin only)
+Developer API Endpoints — for Chaos Engineer dashboard (developer only)
 """
 from typing import Any, Dict, List
 from fastapi import APIRouter, Depends, Request
 
-from app.api.v1.endpoints.auth import require_role
+from app.api.v1.endpoints.auth import require_exact_role
 from app.models.user import User, UserRole
 from app.middleware.api_tracker import get_active_requests, get_recent_calls
 
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/developer", tags=["Developer"])
 
 @router.get("/active-calls")
 async def get_active_api_calls(
-    current_user: User = Depends(require_role(UserRole.ADMIN)),
+    current_user: User = Depends(require_exact_role(UserRole.DEVELOPER)),
 ) -> Dict[str, Any]:
     """Return in-flight API requests + recent call history for the Chaos Engineer dashboard."""
     return {
@@ -25,7 +25,7 @@ async def get_active_api_calls(
 @router.get("/endpoints")
 async def get_registered_endpoints(
     request: Request,
-    current_user: User = Depends(require_role(UserRole.ADMIN)),
+    current_user: User = Depends(require_exact_role(UserRole.DEVELOPER)),
 ) -> Dict[str, Any]:
     """Return all registered API routes from the FastAPI app."""
     app = request.app

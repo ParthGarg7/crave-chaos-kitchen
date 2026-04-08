@@ -33,6 +33,7 @@ const DEMO_CREDS = [
   { label: 'Customer', email: 'customer@example.com', password: 'password123', icon: '🛒', color: 'var(--accent-fire)' },
   { label: 'Restaurant', email: 'restaurant@example.com', password: 'password123', icon: '🍽️', color: 'var(--accent-ember)' },
   { label: 'Driver', email: 'driver@example.com', password: 'password123', icon: '🛵', color: 'var(--accent-gold)' },
+  { label: 'Developer', email: 'developer@example.com', password: 'developer123', icon: '🧪', color: '#38bdf8' },
   { label: 'Admin', email: 'admin@example.com', password: 'admin123', icon: '⚙️', color: '#a78bfa' },
 ];
 
@@ -52,8 +53,10 @@ const LoginPage = () => {
       toast.success('Welcome back! 🔥');
       // Role-based redirect
       const role = response.data?.user?.role;
-      if (role === 'admin') {
+      if (role === 'developer') {
         navigate('/developer');
+      } else if (role === 'admin') {
+        navigate('/admin');
       } else if (role === 'restaurant_owner') {
         navigate('/restaurant-dashboard');
       } else if (role === 'driver') {

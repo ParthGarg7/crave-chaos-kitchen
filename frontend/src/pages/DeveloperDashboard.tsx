@@ -74,7 +74,7 @@ export default function DeveloperDashboard() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 40 }}>
           <div>
             <p style={{ fontSize: '0.65rem', color: '#58a6ff', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 8 }}>
-              Admin · Developer Mode
+              Developer Mode
             </p>
             <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(2rem, 4vw, 3.2rem)', color: '#e6edf3', lineHeight: 1 }}>
               🛠️ Developer Dashboard
@@ -112,7 +112,7 @@ export default function DeveloperDashboard() {
             icon="💥"
             title="Failure Simulator"
             description="Inject controlled failures into API endpoints to test system resilience."
-            onClick={() => navigate('/simulator')}
+            onClick={() => navigate('/developer/failure-simulator')}
             accentColor="#f85149"
           />
           <DevCard
@@ -121,13 +121,6 @@ export default function DeveloperDashboard() {
             description="View Customer & Driver interfaces side-by-side for rapid development testing."
             onClick={() => navigate('/developer/dual-view')}
             accentColor="#3fb950"
-          />
-          <DevCard
-            icon="⚙️"
-            title="Admin Panel"
-            description="Manage users, restaurants, and view system-level data."
-            onClick={() => navigate('/admin')}
-            accentColor="#a78bfa"
           />
         </div>
 
@@ -141,9 +134,9 @@ export default function DeveloperDashboard() {
         }}>
           <span style={{ fontSize: '1.2rem', flexShrink: 0 }}>ℹ️</span>
           <p style={{ fontSize: '0.72rem', color: '#8b949e', lineHeight: 1.8 }}>
-            These tools are only accessible to <strong style={{ color: '#58a6ff' }}>admin</strong> users.
-            Regular customers and drivers are automatically redirected away from these routes.
-            Demo credentials: <code style={{ background: 'rgba(255,255,255,0.07)', padding: '1px 6px', borderRadius: 4 }}>admin@example.com</code> / <code style={{ background: 'rgba(255,255,255,0.07)', padding: '1px 6px', borderRadius: 4 }}>admin123</code>
+            These tools are only accessible to <strong style={{ color: '#58a6ff' }}>developer</strong> users.
+            Admin has separate options and cannot access this dashboard.
+            Demo credentials: <code style={{ background: 'rgba(255,255,255,0.07)', padding: '1px 6px', borderRadius: 4 }}>developer@example.com</code> / <code style={{ background: 'rgba(255,255,255,0.07)', padding: '1px 6px', borderRadius: 4 }}>developer123</code>
           </p>
         </div>
       </div>
