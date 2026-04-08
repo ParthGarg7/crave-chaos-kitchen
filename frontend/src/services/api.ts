@@ -1,4 +1,4 @@
-import axios, { AxiosError, AxiosInstance, AxiosResponse } from 'axios';
+import axios, { AxiosError, AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import toast from 'react-hot-toast';
 
 // Create axios instance
@@ -27,7 +27,8 @@ api.interceptors.response.use(
   (response: AxiosResponse) => response,
   (error: AxiosError) => {
     // Allow individual callers to opt out of auto-toasting
-    const skipToast = (error.config as Record<string, unknown>)?.skipToast === true;
+    const configWithSkip = error.config as InternalAxiosRequestConfig & { skipToast?: boolean };
+    const skipToast = configWithSkip?.skipToast === true;
 
     if (!skipToast && error.response) {
       const status = error.response.status;

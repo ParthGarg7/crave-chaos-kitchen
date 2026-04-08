@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
+import type { Variants } from 'framer-motion';
 import * as THREE from 'three';
-import type { Page } from '../App';
 
 // ─── Three.js 3D Globe ───
 function Globe() {
@@ -129,11 +129,11 @@ function Counter({ end, suffix }: { end: number; suffix: string }) {
 }
 
 // ─── Stagger variants ───
-const container = { hidden: {}, show: { transition: { staggerChildren: 0.2, delayChildren: 0.5 } } };
-const word = { hidden: { opacity: 0, y: 60 }, show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 25 } } };
-const fadeIn = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { duration: 0.6 } } };
+const container: Variants = { hidden: {}, show: { transition: { staggerChildren: 0.2, delayChildren: 0.5 } } };
+const word: Variants = { hidden: { opacity: 0, y: 60 }, show: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 300, damping: 25 } } };
+const fadeIn: Variants = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { duration: 0.6 } } };
 
-export default function HeroPage({ navigate }: { navigate: (p: Page) => void }) {
+export default function HeroPage({ navigate }: { navigate: (p: string) => void }) {
     return (
         <section style={{ minHeight: '100vh', display: 'flex', position: 'relative', overflow: 'hidden' }}>
             {/* Background glow */}

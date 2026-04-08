@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import type { Variants } from 'framer-motion';
 import { restaurantApi } from '../services/api';
 
-const container = { hidden: {}, show: { transition: { staggerChildren: 0.08 } } };
-const item = { hidden: { opacity: 0, y: 40 }, show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 400, damping: 25 } } };
+const container: Variants = { hidden: {}, show: { transition: { staggerChildren: 0.08 } } };
+const item: Variants = { hidden: { opacity: 0, y: 40 }, show: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 400, damping: 25 } } };
 
 const placeholders = ["Try 'biryani'...", "Try 'pizza'...", "Try 'sushi'...", "Try 'burger'..."];
 

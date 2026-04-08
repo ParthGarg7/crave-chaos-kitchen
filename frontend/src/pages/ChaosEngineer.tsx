@@ -212,7 +212,6 @@ export default function ChaosEngineer() {
   const [experiments, setExperiments] = useState<Experiment[]>([]);
   const [activeCount, setActiveCount] = useState(0);
   const [healthLabel, setHealthLabel] = useState<'Healthy' | 'Degraded' | 'Critical'>('Healthy');
-  const [healthColor, setHealthColor] = useState('green');
 
   const [impactLog, setImpactLog] = useState<ImpactEntry[]>([]);
   const [activeCalls, setActiveCalls] = useState<ApiCall[]>([]);
@@ -230,7 +229,6 @@ export default function ChaosEngineer() {
       setExperiments(r.data.experiments ?? []);
       setActiveCount(r.data.active_count ?? 0);
       setHealthLabel(r.data.health_label ?? 'Healthy');
-      setHealthColor(r.data.health_color ?? 'green');
       setError('');
       setLoading(false);
     } catch (err: unknown) {

@@ -4,11 +4,9 @@ import {
   ChevronLeft,
   Package,
   MapPin,
-  CreditCard,
-  Clock
+  CreditCard
 } from 'lucide-react';
 import { orderApi } from '../services/api';
-import { Order } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 const statusSteps = [
@@ -128,7 +126,7 @@ const OrderDetailPage = () => {
             Order Items
           </h2>
           <div className="space-y-4">
-            {order.items.map((item) => (
+            {order.items.map((item: { id: number; quantity: number; item_name: string; special_instructions?: string; subtotal: number }) => (
               <div
                 key={item.id}
                 className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0"
@@ -211,7 +209,7 @@ const OrderDetailPage = () => {
             <CreditCard className="h-5 w-5 text-gray-400 mt-0.5" />
             <div>
               <p className="font-medium text-gray-900">
-                {order.payment_method.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                {order.payment_method.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
               </p>
               <p className="text-gray-600 capitalize">
                 Status: {order.payment_status}

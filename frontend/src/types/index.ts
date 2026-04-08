@@ -98,6 +98,7 @@ export interface Order {
   total: number;
   payment_status: string;
   payment_method: string;
+  payment_transaction_id?: string;
   created_at: string;
   estimated_delivery_time?: string;
 }

@@ -5,7 +5,6 @@ import {
   Star, 
   Clock, 
   MapPin, 
-  Phone, 
   ChevronLeft,
   Plus,
   Minus,
@@ -50,7 +49,9 @@ const RestaurantDetailPage = () => {
   }
 
   // Group menu items by category
-  const categories = [...new Set(menuItems?.map((item: MenuItem) => item.category))];
+  const categories: string[] = Array.from(
+    new Set((menuItems ?? []).map((item: MenuItem) => item.category).filter((category: string | undefined): category is string => Boolean(category)))
+  );
   const filteredItems = selectedCategory
     ? menuItems?.filter((item: MenuItem) => item.category === selectedCategory)
     : menuItems;

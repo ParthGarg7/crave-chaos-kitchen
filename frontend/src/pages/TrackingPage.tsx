@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import type { Page } from '../App';
 
 const steps = [
     { emoji: '✅', label: 'Order Received', sub: 'Your order has been confirmed' },
@@ -9,7 +8,7 @@ const steps = [
     { emoji: '🏠', label: 'Delivered', sub: 'Enjoy your meal!' },
 ];
 
-export default function TrackingPage({ orderId, navigate }: { orderId: string; navigate: (p: Page) => void }) {
+export default function TrackingPage({ orderId, navigate }: { orderId: string; navigate: (p: string) => void }) {
     const [activeStep, setActiveStep] = useState(0);
     const [time, setTime] = useState(23 * 60 + 47); // 23:47
 

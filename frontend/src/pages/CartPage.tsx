@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ShoppingCart, ArrowRight, Trash2 } from 'lucide-react';
+import { ShoppingCart, ArrowRight } from 'lucide-react';
 
 const CartPage = () => {
   return (

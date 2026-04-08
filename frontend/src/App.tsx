@@ -349,7 +349,7 @@ function RequireRole({ role, children }: { role: string; children: ReactNode }) 
 // ─── Menu Page Wrapper (reads :id from URL) ───
 function MenuPageWrapper(props: {
   cart: CartItem[];
-  addToCart: (item: { id: number; name: string; price: number; emoji: string; restaurantId?: number }) => void;
+  addToCart: (item: { id: number; name: string; price: number; emoji: string; restaurantId: number }) => void;
   updateQty: (id: number, qty: number) => void;
   onViewCart: () => void;
 }) {
@@ -375,7 +375,7 @@ function AppContent() {
   const [orderId, setOrderId] = useState('');
   const [paymentError, setPaymentError] = useState('');
 
-  const addToCart = useCallback((item: { id: number; name: string; price: number; emoji: string; restaurantId?: number }) => {
+  const addToCart = useCallback((item: { id: number; name: string; price: number; emoji: string; restaurantId: number }) => {
     setCart(prev => {
       const existing = prev.find(c => c.id === item.id);
       if (existing) return prev.map(c => c.id === item.id ? { ...c, qty: c.qty + 1 } : c);
