@@ -2,7 +2,7 @@
 Delivery API Endpoints
 """
 from typing import List
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import update
@@ -99,7 +99,7 @@ async def accept_delivery(
         .values(
             driver_id=current_user.id,
             status=DeliveryStatus.ACCEPTED,
-            accepted_at=datetime.utcnow(),
+            accepted_at=datetime.now(timezone.utc),
         )
     ).rowcount
 
@@ -142,17 +142,17 @@ async def update_location(
             detail="Not assigned to this delivery"
         )
     
-    # Update delivery location
-    delivery.driver_latitude = location.latitude
-    delivery.driver_longitude = location.longitude
-    delivery.location_updated_at = datetime.utcnow()
+    # Update delivery location (schema validates as float; model column is String)
+    delivery.driver_latitude = str(location.latitude)
+    delivery.driver_longitude = str(location.longitude)
+    delivery.location_updated_at = datetime.now(timezone.utc)
     
     # Also log to location history
     location_log = DriverLocation(
         driver_id=current_user.id,
         delivery_id=delivery_id,
-        latitude=location.latitude,
-        longitude=location.longitude
+        latitude=str(location.latitude),
+        longitude=str(location.longitude)
     )
     db.add(location_log)
     db.commit()
@@ -175,9 +175,10 @@ async def get_delivery_location(
             detail="Delivery not found"
         )
     
-    # Customer and restaurant can track delivery
+    # Customer, restaurant owner, assigned driver, or admin can track delivery
     if (delivery.order.customer_id != current_user.id and
         delivery.order.restaurant.owner_id != current_user.id and
+        delivery.driver_id != current_user.id and
         current_user.role != UserRole.ADMIN):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -219,15 +220,18 @@ async def update_delivery_status(
     
     # Update timestamps
     if new_status == DeliveryStatus.PICKED_UP:
-        delivery.picked_up_at = datetime.utcnow()
+        delivery.picked_up_at = datetime.now(timezone.utc)
         # Also update order status
         delivery.order.status = OrderStatus.PICKED_UP
     elif new_status == DeliveryStatus.IN_TRANSIT:
         delivery.order.status = OrderStatus.IN_TRANSIT
     elif new_status == DeliveryStatus.DELIVERED:
-        delivery.delivered_at = datetime.utcnow()
+        delivery.delivered_at = datetime.now(timezone.utc)
         delivery.order.status = OrderStatus.DELIVERED
-        delivery.order.delivered_at = datetime.utcnow()
+        delivery.order.delivered_at = datetime.now(timezone.utc)
+        # Align with complete_delivery: mark paid when delivery completes (COD / pending).
+        if delivery.order.payment_status == PaymentStatus.PENDING:
+            delivery.order.payment_status = PaymentStatus.COMPLETED
     
     db.commit()
     db.refresh(delivery)
@@ -258,14 +262,14 @@ async def complete_delivery(
         )
     
     delivery.status = DeliveryStatus.DELIVERED
-    delivery.delivered_at = datetime.utcnow()
+    delivery.delivered_at = datetime.now(timezone.utc)
     delivery.delivery_notes = complete_data.delivery_notes
     delivery.customer_rating = complete_data.customer_rating
     delivery.customer_feedback = complete_data.customer_feedback
-    
+
     # Update order
     delivery.order.status = OrderStatus.DELIVERED
-    delivery.order.delivered_at = datetime.utcnow()
+    delivery.order.delivered_at = datetime.now(timezone.utc)
     delivery.order.payment_status = PaymentStatus.COMPLETED
     
     db.commit()
@@ -302,18 +306,26 @@ async def assign_driver(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Driver not found"
         )
-    
-    # Create delivery record
+
+    existing = db.query(Delivery).filter(Delivery.order_id == order_id).first()
+    if existing:
+        existing.driver_id = driver_id
+        existing.status = DeliveryStatus.ASSIGNED
+        existing.estimated_distance_km = existing.estimated_distance_km or 5.0
+        existing.estimated_duration_min = existing.estimated_duration_min or 20
+        db.commit()
+        db.refresh(existing)
+        return existing
+
     delivery = Delivery(
         order_id=order_id,
         driver_id=driver_id,
         status=DeliveryStatus.ASSIGNED,
-        estimated_distance_km=5.0,  # Mock value
-        estimated_duration_min=20   # Mock value
+        estimated_distance_km=5.0,
+        estimated_duration_min=20,
     )
-    
     db.add(delivery)
     db.commit()
     db.refresh(delivery)
-    
+
     return delivery

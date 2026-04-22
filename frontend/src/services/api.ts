@@ -1,6 +1,25 @@
 import axios, { AxiosError, AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import toast from 'react-hot-toast';
 
+/** Normalize FastAPI `detail` (string, object, or validation list) for UI. */
+export function formatApiDetail(detail: unknown): string {
+  if (detail == null) return '';
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((e) => (typeof e === 'object' && e && 'msg' in e ? String((e as { msg: string }).msg) : JSON.stringify(e)))
+      .join('; ');
+  }
+  if (typeof detail === 'object' && 'message' in (detail as object)) {
+    return String((detail as { message: string }).message);
+  }
+  try {
+    return JSON.stringify(detail);
+  } catch {
+    return 'Request failed';
+  }
+}
+
 // Create axios instance
 const api: AxiosInstance = axios.create({
   baseURL: '/api/v1',
@@ -22,39 +41,110 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// Tracks whether a token refresh is in progress to avoid parallel refreshes
+let _isRefreshing = false;
+let _pendingQueue: Array<{ resolve: (token: string) => void; reject: (err: unknown) => void }> = [];
+
+function _processQueue(error: unknown, token: string | null) {
+  _pendingQueue.forEach((p) => (error ? p.reject(error) : p.resolve(token!)));
+  _pendingQueue = [];
+}
+
 // Response interceptor - handle errors globally
 api.interceptors.response.use(
   (response: AxiosResponse) => response,
-  (error: AxiosError) => {
+  async (error: AxiosError) => {
     // Allow individual callers to opt out of auto-toasting
-    const configWithSkip = error.config as InternalAxiosRequestConfig & { skipToast?: boolean };
+    const configWithSkip = error.config as InternalAxiosRequestConfig & { skipToast?: boolean; _retry?: boolean };
     const skipToast = configWithSkip?.skipToast === true;
 
     if (!skipToast && error.response) {
       const status = error.response.status;
-      const data = error.response.data as { error?: string; message?: string; detail?: string };
+      const data = error.response.data as { error?: string; message?: string; detail?: unknown };
+      const requestUrl = error.config?.url ?? '';
+
+      // Auth endpoints (login/register/refresh) should NEVER trigger the global 401 redirect.
+      // On these routes a 401 simply means wrong credentials — show the real error message.
+      const isAuthEndpoint = requestUrl.includes('/auth/login') ||
+        requestUrl.includes('/auth/register') ||
+        requestUrl.includes('/auth/refresh');
 
       // Handle specific error types
       switch (status) {
         case 400:
-          toast.error(data.message || 'Bad request');
+          toast.error(data.message || formatApiDetail(data.detail) || 'Bad request');
           break;
-        case 401:
-          toast.error('Session expired. Please log in again.');
+        case 401: {
+          if (isAuthEndpoint) {
+            // Just show the error from the server — don't redirect
+            toast.error(formatApiDetail(data.detail) || data.message || 'Invalid credentials');
+            break;
+          }
+
+          // Don't redirect if already on the login page
+          if (window.location.pathname === '/login') break;
+
+          // Try to refresh the access token before giving up
+          if (!configWithSkip._retry) {
+            const refreshToken = localStorage.getItem('refresh_token');
+            if (refreshToken && !_isRefreshing) {
+              configWithSkip._retry = true;
+              _isRefreshing = true;
+              try {
+                const res = await api.post('/auth/refresh', null, {
+                  headers: { Authorization: `Bearer ${refreshToken}` },
+                  skipToast: true,
+                } as InternalAxiosRequestConfig & { skipToast: boolean });
+                const newToken = (res.data as { access_token: string }).access_token;
+                localStorage.setItem('access_token', newToken);
+                _processQueue(null, newToken);
+                // Retry the original request with the new token
+                if (configWithSkip.headers) configWithSkip.headers.Authorization = `Bearer ${newToken}`;
+                return api(configWithSkip);
+              } catch (refreshErr) {
+                _processQueue(refreshErr, null);
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('refresh_token');
+                toast.error('Session expired. Please log in again.');
+                window.location.href = '/login';
+              } finally {
+                _isRefreshing = false;
+              }
+              return Promise.reject(error);
+            } else if (_isRefreshing) {
+              // Queue subsequent 401s until refresh completes
+              return new Promise((resolve, reject) => {
+                _pendingQueue.push({
+                  resolve: (token) => {
+                    if (configWithSkip.headers) configWithSkip.headers.Authorization = `Bearer ${token}`;
+                    resolve(api(configWithSkip));
+                  },
+                  reject,
+                });
+              });
+            }
+          }
+          // No refresh token — clear auth and redirect
           localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          toast.error('Session expired. Please log in again.');
           window.location.href = '/login';
           break;
+        }
         case 403:
           toast.error('You do not have permission to perform this action.');
           break;
         case 404:
           // 404s for "my-restaurant" are handled silently in the dashboard
           if (!error.config?.url?.includes('my-restaurant')) {
-            toast.error(data.detail || data.message || 'Resource not found');
+            toast.error(formatApiDetail(data.detail) || data.message || 'Resource not found');
           }
           break;
+        case 402:
+          toast.error(formatApiDetail(data.detail) || data.message || 'Payment failed');
+          break;
         case 422:
-          toast.error(data.detail || data.message || 'Validation error');
+          toast.error(formatApiDetail(data.detail) || data.message || 'Validation error');
           break;
         case 429:
           toast.error('Too many requests. Please slow down.');
@@ -72,7 +162,7 @@ api.interceptors.response.use(
           toast.error('Request timed out.');
           break;
         default:
-          toast.error(data.message || 'An error occurred');
+          toast.error(data.message || formatApiDetail(data.detail) || 'An error occurred');
       }
     } else if (!skipToast && error.request && !error.response) {
       toast.error('Network error. Please check your connection.');
@@ -184,6 +274,7 @@ export const paymentApi = {
     expiry_month?: string;
     expiry_year?: string;
     cvv?: string;
+    upi_id?: string;
   }) => api.post('/payments/process', { order_id: orderId, ...paymentData }),
 
   getMethods: () => api.get('/payments/methods'),

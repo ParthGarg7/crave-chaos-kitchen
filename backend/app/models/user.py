@@ -1,12 +1,13 @@
 """
 User Model
 """
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum, Text
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 import enum
 
 from app.db.base import Base
+from app.models.enum_utils import pg_str_enum
 
 
 class UserRole(str, enum.Enum):
@@ -29,7 +30,7 @@ class User(Base):
     phone = Column(String(20), nullable=True)
     
     # Role
-    role = Column(Enum(UserRole), default=UserRole.CUSTOMER, nullable=False)
+    role = Column(pg_str_enum(UserRole), default=UserRole.CUSTOMER, nullable=False)
     
     # Status
     is_active = Column(Boolean, default=True)

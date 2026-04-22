@@ -5,18 +5,46 @@ Simulates payment processing with Stripe integration
 import asyncio
 import random
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.base import get_db
 from app.core.failure_config import failure_simulator
 from app.models.order import Order, PaymentMethod, PaymentStatus
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.schemas.order import PaymentCreate, PaymentResponse
-from app.api.v1.endpoints.auth import get_current_user
+from app.api.v1.endpoints.auth import get_current_user, require_role
 
 router = APIRouter(prefix="/payments", tags=["Payments"])
+
+
+def _coerce_payment_method(raw: object) -> PaymentMethod:
+    """Normalize DB / driver quirks (e.g. PG enum labels vs Python str Enum values)."""
+    if isinstance(raw, PaymentMethod):
+        return raw
+    s = str(raw).strip().lower().replace(" ", "_").replace("-", "_")
+    aliases = {
+        "upi": PaymentMethod.UPI,
+        "card": PaymentMethod.CARD,
+        "credit_card": PaymentMethod.CREDIT_CARD,
+        "debit_card": PaymentMethod.DEBIT_CARD,
+        "paypal": PaymentMethod.PAYPAL,
+        "cash": PaymentMethod.CASH,
+    }
+    if s in aliases:
+        return aliases[s]
+    try:
+        return PaymentMethod(s)
+    except ValueError:
+        pass
+    for m in PaymentMethod:
+        if m.name.lower() == s:
+            return m
+    raise HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        detail=f"Order has an unsupported payment_method value: {raw!r}",
+    )
 
 
 # Simulated payment gateway responses
@@ -37,7 +65,7 @@ UPI_FAILURE_RESPONSES = [
 
 def generate_transaction_id() -> str:
     """Generate a mock transaction ID"""
-    return f"txn_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{random.randint(1000, 9999)}"
+    return f"txn_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}_{random.randint(1000, 9999)}"
 
 
 def _requires_card_details(payment_method: PaymentMethod) -> bool:
@@ -111,15 +139,17 @@ async def process_payment(
             detail="Order already paid"
         )
 
+    pay_method = _coerce_payment_method(order.payment_method)
+
     # Validate method-specific payment details before simulating gateway result
-    _validate_payment_input(payment_data, order.payment_method)
-    
+    _validate_payment_input(payment_data, pay_method)
+
     # Simulate payment processing delay
     await asyncio.sleep(random.uniform(0.5, 2.0))
-    
+
     # Simulate payment result (method-specific success rates)
     success_probability = failure_simulator.state.payment_success_rate_card
-    if order.payment_method == PaymentMethod.UPI:
+    if pay_method == PaymentMethod.UPI:
         success_probability = failure_simulator.state.payment_success_rate_upi
 
     if random.random() < success_probability:
@@ -136,14 +166,14 @@ async def process_payment(
             amount=order.total,
             transaction_id=order.payment_transaction_id,
             message="Payment processed successfully",
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc),
         )
     else:
         # Failure
         order.payment_status = PaymentStatus.FAILED
         db.commit()
         
-        failure = _select_failure(order.payment_method)
+        failure = _select_failure(pay_method)
         
         raise HTTPException(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
@@ -174,10 +204,10 @@ async def get_payment_methods():
 @router.post("/{order_id}/refund")
 async def refund_payment(
     order_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    _: User = Depends(require_role(UserRole.ADMIN)),
+    db: Session = Depends(get_db),
 ):
-    """Request a refund for an order (admin only in this demo)"""
+    """Request a refund for an order (admin only)."""
     order = db.query(Order).filter(Order.id == order_id).first()
     
     if not order:

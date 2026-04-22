@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -26,6 +26,10 @@ const ScenarioCard = ({ name, scenario }: ScenarioCardProps) => {
   const [probability, setProbability] = useState(scenario.probability);
   const meta = TYPE_META[scenario.failure_type] || TYPE_META.configuration;
   const Icon = meta.icon;
+
+  useEffect(() => {
+    setProbability(scenario.probability);
+  }, [scenario.probability]);
 
   const toggleMutation = useMutation({
     mutationFn: () => scenario.enabled

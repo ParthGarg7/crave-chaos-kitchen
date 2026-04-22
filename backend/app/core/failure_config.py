@@ -5,7 +5,7 @@ Define all failure types and their simulation parameters
 from enum import Enum
 from typing import Dict, List, Optional, Any
 from pydantic import BaseModel, Field
-from datetime import datetime
+from datetime import datetime, timezone
 import random
 import asyncio
 
@@ -53,9 +53,9 @@ class FailureSimulatorState(BaseModel):
     global_failure_rate: float = 0.0  # Override all scenarios
     request_count: int = 0
     failure_count: int = 0
-    payment_success_rate_card: float = Field(0.9, ge=0.0, le=1.0)
-    payment_success_rate_upi: float = Field(0.82, ge=0.0, le=1.0)
-    last_updated: datetime = Field(default_factory=datetime.utcnow)
+    payment_success_rate_card: float = Field(1.0, ge=0.0, le=1.0)
+    payment_success_rate_upi: float = Field(1.0, ge=0.0, le=1.0)
+    last_updated: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 # Default failure scenarios
@@ -64,7 +64,14 @@ DEFAULT_SCENARIOS = {
         enabled=False,
         failure_type=FailureType.RATE_LIMIT,
         probability=0.5,
-        endpoints=["/api/v1/restaurants", "/api/v1/orders", "/api/restaurants", "/api/orders"],
+        endpoints=[
+            "/api/v1/restaurants",
+            "/api/v1/orders",
+            "/api/v1/payments",
+            "/api/restaurants",
+            "/api/orders",
+            "/api/payments",
+        ],
         rate_limit_requests=5,
         rate_limit_window=60,
         error_message="Rate limit exceeded. Try again later."
@@ -73,14 +80,14 @@ DEFAULT_SCENARIOS = {
         enabled=False,
         failure_type=FailureType.AUTHENTICATION,
         probability=0.3,
-        endpoints=["/api/orders/*", "/api/payments/*", "/api/cart/*"],
+        endpoints=["/api/v1/orders/*", "/api/v1/payments/*", "/api/v1/cart/*"],
         error_message="Your session has expired. Please log in again."
     ),
     "payment_timeout": FailureScenario(
         enabled=False,
         failure_type=FailureType.TIMEOUT,
         probability=0.4,
-        endpoints=["/api/payments/*"],
+        endpoints=["/api/v1/payments/*"],
         timeout_seconds=10.0,
         error_message="Payment processing timed out. Please try again."
     ),
@@ -88,35 +95,35 @@ DEFAULT_SCENARIOS = {
         enabled=False,
         failure_type=FailureType.SERVER_ERROR,
         probability=0.2,
-        endpoints=["/api/v1/restaurants/*", "/api/v1/orders/*", "/api/restaurants/*", "/api/orders/*"],
+        endpoints=["/api/v1/restaurants/*", "/api/v1/orders/*"],
         error_message="Database connection error. Please try again later."
     ),
     "validation_error": FailureScenario(
         enabled=False,
         failure_type=FailureType.BAD_REQUEST,
         probability=0.3,
-        endpoints=["/api/v1/orders", "/api/v1/cart/items", "/api/orders", "/api/cart/items"],
+        endpoints=["/api/v1/orders", "/api/v1/cart/items"],
         error_message="Invalid request data. Please check your input."
     ),
     "stripe_dependency": FailureScenario(
         enabled=False,
         failure_type=FailureType.DEPENDENCY,
         probability=0.5,
-        endpoints=["/api/v1/payments/*", "/api/payments/*"],
+        endpoints=["/api/v1/payments/*"],
         error_message="Payment service temporarily unavailable."
     ),
     "maps_dependency": FailureScenario(
         enabled=False,
         failure_type=FailureType.DEPENDENCY,
         probability=0.4,
-        endpoints=["/api/v1/delivery/*", "/api/v1/maps/*", "/api/delivery/*", "/api/maps/*"],
+        endpoints=["/api/v1/delivery/*", "/api/v1/maps/*"],
         error_message="Location service temporarily unavailable."
     ),
     "config_error": FailureScenario(
         enabled=False,
         failure_type=FailureType.CONFIGURATION,
         probability=0.2,
-        endpoints=["/api/v1/webhooks/*", "/api/webhooks/*"],
+        endpoints=["/api/v1/admin/*"],
         error_message="Service configuration error. Contact support."
     ),
     "service_overload": FailureScenario(
@@ -143,19 +150,19 @@ class FailureSimulator:
             
         self.state = FailureSimulatorState(scenarios=scenarios)
         self._request_counters: Dict[str, Dict[str, int]] = {}  # For rate limiting
-        self._lock = asyncio.Lock()
+        self._lock: Optional[asyncio.Lock] = None  # Lazy-initialized inside the event loop
     
     def enable_scenario(self, name: str) -> None:
         """Enable a failure scenario"""
         if name in self.state.scenarios:
             self.state.scenarios[name].enabled = True
-            self.state.last_updated = datetime.utcnow()
+            self.state.last_updated = datetime.now(timezone.utc)
     
     def disable_scenario(self, name: str) -> None:
         """Disable a failure scenario"""
         if name in self.state.scenarios:
             self.state.scenarios[name].enabled = False
-            self.state.last_updated = datetime.utcnow()
+            self.state.last_updated = datetime.now(timezone.utc)
     
     def update_scenario(self, name: str, **kwargs) -> None:
         """Update scenario parameters"""
@@ -164,7 +171,7 @@ class FailureSimulator:
             for key, value in kwargs.items():
                 if hasattr(scenario, key):
                     setattr(scenario, key, value)
-            self.state.last_updated = datetime.utcnow()
+            self.state.last_updated = datetime.now(timezone.utc)
     
     def get_scenario(self, name: str) -> Optional[FailureScenario]:
         """Get a specific scenario"""
@@ -179,7 +186,8 @@ class FailureSimulator:
         for scenario in self.state.scenarios.values():
             scenario.enabled = False
         self.state.global_failure_rate = 0.0
-        self.state.last_updated = datetime.utcnow()
+        self.state.last_updated = datetime.now(timezone.utc)
+        self._request_counters.clear()
     
     def should_fail_request(
         self, 
@@ -235,11 +243,15 @@ class FailureSimulator:
             
             # Check time-based filter
             if scenario.time_based and scenario.failure_hours:
-                current_hour = datetime.utcnow().hour
+                current_hour = datetime.now(timezone.utc).hour
                 if current_hour not in scenario.failure_hours:
                     continue
-            
-            # Check probability
+
+            # Token-bucket rate limits are enforced in middleware; applying the
+            # usual probability gate here would make limits flaky.
+            if scenario.failure_type == FailureType.RATE_LIMIT:
+                return scenario
+
             if random.random() < scenario.probability:
                 return scenario
         
@@ -250,8 +262,10 @@ class FailureSimulator:
         Check if rate limit is exceeded for a given key
         Returns True if limit exceeded, False otherwise
         """
+        if self._lock is None:
+            self._lock = asyncio.Lock()
         async with self._lock:
-            now = datetime.utcnow().timestamp()
+            now = datetime.now(timezone.utc).timestamp()
             window_start = now - scenario.rate_limit_window
             
             if key not in self._request_counters:

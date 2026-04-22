@@ -1,12 +1,13 @@
 """
 Delivery Model
 """
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey, Float, Enum
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey, Float
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 import enum
 
 from app.db.base import Base
+from app.models.enum_utils import pg_str_enum
 
 
 class DeliveryStatus(str, enum.Enum):
@@ -32,7 +33,7 @@ class Delivery(Base):
     driver_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     
     # Status
-    status = Column(Enum(DeliveryStatus), default=DeliveryStatus.ASSIGNED)
+    status = Column(pg_str_enum(DeliveryStatus), default=DeliveryStatus.ASSIGNED)
     
     # Location tracking (last known position)
     driver_latitude = Column(String(20), nullable=True)

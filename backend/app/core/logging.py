@@ -64,6 +64,13 @@ def log_request(
     else:
         logger.info(**log_data)
 
+    try:
+        from app.core.log_shipper import enqueue_log_event
+
+        enqueue_log_event({**log_data, "source": "api_request"})
+    except Exception:
+        pass
+
 
 def log_failure_injection(
     failure_type: str,

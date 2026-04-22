@@ -33,8 +33,8 @@ class FailureScenarioUpdate(BaseModel):
     endpoints: Optional[List[str]] = None
     methods: Optional[List[str]] = None
     error_message: Optional[str] = None
-    rate_limit_requests: Optional[int] = None
-    rate_limit_window: Optional[int] = None
+    rate_limit_requests: Optional[int] = Field(None, ge=1)
+    rate_limit_window: Optional[int] = Field(None, ge=1)
     timeout_seconds: Optional[float] = None
 
 

@@ -61,9 +61,9 @@ const FailureSimulatorPage = () => {
 
   const toggleSimulator = useMutation({
     mutationFn: (enabled: boolean) => failureSimulatorApi.toggle(enabled),
-    onSuccess: () => {
+    onSuccess: (_data, enabled) => {
       queryClient.invalidateQueries({ queryKey: ['failure-status'] });
-      toast.success(`Simulator ${status?.enabled ? 'disabled' : 'enabled'}`);
+      toast.success(enabled ? 'Simulator enabled' : 'Simulator disabled');
     },
   });
 

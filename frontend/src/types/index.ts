@@ -7,8 +7,10 @@ export interface User {
   phone?: string;
   role: 'customer' | 'restaurant_owner' | 'driver' | 'developer' | 'admin';
   is_active: boolean;
+  is_verified: boolean;
   address?: string;
   created_at: string;
+  last_login?: string;
 }
 
 export interface LoginCredentials {

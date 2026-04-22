@@ -3,10 +3,10 @@ Admin API Endpoints
 Provides a live session registry and user management for admins only.
 """
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 import io
 import csv
 
@@ -23,33 +23,27 @@ router = APIRouter(prefix="/admin", tags=["Admin"])
 # ─── Session Registry Schema (inline) ─────────────────────────────────────
 
 
-def _build_registry_entry(user: User, db: Session) -> dict:
-    """Build a session registry entry for a user."""
-    # Find restaurant association
-    restaurant = None
-    restaurant_name = None
-    if user.role == UserRole.RESTAURANT_OWNER:
-        restaurant = db.query(Restaurant).filter(
-            Restaurant.owner_id == user.id
-        ).first()
-        if restaurant:
-            restaurant_name = restaurant.name
+def _build_registry_entry(user: User) -> dict:
+    """Build a session registry entry for a user (uses eagerly loaded relationships)."""
+    # Restaurant name from eagerly loaded relationship
+    restaurant = user.restaurant  # loaded via joinedload
+    restaurant_name = restaurant.name if restaurant else None
 
-    # Find driver association (last active delivery)
-    driver_delivery = None
-    active_order_id = None
+    # Active driver delivery from eagerly loaded relationship
+    active_delivery = None
     if user.role == UserRole.DRIVER:
-        driver_delivery = db.query(Delivery).filter(
-            Delivery.driver_id == user.id,
-            Delivery.status.notin_([DeliveryStatus.DELIVERED, DeliveryStatus.FAILED])
-        ).order_by(Delivery.assigned_at.desc()).first()
-        if driver_delivery:
-            active_order_id = driver_delivery.order_id
+        for d in (user.driver_deliveries or []):
+            if d.status not in (DeliveryStatus.DELIVERED, DeliveryStatus.FAILED):
+                active_delivery = d
+                break
+
+    active_order_id = active_delivery.order_id if active_delivery else None
 
     # Session active = last login within 30 minutes
     session_active = False
     if user.last_login:
-        delta = (datetime.utcnow() - user.last_login.replace(tzinfo=None)).total_seconds()
+        last_login_utc = user.last_login.replace(tzinfo=None)
+        delta = (datetime.now(timezone.utc).replace(tzinfo=None) - last_login_utc).total_seconds()
         session_active = delta < 1800  # 30 minutes
 
     return {
@@ -63,7 +57,7 @@ def _build_registry_entry(user: User, db: Session) -> dict:
         "session_status": "active" if session_active else "inactive",
         "restaurant_id": restaurant.id if restaurant else None,
         "restaurant_name": restaurant_name,
-        "active_delivery_id": driver_delivery.id if driver_delivery else None,
+        "active_delivery_id": active_delivery.id if active_delivery else None,
         "active_order_id": active_order_id,
         "account_created": user.created_at.isoformat() if user.created_at else None,
     }
@@ -81,7 +75,11 @@ async def get_session_registry(
     associated restaurant/driver info, and last login timestamp.
     Admin only.
     """
-    query = db.query(User)
+    # Eagerly load related data in a single query to avoid N+1
+    query = db.query(User).options(
+        joinedload(User.restaurant),
+        joinedload(User.driver_deliveries),
+    )
 
     if role:
         try:
@@ -94,7 +92,7 @@ async def get_session_registry(
             )
 
     users = query.order_by(User.last_login.desc().nullslast()).all()
-    registry = [_build_registry_entry(u, db) for u in users]
+    registry = [_build_registry_entry(u) for u in users]
 
     # Filter by session status if requested
     if session_status in ("active", "inactive"):
@@ -112,8 +110,11 @@ async def export_session_registry(
     Export the full session registry as a downloadable CSV file.
     Admin only.
     """
-    users = db.query(User).order_by(User.last_login.desc().nullslast()).all()
-    registry = [_build_registry_entry(u, db) for u in users]
+    users = db.query(User).options(
+        joinedload(User.restaurant),
+        joinedload(User.driver_deliveries),
+    ).order_by(User.last_login.desc().nullslast()).all()
+    registry = [_build_registry_entry(u) for u in users]
 
     output = io.StringIO()
     fieldnames = [
@@ -126,7 +127,7 @@ async def export_session_registry(
     writer.writerows(registry)
 
     output.seek(0)
-    filename = f"session_registry_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+    filename = f"session_registry_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.csv"
 
     return StreamingResponse(
         iter([output.getvalue()]),

@@ -2,9 +2,9 @@
 Order API Endpoints
 """
 from typing import List
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 import random
 import string
@@ -26,7 +26,7 @@ router = APIRouter(prefix="/orders", tags=["Orders"])
 
 def generate_order_number() -> str:
     """Generate a unique order number"""
-    timestamp = datetime.utcnow().strftime("%Y%m%d")
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d")
     random_suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
     return f"ORD-{timestamp}-{random_suffix}"
 
@@ -40,19 +40,24 @@ async def get_my_orders(
     db: Session = Depends(get_db)
 ):
     """Get current user's orders"""
-    query = db.query(Order).filter(Order.customer_id == current_user.id)
-    
+    # Use joinedload to avoid N+1 queries when building OrderListResponse
+    query = (
+        db.query(Order)
+        .options(joinedload(Order.restaurant))
+        .filter(Order.customer_id == current_user.id)
+    )
+
     if order_status:
         query = query.filter(Order.status == order_status)
-    
+
     orders = query.order_by(Order.created_at.desc()).offset(skip).limit(limit).all()
-    
-    # Add restaurant name to each order
+
+    # Attach ad-hoc restaurant_name needed by OrderListResponse schema
     result = []
     for order in orders:
         order.restaurant_name = order.restaurant.name if order.restaurant else "Unknown"
         result.append(order)
-    
+
     return result
 
 
@@ -102,22 +107,22 @@ async def get_order(
 ):
     """Get order details by ID"""
     order = db.query(Order).filter(Order.id == order_id).first()
-    
+
     if not order:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Order not found"
         )
-    
+
     # Check authorization
-    if (order.customer_id != current_user.id and 
+    if (order.customer_id != current_user.id and
         order.restaurant.owner_id != current_user.id and
         current_user.role != UserRole.ADMIN):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to view this order"
         )
-    
+
     return order
 
 
@@ -130,44 +135,44 @@ async def create_order(
     """Create a new order"""
     # Verify restaurant exists and is active
     restaurant = db.query(Restaurant).filter(Restaurant.id == order_data.restaurant_id).first()
-    
+
     if not restaurant:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Restaurant not found"
         )
-    
+
     if restaurant.status.value != "active":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Restaurant is not currently accepting orders"
         )
-    
+
     # Validate and calculate order items
     subtotal = 0.0
     order_items = []
-    
+
     for item_data in order_data.items:
         menu_item = db.query(MenuItem).filter(
             MenuItem.id == item_data.menu_item_id,
             MenuItem.restaurant_id == restaurant.id
         ).first()
-        
+
         if not menu_item:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Menu item {item_data.menu_item_id} not found"
             )
-        
+
         if not menu_item.is_available:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=f"Menu item '{menu_item.name}' is currently unavailable"
             )
-        
+
         item_subtotal = menu_item.price * item_data.quantity
         subtotal += item_subtotal
-        
+
         order_items.append({
             "menu_item_id": menu_item.id,
             "item_name": menu_item.name,
@@ -176,20 +181,20 @@ async def create_order(
             "special_instructions": item_data.special_instructions,
             "subtotal": item_subtotal
         })
-    
+
     # Calculate totals
     delivery_fee = restaurant.delivery_fee
     tax_rate = 0.08  # 8% tax
     tax = round(subtotal * tax_rate, 2)
     total = round(subtotal + delivery_fee + tax + order_data.tip, 2)
-    
+
     # Check minimum order
     if subtotal < restaurant.min_order_amount:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Minimum order amount is ₹{restaurant.min_order_amount:.0f}"
         )
-    
+
     # Create order
     order = Order(
         order_number=generate_order_number(),
@@ -206,26 +211,25 @@ async def create_order(
         tip=order_data.tip,
         total=total
     )
-    
+
     db.add(order)
     db.flush()  # Get order ID
-    
+
     # Create order items
     for item_data in order_items:
         order_item = OrderItem(order_id=order.id, **item_data)
         db.add(order_item)
-    
+
     db.commit()
     db.refresh(order)
 
     # ── Auto-create Delivery record so drivers can see and accept this order ──
-    # Without this, the delivery queue stays empty and drivers see nothing.
     delivery = Delivery(
         order_id=order.id,
         driver_id=None,  # Unassigned — first driver to accept claims it
         status=DeliveryStatus.ASSIGNED,
-        estimated_distance_km=round(3.0 + (order.id % 7), 1),  # Mock 3-9 km range
-        estimated_duration_min=15 + (order.id % 20),            # Mock 15-35 min
+        estimated_distance_km=round(3.0 + (order.id % 7), 1),
+        estimated_duration_min=15 + (order.id % 20),
     )
     db.add(delivery)
     db.commit()
@@ -242,16 +246,16 @@ async def update_order_status(
 ):
     """Update order status (restaurant owner, driver, or admin)"""
     order = db.query(Order).filter(Order.id == order_id).first()
-    
+
     if not order:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Order not found"
         )
-    
+
     # Check authorization based on status change
     new_status = status_update.status
-    
+
     # Restaurant owner can: CONFIRMED, PREPARING, READY, CANCELLED
     if new_status in [OrderStatus.CONFIRMED, OrderStatus.PREPARING, OrderStatus.READY]:
         if order.restaurant.owner_id != current_user.id and current_user.role != UserRole.ADMIN:
@@ -259,7 +263,7 @@ async def update_order_status(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Only restaurant owner can update to this status"
             )
-    
+
     # Driver can: PICKED_UP, IN_TRANSIT, DELIVERED
     elif new_status in [OrderStatus.PICKED_UP, OrderStatus.IN_TRANSIT, OrderStatus.DELIVERED]:
         if current_user.role not in [UserRole.DRIVER, UserRole.ADMIN]:
@@ -267,7 +271,7 @@ async def update_order_status(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Only drivers can update to this status"
             )
-    
+
     # Customer can: CANCELLED (only if PENDING)
     elif new_status == OrderStatus.CANCELLED:
         if order.customer_id != current_user.id and current_user.role != UserRole.ADMIN:
@@ -280,24 +284,25 @@ async def update_order_status(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Can only cancel pending orders"
             )
-    
+
     # Update status
     order.status = new_status
-    
-    # Update timestamps based on status
+
+    # Update timestamps based on status (use timezone-aware UTC)
+    now = datetime.now(timezone.utc)
     if new_status == OrderStatus.CONFIRMED:
-        order.confirmed_at = datetime.utcnow()
+        order.confirmed_at = now
     elif new_status == OrderStatus.PREPARING:
-        order.prepared_at = datetime.utcnow()
+        order.prepared_at = now
     elif new_status == OrderStatus.PICKED_UP:
-        order.picked_up_at = datetime.utcnow()
+        order.picked_up_at = now
     elif new_status == OrderStatus.DELIVERED:
-        order.delivered_at = datetime.utcnow()
+        order.delivered_at = now
         order.payment_status = PaymentStatus.COMPLETED
-    
+
     db.commit()
     db.refresh(order)
-    
+
     return order
 
 
@@ -310,32 +315,35 @@ async def cancel_order(
 ):
     """Cancel an order"""
     order = db.query(Order).filter(Order.id == order_id).first()
-    
+
     if not order:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Order not found"
         )
-    
+
     # Check authorization
-    if (order.customer_id != current_user.id and 
+    if (order.customer_id != current_user.id and
         order.restaurant.owner_id != current_user.id and
         current_user.role != UserRole.ADMIN):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to cancel this order"
         )
-    
+
     # Can only cancel if not already delivered or cancelled
     if order.status in [OrderStatus.DELIVERED, OrderStatus.CANCELLED]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Cannot cancel order with status: {order.status.value}"
         )
-    
+
     order.status = OrderStatus.CANCELLED
-    order.payment_status = PaymentStatus.REFUNDED
-    
+
+    # Only mark as REFUNDED if payment was actually completed — not if it was still PENDING
+    if order.payment_status == PaymentStatus.COMPLETED:
+        order.payment_status = PaymentStatus.REFUNDED
+
     db.commit()
-    
+
     return {"message": "Order cancelled successfully", "order_id": order_id}

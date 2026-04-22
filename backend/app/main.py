@@ -1,6 +1,8 @@
 """
 FastAPI Application Entry Point
 """
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -10,16 +12,39 @@ from app.core.config import settings
 from app.core.failure_middleware import FailureSimulationMiddleware
 from app.api.v1.router import api_router
 from app.core.logging import logger, log_request
+from app.core.log_shipper import start_log_shipper_thread, stop_log_shipper_thread
 from app.middleware.api_tracker import ApiTrackerMiddleware
 from app.middleware.chaos_middleware import ChaosMiddleware
 from app.middleware.observation import ObservationMiddleware
 from app.db.base import Base, get_engine, init_db
 import app.models  # noqa: F401 - ensure models are imported for metadata
 
+
+# ── Lifespan (replaces deprecated @app.on_event) ─────────────────────────────
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application startup / shutdown logic."""
+    # Startup
+    init_db()
+    Base.metadata.create_all(bind=get_engine())
+    start_log_shipper_thread()
+    logger.info(
+        "Application starting",
+        app_name=settings.APP_NAME,
+        version=settings.APP_VERSION,
+        debug=settings.DEBUG,
+    )
+    yield
+    # Shutdown
+    stop_log_shipper_thread()
+    logger.info("Application shutting down")
+
+
 # Create FastAPI application
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
+    lifespan=lifespan,
     description="""
     Food Delivery API with Failure Simulation
     
@@ -40,7 +65,26 @@ app = FastAPI(
     redoc_url="/redoc" if settings.DEBUG else None,
 )
 
-# Add CORS middleware
+# ── Middleware (LIFO: last added = outermost = first on request) ─────────────
+#
+# Desired request flow:
+#   ObservationMiddleware  →  ApiTrackerMiddleware  →  ChaosMiddleware  →  FailureSimulationMiddleware  →  route
+#
+# To achieve that in Starlette's LIFO ordering, add in REVERSE order:
+
+# 1. Innermost — FailureSimulation fires closest to the route
+app.add_middleware(FailureSimulationMiddleware)
+
+# 2. ChaosMiddleware — intercepts request/response for 23 chaos experiments
+app.add_middleware(ChaosMiddleware)
+
+# 3. ApiTracker — records in-flight requests for the developer dashboard
+app.add_middleware(ApiTrackerMiddleware)
+
+# 4. ObservationMiddleware — outermost, captures full round-trip timing & logs
+app.add_middleware(ObservationMiddleware)
+
+# Add CORS middleware (always outermost of all)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -49,46 +93,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Add failure simulation middleware (before request logging)
-app.add_middleware(FailureSimulationMiddleware)
 
-# Add Chaos Engineer middleware — handles 23 named experiments
-app.add_middleware(ChaosMiddleware)
-
-# Add API tracker middleware for Chaos Engineer dashboard (admin tool)
-app.add_middleware(ApiTrackerMiddleware)
-
-# Add Observation Layer middleware (outermost layer to record all traffic)
-app.add_middleware(ObservationMiddleware)
-
-
-# Request logging middleware
+# ── Request logging middleware ───────────────────────────────────────────────
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     """Log all API requests"""
     start_time = time.time()
-    
     response = await call_next(request)
-    
     duration = (time.time() - start_time) * 1000
-    
-    # Log the request
     log_request(
         method=request.method,
         path=request.url.path,
         status_code=response.status_code,
         duration_ms=duration,
-        client_ip=request.client.host if request.client else "unknown"
+        client_ip=request.client.host if request.client else "unknown",
     )
-    
     return response
 
 
-# Include API routers
+# ── API routers ──────────────────────────────────────────────────────────────
 app.include_router(api_router, prefix="/api/v1")
 
 
-# Health check endpoint
+# ── Health / Root ────────────────────────────────────────────────────────────
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
@@ -96,24 +123,23 @@ async def health_check():
         "status": "healthy",
         "app": settings.APP_NAME,
         "version": settings.APP_VERSION,
-        "debug": settings.DEBUG
+        "debug": settings.DEBUG,
     }
 
 
-# Root endpoint
 @app.get("/")
 async def root():
     """Root endpoint with API information"""
     return {
         "app": settings.APP_NAME,
         "version": settings.APP_VERSION,
-        "documentation": "/docs",
+        "documentation": "/docs" if settings.DEBUG else None,
         "failure_simulator": "/api/v1/failure-simulator",
-        "health": "/health"
+        "health": "/health",
     }
 
 
-# Exception handlers
+# ── Exception handlers ───────────────────────────────────────────────────────
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Handle uncaught exceptions"""
@@ -121,39 +147,16 @@ async def global_exception_handler(request: Request, exc: Exception):
         "Unhandled exception",
         error=str(exc),
         path=request.url.path,
-        method=request.method
+        method=request.method,
     )
-    
     return JSONResponse(
         status_code=500,
         content={
             "error": "InternalServerError",
             "message": "An unexpected error occurred",
-            "path": request.url.path
-        }
+            "path": request.url.path,
+        },
     )
-
-
-# Startup event
-@app.on_event("startup")
-async def startup_event():
-    """Initialize application on startup"""
-    init_db()
-    Base.metadata.create_all(bind=get_engine())
-
-    logger.info(
-        "Application starting",
-        app_name=settings.APP_NAME,
-        version=settings.APP_VERSION,
-        debug=settings.DEBUG
-    )
-
-
-# Shutdown event
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup on shutdown"""
-    logger.info("Application shutting down")
 
 
 if __name__ == "__main__":
@@ -163,5 +166,5 @@ if __name__ == "__main__":
         host=settings.HOST,
         port=settings.PORT,
         reload=settings.DEBUG,
-        log_level="info"
+        log_level="info",
     )

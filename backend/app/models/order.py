@@ -1,12 +1,13 @@
 """
 Order Models
 """
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey, Float, Enum
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey, Float
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 import enum
 
 from app.db.base import Base
+from app.models.enum_utils import pg_str_enum
 
 
 class OrderStatus(str, enum.Enum):
@@ -50,7 +51,7 @@ class Order(Base):
     restaurant_id = Column(Integer, ForeignKey("restaurants.id"), nullable=False)
     
     # Status
-    status = Column(Enum(OrderStatus), default=OrderStatus.PENDING)
+    status = Column(pg_str_enum(OrderStatus), default=OrderStatus.PENDING)
     
     # Delivery Address
     delivery_address = Column(Text, nullable=False)
@@ -66,8 +67,8 @@ class Order(Base):
     total = Column(Float, nullable=False)
     
     # Payment
-    payment_status = Column(Enum(PaymentStatus), default=PaymentStatus.PENDING)
-    payment_method = Column(Enum(PaymentMethod), nullable=False)
+    payment_status = Column(pg_str_enum(PaymentStatus), default=PaymentStatus.PENDING)
+    payment_method = Column(pg_str_enum(PaymentMethod), nullable=False)
     payment_transaction_id = Column(String(255), nullable=True)
     
     # Timestamps

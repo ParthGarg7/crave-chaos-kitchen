@@ -1,7 +1,7 @@
 """
 Authentication API Endpoints
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
@@ -10,7 +10,7 @@ from passlib.context import CryptContext
 
 from app.db.base import get_db
 from app.models.user import User, UserRole
-from app.schemas.user import UserCreate, UserResponse, UserLogin, TokenResponse, PasswordChange
+from app.schemas.user import UserCreate, UserResponse, UserLogin, TokenResponse, PasswordChange, UserUpdate
 from app.core.config import settings
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -34,9 +34,9 @@ def create_access_token(data: dict, expires_delta: timedelta = None) -> str:
     """Create a JWT access token"""
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     
     to_encode.update({"exp": expire, "type": "access"})
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
@@ -46,7 +46,7 @@ def create_access_token(data: dict, expires_delta: timedelta = None) -> str:
 def create_refresh_token(data: dict) -> str:
     """Create a JWT refresh token"""
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
     to_encode.update({"exp": expire, "type": "refresh"})
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
@@ -178,7 +178,7 @@ async def login(credentials: UserLogin, db: Session = Depends(get_db)):
         )
     
     # Update last login
-    user.last_login = datetime.utcnow()
+    user.last_login = datetime.now(timezone.utc)
     db.commit()
     
     # Create tokens
@@ -196,7 +196,10 @@ async def login(credentials: UserLogin, db: Session = Depends(get_db)):
 
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+async def refresh_token(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+):
     """Refresh access token using refresh token"""
     token = credentials.credentials
     payload = decode_token(token)
@@ -209,11 +212,22 @@ async def refresh_token(credentials: HTTPAuthorizationCredentials = Depends(secu
         )
     
     user_id = payload.get("sub")
-    email = payload.get("email")
-    role = payload.get("role")
-    
-    # Create new tokens
-    token_data = {"sub": user_id, "email": email, "role": role}
+    if user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    user = db.query(User).filter(User.id == int(user_id)).first()
+    if user is None or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found or inactive",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    token_data = {"sub": str(user.id), "email": user.email, "role": user.role.value}
     new_access_token = create_access_token(token_data)
     new_refresh_token = create_refresh_token(token_data)
     
@@ -222,7 +236,7 @@ async def refresh_token(credentials: HTTPAuthorizationCredentials = Depends(secu
         refresh_token=new_refresh_token,
         token_type="bearer",
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        user=None  # Will be fetched by frontend if needed
+        user=UserResponse.model_validate(user),
     )
 
 
@@ -234,20 +248,18 @@ async def get_me(current_user: User = Depends(get_current_active_user)):
 
 @router.put("/me", response_model=UserResponse)
 async def update_me(
-    update_data: dict,
+    update_data: UserUpdate,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Update current user profile"""
-    allowed_fields = ["first_name", "last_name", "phone", "address"]
-    
-    for field in allowed_fields:
-        if field in update_data:
-            setattr(current_user, field, update_data[field])
-    
+    update_dict = update_data.model_dump(exclude_unset=True)
+    for field, value in update_dict.items():
+        setattr(current_user, field, value)
+
     db.commit()
     db.refresh(current_user)
-    
+
     return current_user
 
 

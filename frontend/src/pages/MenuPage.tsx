@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import type { Variants } from 'framer-motion';
 import { restaurantApi } from '../services/api';
@@ -36,12 +36,13 @@ interface DbRestaurant {
     description?: string;
 }
 
-export default function MenuPage({ restaurantId, cart, addToCart, updateQty, onViewCart }: {
+export default function MenuPage({ restaurantId, cart, addToCart, updateQty, onViewCart, onRestaurantLoaded }: {
     restaurantId: number;
     cart: CartItem[];
     addToCart: (item: { id: number; name: string; price: number; emoji: string; restaurantId: number }) => void;
     updateQty: (id: number, qty: number) => void;
     onViewCart: () => void;
+    onRestaurantLoaded?: (info: { restaurantId: number; delivery_fee: number }) => void;
 }) {
     const [restaurant, setRestaurant] = useState<DbRestaurant | null>(null);
     const [menuByCategory, setMenuByCategory] = useState<Record<string, DbMenuItem[]>>({});
@@ -49,6 +50,9 @@ export default function MenuPage({ restaurantId, cart, addToCart, updateQty, onV
     const [addedId, setAddedId] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+
+    const onRestaurantLoadedRef = useRef(onRestaurantLoaded);
+    onRestaurantLoadedRef.current = onRestaurantLoaded;
 
     useEffect(() => {
         setLoading(true);
@@ -61,6 +65,7 @@ export default function MenuPage({ restaurantId, cart, addToCart, updateQty, onV
             .then(([restRes, menuRes]) => {
                 const rest: DbRestaurant = restRes.data;
                 setRestaurant(rest);
+                onRestaurantLoadedRef.current?.({ restaurantId: rest.id, delivery_fee: rest.delivery_fee });
 
                 const items: DbMenuItem[] = menuRes.data ?? [];
                 // Group by category

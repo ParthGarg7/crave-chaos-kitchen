@@ -152,5 +152,5 @@ def test_payment_gateway_config_controls_upi_and_card_flows(monkeypatch):
     assert card_resp.json()["status"] == "completed"
 
     db.close()
-    simulator_state.state.payment_success_rate_card = 0.9
-    simulator_state.state.payment_success_rate_upi = 0.82
+    simulator_state.state.payment_success_rate_card = 1.0
+    simulator_state.state.payment_success_rate_upi = 1.0

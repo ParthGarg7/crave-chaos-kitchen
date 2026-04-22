@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, ReactNode } from 'react';
+import { useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, useLocation, useNavigate, useParams, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -18,12 +18,12 @@ import AdminPanel from './pages/AdminPanel';
 import DeveloperDashboard from './pages/DeveloperDashboard';
 import ChaosEngineer from './pages/ChaosEngineer';
 import DualView from './pages/DualView';
-import PaymentModal, { PaymentMethod } from './components/PaymentModal';
+import PaymentModal, { type PaymentConfirmation } from './components/PaymentModal';
 import ContactSupportModal from './components/ContactSupportModal';
 
 // Auth store & API
 import { useAuthStore } from './stores/authStore';
-import { orderApi } from './services/api';
+import { orderApi, paymentApi, formatApiDetail } from './services/api';
 
 // ─── Types ───
 export interface CartItem { id: number; name: string; price: number; emoji: string; qty: number; restaurantId: number }
@@ -240,20 +240,28 @@ function Navbar({ cartCount, onCartClick }: { cartCount: number; onCartClick: ()
   );
 }
 
+const CHECKOUT_TAX_RATE = 0.08;
+
+function computeCheckoutTotals(cart: CartItem[], deliveryFee: number) {
+  const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  const tax = cart.length === 0 ? 0 : Math.round(subtotal * CHECKOUT_TAX_RATE * 100) / 100;
+  const total = cart.length === 0 ? 0 : Math.round((subtotal + deliveryFee + tax) * 100) / 100;
+  return { subtotal, tax, total };
+}
+
 // ─── Cart Drawer ───
 function CartDrawer({
-  cart, open, onClose, onUpdate, onRemove, onProceedToPayment, orderState,
+  cart, open, onClose, onUpdate, onRemove, onProceedToPayment, orderState, deliveryFee,
 }: {
   cart: CartItem[]; open: boolean; onClose: () => void;
   onUpdate: (id: number, q: number) => void; onRemove: (id: number) => void;
   onProceedToPayment: () => void; orderState: string;
+  deliveryFee: number;
 }) {
   const { isAuthenticated } = useAuthStore();
   const navigate = useNavigate();
 
-  const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
-  const deliveryFee = cart.length > 0 ? 49 : 0; // ₹49 delivery
-  const total = subtotal + deliveryFee;
+  const { subtotal, tax, total } = computeCheckoutTotals(cart, deliveryFee);
 
   const handleProceedToPayment = () => {
     if (!isAuthenticated) {
@@ -297,7 +305,8 @@ function CartDrawer({
           {cart.length > 0 && (
             <div style={{ padding: 'var(--space-lg)', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 4 }}><span>Subtotal</span><span>₹{subtotal.toLocaleString('en-IN')}</span></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 12 }}><span>Delivery</span><span>₹{deliveryFee}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 4 }}><span>Delivery</span><span>₹{deliveryFee.toLocaleString('en-IN')}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 12 }}><span>Tax (8%)</span><span>₹{tax.toLocaleString('en-IN')}</span></div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.2rem', fontFamily: 'var(--font-accent)', marginBottom: 'var(--space-md)' }}><span>Total</span><span style={{ color: 'var(--accent-gold)' }}>₹{total.toLocaleString('en-IN')}</span></div>
               {!isAuthenticated && (
                 <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.72rem', color: 'var(--accent-fire)', textAlign: 'center', marginBottom: 12, letterSpacing: 1 }}>
@@ -352,6 +361,7 @@ function MenuPageWrapper(props: {
   addToCart: (item: { id: number; name: string; price: number; emoji: string; restaurantId: number }) => void;
   updateQty: (id: number, qty: number) => void;
   onViewCart: () => void;
+  onRestaurantLoaded: (info: { restaurantId: number; delivery_fee: number }) => void;
 }) {
   const { id } = useParams<{ id: string }>();
   const restaurantId = parseInt(id ?? '1', 10);
@@ -374,6 +384,25 @@ function AppContent() {
   const [orderState, setOrderState] = useState<'idle' | 'loading' | 'success'>('idle');
   const [orderId, setOrderId] = useState('');
   const [paymentError, setPaymentError] = useState('');
+  const [checkoutDeliveryFee, setCheckoutDeliveryFee] = useState<number | null>(null);
+
+  const deliveryFeeDisplay = checkoutDeliveryFee ?? 49;
+  const { total: checkoutTotalPreview } = computeCheckoutTotals(cart, deliveryFeeDisplay);
+
+  const cartRef = useRef(cart);
+  cartRef.current = cart;
+
+  useEffect(() => {
+    if (cart.length === 0) setCheckoutDeliveryFee(null);
+  }, [cart.length]);
+
+  const onMenuRestaurantLoaded = useCallback((info: { restaurantId: number; delivery_fee: number }) => {
+    setCheckoutDeliveryFee((prev) => {
+      const c = cartRef.current;
+      if (c.length === 0) return info.delivery_fee;
+      return c[0].restaurantId === info.restaurantId ? info.delivery_fee : prev;
+    });
+  }, []);
 
   const addToCart = useCallback((item: { id: number; name: string; price: number; emoji: string; restaurantId: number }) => {
     setCart(prev => {
@@ -391,7 +420,7 @@ function AppContent() {
     setCart(prev => prev.filter(c => c.id !== id));
   }, []);
 
-  const handlePlaceOrder = useCallback(async (paymentMethod: PaymentMethod = 'cash') => {
+  const handlePlaceOrder = useCallback(async (details: PaymentConfirmation) => {
     if (!isAuthenticated) {
       setCartOpen(false);
       setPaymentOpen(false);
@@ -404,11 +433,10 @@ function AppContent() {
     setOrderState('loading');
     setPaymentError('');
 
-    // Map PaymentMethod to backend-accepted value
     const backendPaymentMethod =
-      paymentMethod === 'card' ? 'card' :
-        paymentMethod === 'upi' ? 'upi' :
-          paymentMethod === 'paypal' ? 'paypal' :
+      details.method === 'card' ? 'card' :
+        details.method === 'upi' ? 'upi' :
+          details.method === 'paypal' ? 'paypal' :
             'cash';
 
     try {
@@ -426,24 +454,46 @@ function AppContent() {
       };
 
       const response = await orderApi.create(orderPayload);
-      const realOrderId = response.data?.order_number ?? response.data?.id ?? 'CR-' + Math.floor(Math.random() * 9999);
+      const orderRow = response.data as { id: number; order_number?: string };
+
+      if (backendPaymentMethod !== 'cash') {
+        const parts = details.expiry?.split('/') ?? [];
+        const em = (parts[0] ?? '').padStart(2, '0');
+        const yRaw = parts[1] ?? '';
+        const ey = yRaw.length === 2 ? `20${yRaw}` : yRaw;
+        const pay =
+          backendPaymentMethod === 'card'
+            ? {
+                card_number: (details.cardNumber ?? '').replace(/\s/g, ''),
+                cvv: details.cvv,
+                expiry_month: em,
+                expiry_year: ey,
+              }
+            : backendPaymentMethod === 'upi'
+              ? { upi_id: details.upiId?.trim() || 'craveuser@upi' }
+              : {};
+        await paymentApi.process(orderRow.id, pay);
+      }
+
+      const realOrderId = orderRow.order_number ?? String(orderRow.id);
       setOrderState('success');
       setOrderId(String(realOrderId));
       toast.success('Order placed successfully! 🎉');
 
       setTimeout(() => {
         setCart([]);
+        setCheckoutDeliveryFee(null);
         setCartOpen(false);
-      setPaymentOpen(false);
+        setPaymentOpen(false);
         setOrderState('idle');
         navigate('/tracking');
       }, 1200);
 
     } catch (err: unknown) {
       setOrderState('idle');
-      const e = err as { response?: { data?: { detail?: string }; status?: number } };
+      const e = err as { response?: { data?: { detail?: unknown } }; status?: number };
       const detail = e?.response?.data?.detail;
-      const errorMsg = detail || (e?.response ? 'Payment failed. Please try again.' : 'Could not reach server. Is Docker running?');
+      const errorMsg = formatApiDetail(detail) || (e?.response ? 'Payment failed. Please try again.' : 'Could not reach server. Is Docker running?');
       setPaymentError(errorMsg);
       if (!e?.response) {
         toast.error('Could not reach server. Is Docker running?');
@@ -457,8 +507,8 @@ function AppContent() {
     setPaymentOpen(true);
   }, []);
 
-  const handlePaymentConfirmed = useCallback((method: PaymentMethod) => {
-    handlePlaceOrder(method);
+  const handlePaymentConfirmed = useCallback((details: PaymentConfirmation) => {
+    void handlePlaceOrder(details);
   }, [handlePlaceOrder]);
 
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
@@ -480,12 +530,12 @@ function AppContent() {
   return (
     <>
       <Navbar cartCount={cartCount} onCartClick={() => setCartOpen(true)} />
-      <CartDrawer cart={cart} open={cartOpen} onClose={() => setCartOpen(false)} onUpdate={updateQty} onRemove={removeItem} onProceedToPayment={handleProceedToPayment} orderState={orderState} />
+      <CartDrawer cart={cart} open={cartOpen} onClose={() => setCartOpen(false)} onUpdate={updateQty} onRemove={removeItem} onProceedToPayment={handleProceedToPayment} orderState={orderState} deliveryFee={deliveryFeeDisplay} />
       <PaymentModal
         open={paymentOpen}
         onClose={() => { setPaymentOpen(false); setPaymentError(''); setCartOpen(true); }}
         onConfirm={handlePaymentConfirmed}
-        total={cart.reduce((s, i) => s + i.price * i.qty, 0) + (cart.length > 0 ? 49 : 0)}
+        total={checkoutTotalPreview}
         cartItems={cart.map(i => ({ name: i.name, emoji: i.emoji, qty: i.qty, price: i.price }))}
         orderState={orderState}
         errorMessage={paymentError}
@@ -527,7 +577,7 @@ function AppContent() {
             <Route path="/" element={<PageWrap key={`hero-${isAuthenticated}`}><HeroPage navigate={legacyNavigate} /></PageWrap>} />
             <Route path="/browse" element={<PageWrap key="browse"><BrowsePage onSelect={(id) => navigate(`/menu/${id}`)} /></PageWrap>} />
             {/* Fixed: now passes the actual :id param from the URL instead of hardcoded 1 */}
-            <Route path="/menu/:id" element={<MenuPageWrapper cart={cart} addToCart={addToCart} updateQty={updateQty} onViewCart={() => setCartOpen(true)} />} />
+            <Route path="/menu/:id" element={<MenuPageWrapper cart={cart} addToCart={addToCart} updateQty={updateQty} onViewCart={() => setCartOpen(true)} onRestaurantLoaded={onMenuRestaurantLoaded} />} />
             <Route path="/tracking" element={<PageWrap key="track"><TrackingPage orderId={orderId} navigate={legacyNavigate} /></PageWrap>} />
             <Route path="/login" element={<PageWrap key="login"><LoginPage /></PageWrap>} />
             <Route path="/register" element={<PageWrap key="register"><RegisterPage /></PageWrap>} />

@@ -2,12 +2,13 @@
 Database Base Configuration
 """
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import DeclarativeBase, sessionmaker, Session
 from typing import Generator, Optional
 
+
 # Create base class for models (safe to import anywhere — no DB connection yet)
-Base = declarative_base()
+class Base(DeclarativeBase):
+    pass
 
 # Engine and session are lazily initialised by init_db()
 _engine: Optional[object] = None

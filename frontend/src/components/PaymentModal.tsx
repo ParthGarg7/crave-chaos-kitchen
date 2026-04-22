@@ -4,6 +4,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 // ─── Types ───────────────────────────────────────────────────
 export type PaymentMethod = 'card' | 'upi' | 'cash' | 'paypal';
 
+/** Passed to parent when user confirms — includes gateway fields for card/UPI. */
+export interface PaymentConfirmation {
+  method: PaymentMethod;
+  cardNumber?: string;
+  expiry?: string;
+  cvv?: string;
+  upiId?: string;
+}
+
 interface CartSummaryItem {
     name: string;
     emoji: string;
@@ -14,7 +23,7 @@ interface CartSummaryItem {
 interface PaymentModalProps {
     open: boolean;
     onClose: () => void;
-    onConfirm: (method: PaymentMethod) => void;
+    onConfirm: (details: PaymentConfirmation) => void;
     total: number;
     cartItems: CartSummaryItem[];
     orderState: 'idle' | 'loading' | 'success';
@@ -184,7 +193,21 @@ export default function PaymentModal({
         if (tab === 'upi' && upiMode === 'id' && !upiId.includes('@')) {
             return; // silent — button will be disabled
         }
-        onConfirm(tab);
+        if (tab === 'upi') {
+            const uid = upiMode === 'id' ? upiId.trim() : 'craveuser@upi';
+            onConfirm({ method: tab, upiId: uid.includes('@') ? uid : 'craveuser@upi' });
+            return;
+        }
+        if (tab === 'card') {
+            onConfirm({
+                method: tab,
+                cardNumber: cardNumber.replace(/\s/g, ''),
+                expiry,
+                cvv,
+            });
+            return;
+        }
+        onConfirm({ method: tab });
     };
 
     const isConfirmDisabled = orderState !== 'idle' || (

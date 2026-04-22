@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     # Failure Simulator Settings
     FAILURE_SIMULATOR_ENABLED: bool = True
     FAILURE_LOG_RETENTION_HOURS: int = 24
+
+    # Log shipping — leave empty to disable. When set, JSON log batches are POSTed here.
+    LOG_SHIP_ENDPOINT: str = ""
     
     class Config:
         env_file = ".env"

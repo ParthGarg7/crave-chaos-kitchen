@@ -1,12 +1,13 @@
 """
 Restaurant and Menu Models
 """
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey, Float, Enum
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey, Float
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 import enum
 
 from app.db.base import Base
+from app.models.enum_utils import pg_str_enum
 
 
 class RestaurantStatus(str, enum.Enum):
@@ -52,8 +53,8 @@ class Restaurant(Base):
     longitude = Column(String(20), nullable=True)
     
     # Details
-    cuisine_type = Column(Enum(CuisineType), default=CuisineType.OTHER)
-    status = Column(Enum(RestaurantStatus), default=RestaurantStatus.PENDING)
+    cuisine_type = Column(pg_str_enum(CuisineType), default=CuisineType.OTHER)
+    status = Column(pg_str_enum(RestaurantStatus), default=RestaurantStatus.PENDING)
     
     # Business hours
     opening_time = Column(String(10), default="09:00")  # 24-hour format
