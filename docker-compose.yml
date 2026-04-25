@@ -124,6 +124,9 @@ services:
       REDIS_PORT: "6379"
       INJECT_INTERVAL_SECONDS: "120"
       SCENARIO_DURATION_SECONDS: "60"
+      CRAVE_CUSTOMER_EMAIL: "customer@example.com"
+      CRAVE_CUSTOMER_PASSWORD: "password123"
+      TRAFFIC_INTERVAL_SECONDS: "2"
     depends_on:
       backend:
         condition: service_healthy

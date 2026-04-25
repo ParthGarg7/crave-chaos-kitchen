@@ -1,7 +1,7 @@
 """
 CRAVE Auto-Injector
 ===================
-Automatically injects failure scenarios into CRAVE on a 
+Automatically injects failure scenarios into CRAVE on a
 schedule to drive the self-healing pipeline.
 
 State machine:
@@ -9,35 +9,41 @@ State machine:
   ACTIVE   — cycling through scenarios on schedule
   PAUSED   — healing endpoint called, waiting before resuming
 
-The injector starts in IDLE state and requires a manual 
-trigger via the CRAVE failure simulator API or a future 
-control endpoint. This is intentional — failures should not 
+The injector starts in IDLE state and requires a manual
+trigger via the CRAVE failure simulator API or a future
+control endpoint. This is intentional — failures should not
 start automatically on container startup.
 
 Redis keys used:
   crave:injector:state       — current state (idle/active/paused)
   crave:injector:paused      — set by heal endpoint, TTL 300s
   crave:injector:current     — name of currently active scenario
+  crave:traffic:enabled      — "0" to pause traffic gen, "1"/absent to run
 
 Environment variables:
   CRAVE_BACKEND_URL          — http://crave-backend:8000
   CRAVE_DEVELOPER_EMAIL      — developer account email
   CRAVE_DEVELOPER_PASSWORD   — developer account password
+  CRAVE_CUSTOMER_EMAIL       — customer account email (traffic gen)
+  CRAVE_CUSTOMER_PASSWORD    — customer account password (traffic gen)
   REDIS_HOST                 — redis host
   REDIS_PORT                 — redis port
   INJECT_INTERVAL_SECONDS    — seconds between scenario cycles
   SCENARIO_DURATION_SECONDS  — how long each scenario runs
+  TRAFFIC_INTERVAL_SECONDS   — seconds between traffic gen requests
 """
 
 import os
 import time
+import random
 import logging
+import threading
 import redis
 import requests
 from datetime import datetime, timezone
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="%(asctime)s [INJECTOR] %(levelname)s %(message)s"
 )
 log = logging.getLogger(__name__)
@@ -46,14 +52,17 @@ log = logging.getLogger(__name__)
 CRAVE_URL = os.getenv("CRAVE_BACKEND_URL", "http://crave-backend:8000")
 DEV_EMAIL = os.getenv("CRAVE_DEVELOPER_EMAIL", "dev@crave-internal.com")
 DEV_PASSWORD = os.getenv("CRAVE_DEVELOPER_PASSWORD", "testpass123")
+CUST_EMAIL = os.getenv("CRAVE_CUSTOMER_EMAIL", "customer@example.com")
+CUST_PASSWORD = os.getenv("CRAVE_CUSTOMER_PASSWORD", "password123")
 REDIS_HOST = os.getenv("REDIS_HOST", "crave-redis")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 INJECT_INTERVAL = int(os.getenv("INJECT_INTERVAL_SECONDS", "120"))
 SCENARIO_DURATION = int(os.getenv("SCENARIO_DURATION_SECONDS", "60"))
+TRAFFIC_INTERVAL = float(os.getenv("TRAFFIC_INTERVAL_SECONDS", "2"))
 
 # Scenarios the injector cycles through.
-# These are the failures that are genuinely healable by 
-# restarting the service — memory leak, corrupted state, 
+# These are the failures that are genuinely healable by
+# restarting the service — memory leak, corrupted state,
 # database connection exhaustion, service overload.
 # Rate limiting, auth, and dependency failures are excluded
 # because they are not healed by restart in real life.
@@ -72,7 +81,7 @@ def get_redis():
         decode_responses=True
     )
 
-# ── Auth ─────────────────────────────────────────────────────
+# ── Developer session (injector) ─────────────────────────────
 _token = None
 
 def get_token():
@@ -99,6 +108,34 @@ def auth_headers():
     if not _token:
         get_token()
     return {"Authorization": f"Bearer {_token}"}
+
+# ── Customer session (traffic generator) ─────────────────────
+_customer_token = None
+
+def get_customer_token():
+    global _customer_token
+    try:
+        resp = requests.post(
+            f"{CRAVE_URL}/api/v1/auth/login",
+            json={"email": CUST_EMAIL, "password": CUST_PASSWORD},
+            timeout=10
+        )
+        if resp.status_code == 200:
+            _customer_token = resp.json()["access_token"]
+            log.info("Traffic gen: customer session authenticated")
+            return _customer_token
+        else:
+            log.debug("Traffic gen: customer auth failed: %s", resp.text)
+            return None
+    except Exception as e:
+        log.debug("Traffic gen: customer auth error: %s", e)
+        return None
+
+def customer_headers():
+    global _customer_token
+    if not _customer_token:
+        get_customer_token()
+    return {"Authorization": f"Bearer {_customer_token}"}
 
 # ── CRAVE API calls ──────────────────────────────────────────
 def enable_scenario(name: str) -> bool:
@@ -153,6 +190,73 @@ def set_state(r, state: str):
     r.set("crave:injector:state", state)
     log.info("Injector state: %s", state)
 
+# ── Traffic generator ────────────────────────────────────────
+def traffic_generator():
+    """Daemon thread — continuously drives real HTTP traffic through CRAVE."""
+    log.info("Traffic generator started")
+    r = get_redis()
+    get_customer_token()
+
+    while True:
+        try:
+            # Respect the Redis pause flag
+            enabled = r.get("crave:traffic:enabled")
+            if enabled == "0":
+                time.sleep(5)
+                continue
+
+            # Build one cycle of 8 requests with fresh random IDs
+            r1 = random.randint(1, 50)
+            r2 = random.randint(1, 50)
+            r3 = random.randint(1, 50)
+            r4 = random.randint(1, 50)
+
+            cycle = [
+                ("GET", f"{CRAVE_URL}/api/v1/restaurants?limit=100",   None),
+                ("GET", f"{CRAVE_URL}/api/v1/restaurants/{r1}",         None),
+                ("GET", f"{CRAVE_URL}/api/v1/restaurants/{r2}/menu",    None),
+                ("GET", f"{CRAVE_URL}/api/v1/auth/me",                  "customer"),
+                ("GET", f"{CRAVE_URL}/api/v1/orders/my-orders",         "customer"),
+                ("GET", f"{CRAVE_URL}/api/v1/restaurants?limit=100",   None),
+                ("GET", f"{CRAVE_URL}/api/v1/restaurants/{r3}",         None),
+                ("GET", f"{CRAVE_URL}/api/v1/restaurants/{r4}/menu",    None),
+            ]
+
+            for method, url, session in cycle:
+                # Re-check pause flag before each individual request
+                if r.get("crave:traffic:enabled") == "0":
+                    break
+
+                try:
+                    headers = customer_headers() if session == "customer" else {}
+                    resp = requests.request(method, url, headers=headers, timeout=10)
+
+                    # 401 → refresh token and retry once
+                    if resp.status_code == 401 and session == "customer":
+                        log.info("Traffic gen: refreshing customer token")
+                        get_customer_token()
+                        headers = customer_headers()
+                        resp = requests.request(method, url, headers=headers, timeout=10)
+
+                    path = url.replace(CRAVE_URL, "")
+                    log.debug("Traffic gen: %s %s -> %s", method, path, resp.status_code)
+
+                except requests.exceptions.ConnectionError:
+                    log.debug("Traffic gen: backend unreachable, waiting 10s")
+                    time.sleep(10)
+                    break
+                except Exception as e:
+                    log.debug("Traffic gen: request error: %s", e)
+
+                time.sleep(TRAFFIC_INTERVAL)
+
+        except redis.RedisError as e:
+            log.debug("Traffic gen: Redis error: %s", e)
+            time.sleep(10)
+        except Exception as e:
+            log.debug("Traffic gen: unexpected error: %s", e)
+            time.sleep(5)
+
 # ── Main loop ────────────────────────────────────────────────
 def main():
     log.info("CRAVE Auto-Injector starting in IDLE state")
@@ -163,6 +267,10 @@ def main():
     r = get_redis()
     set_state(r, "idle")
     get_token()
+
+    # Start traffic generator as an independent daemon thread
+    traffic_thread = threading.Thread(target=traffic_generator, daemon=True, name="traffic-gen")
+    traffic_thread.start()
 
     scenario_index = 0
 
