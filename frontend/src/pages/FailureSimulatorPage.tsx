@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { Activity, Settings, Zap, RotateCcw } from 'lucide-react';
 import { failureSimulatorApi } from '../services/api';
 import { useFailureSimulatorStore } from '../stores/failureSimulatorStore';
+import { useAuthStore } from '../stores/authStore';
 import ScenarioCard from '../components/failure-simulator/ScenarioCard';
 import MetricsPanel from '../components/failure-simulator/MetricsPanel';
 import PresetSelector from '../components/failure-simulator/PresetSelector';
@@ -32,8 +34,16 @@ const TABS = [
 type TabId = typeof TABS[number]['id'];
 
 const FailureSimulatorPage = () => {
+  const { user } = useAuthStore();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabId>('scenarios');
+
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      navigate('/admin');
+    }
+  }, [user, navigate]);
 
   const {
     scenarios, status, metrics, presets,
