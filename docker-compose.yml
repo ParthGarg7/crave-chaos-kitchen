@@ -10,7 +10,7 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: food_delivery
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -18,6 +18,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    networks:
+      - selfhealing-network
 
   # ── Redis Cache ──────────────────────────────────────────────────────────
   redis:
@@ -25,7 +27,7 @@ services:
     container_name: crave-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "6380:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -33,6 +35,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    networks:
+      - selfhealing-network
 
   # ── FastAPI Backend ──────────────────────────────────────────────────────
   backend:
@@ -54,10 +58,12 @@ services:
       ACCESS_TOKEN_EXPIRE_MINUTES: "60"
       REFRESH_TOKEN_EXPIRE_DAYS: "7"
       ALGORITHM: HS256
-      CORS_ORIGINS: '["http://localhost:3000","http://localhost:5173","http://127.0.0.1:3000","http://127.0.0.1:5173"]'
+      CORS_ORIGINS: '["http://localhost:3001","http://localhost:3001","http://127.0.0.1:3001","http://127.0.0.1:3001"]'
       FAILURE_SIMULATOR_ENABLED: "true"
+      RABBITMQ_HOST: ""
+      COMPONENT_A_HEAL_ENDPOINT: ""
     ports:
-      - "8000:8000"
+      - "8001:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -79,6 +85,8 @@ services:
       timeout: 5s
       retries: 10
       start_period: 20s
+    networks:
+      - selfhealing-network
 
   frontend:
     build:
@@ -87,7 +95,7 @@ services:
     container_name: crave-frontend
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3001:3000"
     environment:
       CHOKIDAR_USEPOLLING: "true"
       VITE_API_URL: "http://backend:8000"   # Resolved inside Docker network
@@ -98,7 +106,35 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    networks:
+      - selfhealing-network
+
+  # ── Auto-Injector ────────────────────────────────────────────────────────
+  crave-injector:
+    build:
+      context: ./injector
+      dockerfile: Dockerfile
+    container_name: crave-injector
+    restart: unless-stopped
+    environment:
+      CRAVE_BACKEND_URL: "http://crave-backend:8000"
+      CRAVE_DEVELOPER_EMAIL: "dev@crave-internal.com"
+      CRAVE_DEVELOPER_PASSWORD: "testpass123"
+      REDIS_HOST: "crave-redis"
+      REDIS_PORT: "6379"
+      INJECT_INTERVAL_SECONDS: "120"
+      SCENARIO_DURATION_SECONDS: "60"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - selfhealing-network
 
 volumes:
   postgres_data:
   redis_data:
+
+networks:
+  selfhealing-network:
+    external: true
+    name: selfhealing-network
