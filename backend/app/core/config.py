@@ -62,8 +62,20 @@ class Settings(BaseSettings):
     FAILURE_SIMULATOR_ENABLED: bool = True
     FAILURE_LOG_RETENTION_HOURS: int = 24
 
+    # RabbitMQ — log transport to Niramay
+    # Leave RABBITMQ_HOST empty to disable publishing
+    RABBITMQ_HOST: str = ""
+    RABBITMQ_PORT: int = 5672
+    RABBITMQ_USER: str = "guest"
+    RABBITMQ_PASSWORD: str = "guest"
+    RABBITMQ_QUEUE: str = "component-c-logs"
+
+    # Component A integration
+    COMPONENT_A_HEAL_ENDPOINT: str = ""
+
     # Log shipping — leave empty to disable. When set, JSON log batches are POSTed here.
     LOG_SHIP_ENDPOINT: str = ""
+
     
     class Config:
         env_file = ".env"

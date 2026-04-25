@@ -142,6 +142,70 @@ async def reset_all_scenarios(_: User = _developer):
     return {"message": "All failure scenarios have been reset"}
 
 
+@router.post("/heal")
+async def heal_service(_: User = _developer):
+    """
+    Healing endpoint called by Component A to disable all active 
+    failure scenarios and stop the auto-injector.
+    
+    This endpoint is the contract between Niramay Component A 
+    and CRAVE. When Component A executes a healing action, it 
+    calls this endpoint to:
+    1. Disable all currently active failure scenarios
+    2. Signal the auto-injector to pause
+    3. Return what was disabled for Component A audit logging
+    
+    No connections to Component A are made here.
+    The auto-injector pause is implemented via a Redis flag:
+      key: crave:injector:paused
+      value: "1"
+      expiry: 300 seconds (5 minutes)
+    After 5 minutes the auto-injector can resume if re-triggered.
+    
+    Returns:
+      healed: bool
+      scenarios_disabled: list of scenario names that were active
+      count: number of scenarios disabled
+      injector_paused: bool
+      timestamp: ISO8601
+    """
+    from datetime import datetime, timezone
+    import redis as redis_sync
+    from app.core.config import settings
+
+    # Find all currently active scenarios before disabling
+    active_scenarios = [
+        name for name, scenario 
+        in failure_simulator.state.scenarios.items()
+        if scenario.enabled
+    ]
+    
+    # Disable all active scenarios
+    failure_simulator.reset_all()
+    
+    # Pause the auto-injector via Redis flag
+    injector_paused = False
+    try:
+        r = redis_sync.Redis(
+            host=settings.REDIS_HOST,
+            port=settings.REDIS_PORT,
+            db=0,
+            decode_responses=True
+        )
+        r.setex("crave:injector:paused", 300, "1")
+        injector_paused = True
+    except Exception:
+        injector_paused = False
+    
+    return {
+        "healed": True,
+        "scenarios_disabled": active_scenarios,
+        "count": len(active_scenarios),
+        "injector_paused": injector_paused,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+
+
 @router.post("/global-rate")
 async def set_global_failure_rate(rate: float = Query(..., ge=0.0, le=1.0), _: User = _developer):
     """Set a global failure rate (0-1) that applies to all requests (developer only)"""

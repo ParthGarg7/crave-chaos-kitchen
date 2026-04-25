@@ -22,10 +22,16 @@ router = APIRouter(prefix="/delivery", tags=["Delivery"])
 
 @router.get("/available", response_model=List[DeliveryListResponse])
 async def get_available_deliveries(
-    current_user: User = Depends(require_role(UserRole.DRIVER)),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get available deliveries for drivers"""
+    """Get available deliveries for drivers (also accessible by DEVELOPER role)"""
+    if current_user.role not in (UserRole.DRIVER, UserRole.DEVELOPER, UserRole.ADMIN):
+        from fastapi import HTTPException, status
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This action requires driver or developer role"
+        )
     deliveries = db.query(Delivery).options(
         joinedload(Delivery.order).joinedload(Order.restaurant),
         joinedload(Delivery.order).joinedload(Order.customer),
