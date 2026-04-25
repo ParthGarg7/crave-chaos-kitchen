@@ -118,8 +118,8 @@ services:
     restart: unless-stopped
     environment:
       CRAVE_BACKEND_URL: "http://crave-backend:8000"
-      CRAVE_DEVELOPER_EMAIL: "dev@crave-internal.com"
-      CRAVE_DEVELOPER_PASSWORD: "testpass123"
+      CRAVE_DEVELOPER_EMAIL: "developer@example.com"
+      CRAVE_DEVELOPER_PASSWORD: "developer123"
       REDIS_HOST: "crave-redis"
       REDIS_PORT: "6379"
       INJECT_INTERVAL_SECONDS: "120"
