@@ -263,7 +263,7 @@ export default function AdminPanel() {
     const [roleFilter, setRoleFilter] = useState('');
     const [sessionFilter, setSessionFilter] = useState('');
     const [search, setSearch] = useState('');
-    const [tab, setTab] = useState<'registry' | 'simulator'>('registry');
+    const [tab, setTab] = useState<'registry'>('registry');
     const [exporting, setExporting] = useState(false);
 
     // Auth guard
@@ -377,25 +377,22 @@ export default function AdminPanel() {
                     <StatPill label="Customers" value={customers} color="#22c55e" />
                 </div>
 
-                {/* Tabs */}
+                {/* Tabs — registry only for admin */}
                 <div style={{ display: 'flex', gap: 8, marginBottom: 'var(--space-md)' }}>
-                    {(['registry', 'simulator'] as const).map(t => (
-                        <button
-                            key={t}
-                            onClick={() => setTab(t)}
-                            style={{
-                                padding: '10px 28px', borderRadius: 'var(--radius-sm)', cursor: 'none',
-                                background: tab === t ? '#a78bfa' : 'var(--bg-elevated)',
-                                color: tab === t ? '#fff' : 'var(--text-muted)',
-                                fontFamily: 'var(--font-body)', fontSize: '0.72rem', letterSpacing: 2, textTransform: 'uppercase',
-                                border: tab === t ? 'none' : '1px solid rgba(255,255,255,0.06)',
-                                boxShadow: tab === t ? '0 0 20px rgba(167,139,250,0.3)' : 'none',
-                                transition: 'all 0.25s',
-                            }}
-                        >
-                            {t === 'registry' ? '👥 Session Registry' : '⚙️ Simulator'}
-                        </button>
-                    ))}
+                    <button
+                        onClick={() => setTab('registry')}
+                        style={{
+                            padding: '10px 28px', borderRadius: 'var(--radius-sm)', cursor: 'none',
+                            background: '#a78bfa',
+                            color: '#fff',
+                            fontFamily: 'var(--font-body)', fontSize: '0.72rem', letterSpacing: 2, textTransform: 'uppercase',
+                            border: 'none',
+                            boxShadow: '0 0 20px rgba(167,139,250,0.3)',
+                            transition: 'all 0.25s',
+                        }}
+                    >
+                        👥 Session Registry
+                    </button>
                 </div>
 
                 <AnimatePresence mode="wait">
@@ -482,21 +479,6 @@ export default function AdminPanel() {
                                     )}
                                 </div>
                             )}
-                        </motion.div>
-                    )}
-
-                    {tab === 'simulator' && (
-                        <motion.div key="simulator" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }}>
-                            <SimulatorPanel />
-                            <div className="glass" style={{ marginTop: 16, padding: 'var(--space-md)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                                <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
-                                    The full Failure Simulator with scenario controls is available at{' '}
-                                    <button onClick={() => window.location.href = '/simulator'} style={{ color: '#a78bfa', background: 'none', border: 'none', fontFamily: 'var(--font-body)', fontSize: '0.72rem', cursor: 'none', textDecoration: 'underline' }}>
-                                        /simulator
-                                    </button>
-                                    {' '}(admin only).
-                                </p>
-                            </div>
                         </motion.div>
                     )}
                 </AnimatePresence>

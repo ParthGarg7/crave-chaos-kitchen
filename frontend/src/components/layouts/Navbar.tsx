@@ -72,20 +72,22 @@ const Navbar = () => {
               </Link>
             ))}
 
-            {/* Failure Simulator Link */}
-            <Link
-              to="/failure-simulator"
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                isActive('/failure-simulator')
-                  ? 'bg-failure-100 text-failure-700'
-                  : 'text-failure-600 hover:bg-failure-50'
-              }`}
-            >
-              <span className="flex items-center space-x-1">
-                <AlertTriangle className="h-4 w-4" />
-                <span>Failure Simulator</span>
-              </span>
-            </Link>
+            {/* Failure Simulator Link — hidden for admin role */}
+            {user?.role !== 'admin' && (
+              <Link
+                to="/failure-simulator"
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  isActive('/failure-simulator')
+                    ? 'bg-failure-100 text-failure-700'
+                    : 'text-failure-600 hover:bg-failure-50'
+                }`}
+              >
+                <span className="flex items-center space-x-1">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span>Failure Simulator</span>
+                </span>
+              </Link>
+            )}
 
             {/* Auth Buttons */}
             {isAuthenticated ? (
@@ -158,18 +160,21 @@ const Navbar = () => {
               </Link>
             ))}
 
-            <Link
-              to="/failure-simulator"
-              onClick={() => setIsMenuOpen(false)}
-              className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium ${
-                isActive('/failure-simulator')
-                  ? 'bg-failure-100 text-failure-700'
-                  : 'text-failure-600 hover:bg-failure-50'
-              }`}
-            >
-              <AlertTriangle className="h-4 w-4" />
-              <span>Failure Simulator</span>
-            </Link>
+{/* Failure Simulator Link — hidden for admin role */}
+            {user?.role !== 'admin' && (
+              <Link
+                to="/failure-simulator"
+                onClick={() => setIsMenuOpen(false)}
+                className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium ${
+                  isActive('/failure-simulator')
+                    ? 'bg-failure-100 text-failure-700'
+                    : 'text-failure-600 hover:bg-failure-50'
+                }`}
+              >
+                <AlertTriangle className="h-4 w-4" />
+                <span>Failure Simulator</span>
+              </Link>
+            )}
 
             {isAuthenticated ? (
               <>

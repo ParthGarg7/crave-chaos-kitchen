@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import api, { chaosApi } from '../services/api';
+import { useAuthStore } from '../stores/authStore';
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
 interface Experiment {
@@ -207,7 +208,14 @@ function ExperimentCard({
 
 // ─── Main Component ──────────────────────────────────────────────────────────────
 export default function ChaosEngineer() {
+  const { user } = useAuthStore();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      navigate('/admin');
+    }
+  }, [user, navigate]);
 
   const [experiments, setExperiments] = useState<Experiment[]>([]);
   const [activeCount, setActiveCount] = useState(0);

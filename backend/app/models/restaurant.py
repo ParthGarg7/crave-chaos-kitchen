@@ -26,6 +26,9 @@ class CuisineType(str, enum.Enum):
     JAPANESE = "japanese"
     THAI = "thai"
     FAST_FOOD = "fast_food"
+    MEDITERRANEAN = "mediterranean"
+    KOREAN = "korean"
+    FRENCH = "french"
     OTHER = "other"
 
 

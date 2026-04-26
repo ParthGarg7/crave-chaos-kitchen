@@ -200,6 +200,21 @@ class FailureSimulator:
         Determine if a request should fail based on active scenarios
         Returns the scenario that should be applied, or None if no failure
         """
+        # ── Protected prefixes — never inject failures into control/observability endpoints ──
+        PROTECTED_PREFIXES = [
+            "/api/v1/failure-simulator",
+            "/api/v1/chaos",
+            "/api/v1/observation",
+            "/api/v1/developer",
+            "/health",
+            "/docs",
+            "/redoc",
+            "/openapi.json",
+        ]
+
+        if any(endpoint.startswith(prefix) for prefix in PROTECTED_PREFIXES):
+            return None
+
         if not self.state.enabled:
             return None
         
