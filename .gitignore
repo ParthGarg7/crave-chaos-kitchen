@@ -1,5 +1,5 @@
 # Environment variables
-.env
+**/.env
 .env.local
 .env.*.local
 
@@ -57,3 +57,14 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.claude
+
+# Convenience scripts (use docker compose directly)
+start.bat
+stop.bat
+
+# Development reference files
+backend.txt
+backend_structure.txt
+frontend_clean.txt
+structure.txt

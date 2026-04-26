@@ -451,6 +451,8 @@ export default function RestaurantDashboard() {
     const { user } = useAuthStore();
     const navigate = useNavigate();
 
+    const [authReady, setAuthReady] = useState(false);
+
     const [allRestaurants, setAllRestaurants] = useState<Restaurant[]>([]);
     const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
     const [orders, setOrders] = useState<RealOrder[]>([]);
@@ -465,8 +467,17 @@ export default function RestaurantDashboard() {
 
     const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+    // Give Zustand persist 150ms to hydrate from localStorage before auth guard fires
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setAuthReady(true);
+        }, 150);
+        return () => clearTimeout(timer);
+    }, []);
+
     // Auth guard
     useEffect(() => {
+        if (!authReady) return;
         if (!user) {
             navigate('/login');
             return;
@@ -475,7 +486,7 @@ export default function RestaurantDashboard() {
             toast.error('Access denied');
             navigate('/');
         }
-    }, [user, navigate]);
+    }, [authReady, user, navigate]);
 
     const loadOrdersForRestaurant = useCallback(async (restId: number) => {
         try {
@@ -555,7 +566,7 @@ export default function RestaurantDashboard() {
         fetchRestaurantData();
     };
 
-    if (loading) {
+    if (!authReady || loading) {
         return (
             <div style={{ minHeight: '100vh', background: 'var(--bg-void)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <div style={{ textAlign: 'center' }}>

@@ -52,20 +52,38 @@ export default function TrackingPage({ orderId, navigate }: { orderId: string; n
                     </div>
 
                     {steps.map((step, i) => {
-                        const completed = i <= activeStep;
+                        const isPast = i < activeStep;
                         const isActive = i === activeStep;
                         return (
                             <motion.div key={i} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 + i * 0.15 }} style={{ position: 'relative', marginBottom: i < steps.length - 1 ? 'var(--space-xl)' : 0, paddingLeft: 'var(--space-lg)' }}>
                                 {/* Circle */}
-                                <div style={{ position: 'absolute', left: -25, top: 2, width: 32, height: 32, borderRadius: '50%', background: completed ? 'var(--accent-fire)' : 'var(--bg-elevated)', border: completed ? 'none' : '2px solid var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', zIndex: 2 }}>
-                                    {step.emoji}
+                                <div style={{
+                                    position: 'absolute', left: -25, top: 2, width: 32, height: 32,
+                                    borderRadius: '50%',
+                                    background: isPast
+                                        ? '#22c55e'
+                                        : isActive
+                                        ? '#ff4500'
+                                        : 'rgba(255,255,255,0.08)',
+                                    border: isPast || isActive ? 'none' : '2px solid var(--text-muted)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    fontSize: '1rem', zIndex: 2,
+                                }}>
+                                    {isPast ? '✓' : step.emoji}
                                 </div>
                                 {/* Pulse ring on active */}
                                 {isActive && (
                                     <div style={{ position: 'absolute', left: -25, top: 2, width: 32, height: 32, borderRadius: '50%', border: '2px solid var(--accent-fire)', animation: 'pulse-ring 1.5s ease-out infinite', zIndex: 1 }} />
                                 )}
                                 <div>
-                                    <p style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', color: completed ? 'var(--accent-cream)' : 'var(--text-muted)', marginBottom: 2 }}>{step.label}</p>
+                                    <p style={{
+                                        fontFamily: 'var(--font-display)', fontSize: '1.2rem', marginBottom: 2,
+                                        color: isPast
+                                            ? '#22c55e'
+                                            : isActive
+                                            ? '#ff4500'
+                                            : '#6b7280',
+                                    }}>{step.label}</p>
                                     <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.7rem', color: 'var(--text-muted)' }}>{step.sub}</p>
                                 </div>
                             </motion.div>

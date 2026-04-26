@@ -23,7 +23,7 @@ def create_tables():
 def seed_users(db: Session):
     """Seed sample users"""
     print("Seeding users...")
-    
+
     users = [
         {
             "email": "customer@example.com",
@@ -75,16 +75,66 @@ def seed_users(db: Session):
             "role": UserRole.DEVELOPER,
             "is_active": True,
             "is_verified": True
-        }
+        },
+        {
+            "email": "arjun@crave.com",
+            "password": "Owner@1234",
+            "first_name": "Arjun",
+            "last_name": "Mehta",
+            "phone": "+91-9811001001",
+            "role": UserRole.RESTAURANT_OWNER,
+            "is_active": True,
+            "is_verified": True
+        },
+        {
+            "email": "priya@crave.com",
+            "password": "Owner@1234",
+            "first_name": "Priya",
+            "last_name": "Sharma",
+            "phone": "+91-9811001002",
+            "role": UserRole.RESTAURANT_OWNER,
+            "is_active": True,
+            "is_verified": True
+        },
+        {
+            "email": "rahul@crave.com",
+            "password": "Owner@1234",
+            "first_name": "Rahul",
+            "last_name": "Verma",
+            "phone": "+91-9811001003",
+            "role": UserRole.RESTAURANT_OWNER,
+            "is_active": True,
+            "is_verified": True
+        },
+        {
+            "email": "sneha@crave.com",
+            "password": "Owner@1234",
+            "first_name": "Sneha",
+            "last_name": "Patel",
+            "phone": "+91-9811001004",
+            "role": UserRole.RESTAURANT_OWNER,
+            "is_active": True,
+            "is_verified": True
+        },
+        {
+            "email": "vikram@crave.com",
+            "password": "Owner@1234",
+            "first_name": "Vikram",
+            "last_name": "Nair",
+            "phone": "+91-9811001005",
+            "role": UserRole.RESTAURANT_OWNER,
+            "is_active": True,
+            "is_verified": True
+        },
     ]
-    
+
     for user_data in users:
         # Check if user already exists
         existing = db.query(User).filter(User.email == user_data["email"]).first()
         if existing:
             print(f"  User {user_data['email']} already exists, skipping")
             continue
-        
+
         user = User(
             email=user_data["email"],
             hashed_password=get_password_hash(user_data["password"]),
@@ -98,7 +148,7 @@ def seed_users(db: Session):
         )
         db.add(user)
         print(f"  Created user: {user_data['email']} ({user_data['role'].value})")
-    
+
     db.commit()
     print("✅ Users seeded successfully")
 
@@ -106,15 +156,30 @@ def seed_users(db: Session):
 def seed_restaurants(db: Session):
     """Seed sample restaurants"""
     print("Seeding restaurants...")
-    
-    # Get restaurant owner
-    owner = db.query(User).filter(User.role == UserRole.RESTAURANT_OWNER).first()
-    if not owner:
-        print("  No restaurant owner found, skipping restaurant seeding")
+
+    # Owner distribution takes effect after:
+    # docker compose down -v && docker compose up -d --build
+    owner_map = {}
+    for email in [
+        'restaurant@example.com',
+        'arjun@crave.com',
+        'priya@crave.com',
+        'rahul@crave.com',
+        'sneha@crave.com',
+        'vikram@crave.com',
+    ]:
+        u = db.query(User).filter(User.email == email).first()
+        if u:
+            owner_map[email] = u
+
+    if not owner_map:
+        print('  No restaurant owners found, skipping')
         return
-    
+
     restaurants = [
+        # ── restaurant@example.com — 8 restaurants ──────────────────────────
         {
+            "owner_email": "restaurant@example.com",
             "name": "Pizza Palace",
             "description": "Authentic Italian pizza with fresh ingredients and a wood-fired crust",
             "phone": "+91-98765-00201",
@@ -133,6 +198,7 @@ def seed_restaurants(db: Session):
             "review_count": 128
         },
         {
+            "owner_email": "restaurant@example.com",
             "name": "Dragon Wok",
             "description": "Delicious Chinese cuisine delivered fast — woks blazing since 2015",
             "phone": "+91-98765-00202",
@@ -151,6 +217,7 @@ def seed_restaurants(db: Session):
             "review_count": 89
         },
         {
+            "owner_email": "restaurant@example.com",
             "name": "Burger Barn",
             "description": "Juicy smash burgers and crispy fries made fresh every day",
             "phone": "+91-98765-00203",
@@ -169,6 +236,7 @@ def seed_restaurants(db: Session):
             "review_count": 256
         },
         {
+            "owner_email": "restaurant@example.com",
             "name": "Curry House",
             "description": "Authentic Indian curries, tandoori and biryanis made with house-ground spices",
             "phone": "+91-98765-00204",
@@ -187,6 +255,7 @@ def seed_restaurants(db: Session):
             "review_count": 167
         },
         {
+            "owner_email": "restaurant@example.com",
             "name": "Sushi Spot",
             "description": "Premium sushi and Japanese specialties crafted by expert chefs",
             "phone": "+91-98765-00205",
@@ -204,9 +273,8 @@ def seed_restaurants(db: Session):
             "rating": 4.8,
             "review_count": 203
         },
-        # ── New 45 restaurants ──────────────────────────────────────────────────
-        # Delhi (4)
         {
+            "owner_email": "restaurant@example.com",
             "name": "Pasta Point",
             "description": "Handcrafted Italian pastas and wood-fired dishes in the heart of Delhi",
             "phone": "+91-98765-00206",
@@ -225,6 +293,7 @@ def seed_restaurants(db: Session):
             "review_count": 112
         },
         {
+            "owner_email": "restaurant@example.com",
             "name": "Waffle Works",
             "description": "American brunch classics, loaded waffles and hearty sandwiches all day",
             "phone": "+91-98765-00207",
@@ -243,6 +312,7 @@ def seed_restaurants(db: Session):
             "review_count": 87
         },
         {
+            "owner_email": "restaurant@example.com",
             "name": "Banh Bay",
             "description": "Japanese-inspired small plates, ramen bowls and sushi with a modern twist",
             "phone": "+91-98765-00208",
@@ -260,7 +330,9 @@ def seed_restaurants(db: Session):
             "rating": 4.4,
             "review_count": 95
         },
+        # ── arjun@crave.com — 9 restaurants ─────────────────────────────────
         {
+            "owner_email": "arjun@crave.com",
             "name": "Dal Dhaba",
             "description": "Rustic Thai street food and aromatic curries served highway-dhaba style",
             "phone": "+91-98765-00209",
@@ -278,8 +350,8 @@ def seed_restaurants(db: Session):
             "rating": 4.0,
             "review_count": 74
         },
-        # Mumbai (4)
         {
+            "owner_email": "arjun@crave.com",
             "name": "Pierogi Point",
             "description": "Italian comfort food — filled pastas, risottos and classic antipasti",
             "phone": "+91-98765-00210",
@@ -298,571 +370,7 @@ def seed_restaurants(db: Session):
             "review_count": 103
         },
         {
-            "name": "Tandoor Trail",
-            "description": "Smoky tandoor-grilled meats, dal makhani and fresh naans baked daily",
-            "phone": "+91-98765-00211",
-            "email": "info@tandoortrail.in",
-            "address": "9, Andheri East",
-            "city": "Mumbai",
-            "state": "Maharashtra",
-            "zip_code": "400069",
-            "cuisine_type": CuisineType.INDIAN,
-            "status": RestaurantStatus.ACTIVE,
-            "delivery_fee": 30.0,
-            "min_order_amount": 200.0,
-            "delivery_time_min": 25,
-            "delivery_time_max": 45,
-            "rating": 4.5,
-            "review_count": 189
-        },
-        {
-            "name": "Momo Mountain",
-            "description": "Steamed and fried Japanese dumplings, gyoza and bao in every flavour",
-            "phone": "+91-98765-00212",
-            "email": "orders@momomountain.in",
-            "address": "14, Fort Area",
-            "city": "Mumbai",
-            "state": "Maharashtra",
-            "zip_code": "400001",
-            "cuisine_type": CuisineType.JAPANESE,
-            "status": RestaurantStatus.ACTIVE,
-            "delivery_fee": 35.0,
-            "min_order_amount": 180.0,
-            "delivery_time_min": 25,
-            "delivery_time_max": 45,
-            "rating": 4.3,
-            "review_count": 141
-        },
-        {
-            "name": "Kebab Kitchen",
-            "description": "Middle-Eastern kebabs, mezze platters and freshly baked pita all day",
-            "phone": "+91-98765-00213",
-            "email": "contact@kebabkitchen.in",
-            "address": "5, Juhu Tara Road",
-            "city": "Mumbai",
-            "state": "Maharashtra",
-            "zip_code": "400049",
-            "cuisine_type": CuisineType.MEDITERRANEAN,
-            "status": RestaurantStatus.ACTIVE,
-            "delivery_fee": 40.0,
-            "min_order_amount": 220.0,
-            "delivery_time_min": 28,
-            "delivery_time_max": 48,
-            "rating": 4.6,
-            "review_count": 162
-        },
-        # Bangalore (4)
-        {
-            "name": "Bao Barn",
-            "description": "Steamed Chinese bao buns, dim sum and noodle soups made fresh",
-            "phone": "+91-98765-00214",
-            "email": "hello@baobarn.in",
-            "address": "25, MG Road",
-            "city": "Bangalore",
-            "state": "Karnataka",
-            "zip_code": "560001",
-            "cuisine_type": CuisineType.CHINESE,
-            "status": RestaurantStatus.ACTIVE,
-            "delivery_fee": 35.0,
-            "min_order_amount": 180.0,
-            "delivery_time_min": 22,
-            "delivery_time_max": 42,
-            "rating": 4.2,
-            "review_count": 98
-        },
-        {
-            "name": "Ceviche Cove",
-            "description": "Vibrant Mexican street food, fresh ceviche and margarita-worthy tacos",
-            "phone": "+91-98765-00215",
-            "email": "orders@cevichecove.in",
-            "address": "7, Koramangala 5th Block",
-            "city": "Bangalore",
-            "state": "Karnataka",
-            "zip_code": "560095",
-            "cuisine_type": CuisineType.MEXICAN,
-            "status": RestaurantStatus.ACTIVE,
-            "delivery_fee": 40.0,
-            "min_order_amount": 200.0,
-            "delivery_time_min": 25,
-            "delivery_time_max": 45,
-            "rating": 4.4,
-            "review_count": 115
-        },
-        {
-            "name": "Shawarma Station",
-            "description": "Rotating shawarma spits, crispy falafels and fresh mezze since 2018",
-            "phone": "+91-98765-00216",
-            "email": "contact@shawarmastation.in",
-            "address": "12, Indiranagar 100 Feet Road",
-            "city": "Bangalore",
-            "state": "Karnataka",
-            "zip_code": "560038",
-            "cuisine_type": CuisineType.MEDITERRANEAN,
-            "status": RestaurantStatus.ACTIVE,
-            "delivery_fee": 30.0,
-            "min_order_amount": 150.0,
-            "delivery_time_min": 20,
-            "delivery_time_max": 40,
-            "rating": 4.5,
-            "review_count": 210
-        },
-        {
-            "name": "Chaat Chart",
-            "description": "Korean fusion street bowls, bibimbap and spicy fried chicken in Bangalore",
-            "phone": "+91-98765-00217",
-            "email": "info@chaatchart.in",
-            "address": "3, Jayanagar 4th Block",
-            "city": "Bangalore",
-            "state": "Karnataka",
-            "zip_code": "560011",
-            "cuisine_type": CuisineType.KOREAN,
-            "status": RestaurantStatus.ACTIVE,
-            "delivery_fee": 35.0,
-            "min_order_amount": 175.0,
-            "delivery_time_min": 25,
-            "delivery_time_max": 45,
-            "rating": 4.1,
-            "review_count": 79
-        },
-        # Chennai (4)
-        {
-            "name": "Grill Grove",
-            "description": "Flame-grilled American burgers, BBQ ribs and loaded fries in Chennai",
-            "phone": "+91-98765-00218",
-            "email": "orders@grillgrove.in",
-            "address": "14, Anna Salai",
-            "city": "Chennai",
-            "state": "Tamil Nadu",
-            "zip_code": "600002",
-            "cuisine_type": CuisineType.AMERICAN,
-            "status": RestaurantStatus.ACTIVE,
-            "delivery_fee": 45.0,
-            "min_order_amount": 200.0,
-            "delivery_time_min": 25,
-            "delivery_time_max": 48,
-            "rating": 4.0,
-            "review_count": 134
-        },
-        {
-            "name": "Empanada End",
-            "description": "Stuffed Mexican empanadas, burritos and street-style nachos to go",
-            "phone": "+91-98765-00219",
-            "email": "hello@empanada-end.in",
-            "address": "8, T Nagar",
-            "city": "Chennai",
-            "state": "Tamil Nadu",
-            "zip_code": "600017",
-            "cuisine_type": CuisineType.MEXICAN,
-            "status": RestaurantStatus.ACTIVE,
-            "delivery_fee": 30.0,
-            "min_order_amount": 130.0,
-            "delivery_time_min": 22,
-            "delivery_time_max": 42,
-            "rating": 4.2,
-            "review_count": 88
-        },
-        {
-            "name": "Falafel Fort",
-            "description": "Golden-fried falafels, hummus bowls and Mediterranean grain salads",
-            "phone": "+91-98765-00220",
-            "email": "contact@falafelfort.in",
-            "address": "21, Adyar",
-            "city": "Chennai",
-            "state": "Tamil Nadu",
-            "zip_code": "600020",
-            "cuisine_type": CuisineType.MEDITERRANEAN,
-            "status": RestaurantStatus.ACTIVE,
-            "delivery_fee": 35.0,
-            "min_order_amount": 160.0,
-            "delivery_time_min": 25,
-            "delivery_time_max": 45,
-            "rating": 4.4,
-            "review_count": 97
-        },
-        {
-            "name": "Bobotie Base",
-            "description": "Soulful Korean comfort food — bulgogi, stews and rice bowls with kimchi",
-            "phone": "+91-98765-00221",
-            "email": "info@bobotiebase.in",
-            "address": "6, Velachery Main Road",
-            "city": "Chennai",
-            "state": "Tamil Nadu",
-            "zip_code": "600042",
-            "cuisine_type": CuisineType.KOREAN,
-            "status": RestaurantStatus.ACTIVE,
-            "delivery_fee": 40.0,
-            "min_order_amount": 190.0,
-            "delivery_time_min": 28,
-            "delivery_time_max": 50,
-            "rating": 4.3,
-            "review_count": 72
-        },
-        # Kolkata (4)
-        {
-            "name": "Biryani Bowl",
-            "description": "Slow-cooked dum biryanis, kebabs and Indian gravies with royal richness",
-            "phone": "+91-98765-00222",
-            "email": "orders@biryanibowl.in",
-            "address": "33, Ballygunge",
-            "city": "Kolkata",
-            "state": "West Bengal",
-            "zip_code": "700019",
-            "cuisine_type": CuisineType.INDIAN,
-            "status": RestaurantStatus.ACTIVE,
-            "delivery_fee": 30.0,
-            "min_order_amount": 220.0,
-            "delivery_time_min": 30,
-            "delivery_time_max": 55,
-            "rating": 4.6,
-            "review_count": 201
-        },
-        {
-            "name": "Nacho Nest",
-            "description": "Loaded nachos, quesadillas and spicy Mexican bowls perfect for sharing",
-            "phone": "+91-98765-00223",
-            "email": "hello@nachonest.in",
-            "address": "11, Salt Lake Sector V",
-            "city": "Kolkata",
-            "state": "West Bengal",
-            "zip_code": "700091",
-            "cuisine_type": CuisineType.MEXICAN,
-            "status": RestaurantStatus.ACTIVE,
-            "delivery_fee": 25.0,
-            "min_order_amount": 120.0,
-            "delivery_time_min": 20,
-            "delivery_time_max": 42,
-            "rating": 4.0,
-            "review_count": 65
-        },
-        {
-            "name": "Rendang Ridge",
-            "description": "Rich Thai curries and Southeast Asian stir-fries bursting with coconut flavour",
-            "phone": "+91-98765-00224",
-            "email": "contact@rendangridge.in",
-            "address": "44, New Town Action Area",
-            "city": "Kolkata",
-            "state": "West Bengal",
-            "zip_code": "700156",
-            "cuisine_type": CuisineType.THAI,
-            "status": RestaurantStatus.ACTIVE,
-            "delivery_fee": 35.0,
-            "min_order_amount": 170.0,
-            "delivery_time_min": 28,
-            "delivery_time_max": 50,
-            "rating": 4.2,
-            "review_count": 83
-        },
-        {
-            "name": "Sorrel Square",
-            "description": "Classic French bistro cooking — soups, braises and elegant patisserie",
-            "phone": "+91-98765-00225",
-            "email": "info@sorrelsquare.in",
-            "address": "17, Camac Street",
-            "city": "Kolkata",
-            "state": "West Bengal",
-            "zip_code": "700016",
-            "cuisine_type": CuisineType.FRENCH,
-            "status": RestaurantStatus.ACTIVE,
-            "delivery_fee": 50.0,
-            "min_order_amount": 280.0,
-            "delivery_time_min": 35,
-            "delivery_time_max": 60,
-            "rating": 4.5,
-            "review_count": 119
-        },
-        # Hyderabad (5)
-        {
-            "name": "Schnitzel Shack",
-            "description": "Italian breaded cutlets, pasta bakes and antipasti in rustic surroundings",
-            "phone": "+91-98765-00226",
-            "email": "orders@schnitzelshack.in",
-            "address": "9, Banjara Hills Road 12",
-            "city": "Hyderabad",
-            "state": "Telangana",
-            "zip_code": "500034",
-            "cuisine_type": CuisineType.ITALIAN,
-            "status": RestaurantStatus.ACTIVE,
-            "delivery_fee": 40.0,
-            "min_order_amount": 230.0,
-            "delivery_time_min": 30,
-            "delivery_time_max": 50,
-            "rating": 4.1,
-            "review_count": 91
-        },
-        {
-            "name": "Jerk Junction",
-            "description": "Smoky American BBQ, slow-cooked ribs and spiced jerk chicken done right",
-            "phone": "+91-98765-00227",
-            "email": "hello@jerkjunction.in",
-            "address": "4, Jubilee Hills",
-            "city": "Hyderabad",
-            "state": "Telangana",
-            "zip_code": "500033",
-            "cuisine_type": CuisineType.AMERICAN,
-            "status": RestaurantStatus.ACTIVE,
-            "delivery_fee": 45.0,
-            "min_order_amount": 200.0,
-            "delivery_time_min": 25,
-            "delivery_time_max": 48,
-            "rating": 4.3,
-            "review_count": 147
-        },
-        {
-            "name": "Idli Inn",
-            "description": "Japanese udon, soba noodles and warming miso soups in a serene setting",
-            "phone": "+91-98765-00228",
-            "email": "contact@idliinn.in",
-            "address": "30, Madhapur",
-            "city": "Hyderabad",
-            "state": "Telangana",
-            "zip_code": "500081",
-            "cuisine_type": CuisineType.JAPANESE,
-            "status": RestaurantStatus.ACTIVE,
-            "delivery_fee": 35.0,
-            "min_order_amount": 200.0,
-            "delivery_time_min": 28,
-            "delivery_time_max": 50,
-            "rating": 4.2,
-            "review_count": 106
-        },
-        {
-            "name": "Pita Palace",
-            "description": "Fluffy pita breads, grilled meats and colourful Mediterranean spreads",
-            "phone": "+91-98765-00229",
-            "email": "info@pitapalace.in",
-            "address": "7, HITEC City",
-            "city": "Hyderabad",
-            "state": "Telangana",
-            "zip_code": "500081",
-            "cuisine_type": CuisineType.MEDITERRANEAN,
-            "status": RestaurantStatus.ACTIVE,
-            "delivery_fee": 30.0,
-            "min_order_amount": 160.0,
-            "delivery_time_min": 22,
-            "delivery_time_max": 44,
-            "rating": 4.4,
-            "review_count": 176
-        },
-        {
-            "name": "Tagine Tower",
-            "description": "Fragrant North African tagines and French-inspired couscous dishes",
-            "phone": "+91-98765-00230",
-            "email": "orders@taginetower.in",
-            "address": "22, Gachibowli",
-            "city": "Hyderabad",
-            "state": "Telangana",
-            "zip_code": "500032",
-            "cuisine_type": CuisineType.FRENCH,
-            "status": RestaurantStatus.ACTIVE,
-            "delivery_fee": 45.0,
-            "min_order_amount": 250.0,
-            "delivery_time_min": 32,
-            "delivery_time_max": 55,
-            "rating": 4.3,
-            "review_count": 88
-        },
-        # Pune (5)
-        {
-            "name": "Pretzel Post",
-            "description": "Italian street-food classics, bruschetta, thin-crust pizzas and gelato",
-            "phone": "+91-98765-00231",
-            "email": "hello@pretzelpost.in",
-            "address": "6, FC Road",
-            "city": "Pune",
-            "state": "Maharashtra",
-            "zip_code": "411004",
-            "cuisine_type": CuisineType.ITALIAN,
-            "status": RestaurantStatus.ACTIVE,
-            "delivery_fee": 30.0,
-            "min_order_amount": 180.0,
-            "delivery_time_min": 25,
-            "delivery_time_max": 45,
-            "rating": 4.2,
-            "review_count": 93
-        },
-        {
-            "name": "Plantain Place",
-            "description": "Caribbean-American fusion with plantain chips, po boys and BBQ bowls",
-            "phone": "+91-98765-00232",
-            "email": "contact@plantainplace.in",
-            "address": "14, MG Road Camp",
-            "city": "Pune",
-            "state": "Maharashtra",
-            "zip_code": "411001",
-            "cuisine_type": CuisineType.AMERICAN,
-            "status": RestaurantStatus.ACTIVE,
-            "delivery_fee": 35.0,
-            "min_order_amount": 160.0,
-            "delivery_time_min": 22,
-            "delivery_time_max": 45,
-            "rating": 4.1,
-            "review_count": 77
-        },
-        {
-            "name": "Dosa Den",
-            "description": "Crispy dosas, fluffy uttapams and hearty South Indian meals on banana leaf",
-            "phone": "+91-98765-00233",
-            "email": "info@dosaden.in",
-            "address": "8, Koregaon Park",
-            "city": "Pune",
-            "state": "Maharashtra",
-            "zip_code": "411001",
-            "cuisine_type": CuisineType.INDIAN,
-            "status": RestaurantStatus.ACTIVE,
-            "delivery_fee": 20.0,
-            "min_order_amount": 100.0,
-            "delivery_time_min": 20,
-            "delivery_time_max": 40,
-            "rating": 4.5,
-            "review_count": 218
-        },
-        {
-            "name": "Taco Tower",
-            "description": "Tower-tall tacos, sizzling fajitas and frozen margarita treats in Pune",
-            "phone": "+91-98765-00234",
-            "email": "orders@tacotower.in",
-            "address": "19, Kalyani Nagar",
-            "city": "Pune",
-            "state": "Maharashtra",
-            "zip_code": "411006",
-            "cuisine_type": CuisineType.MEXICAN,
-            "status": RestaurantStatus.ACTIVE,
-            "delivery_fee": 30.0,
-            "min_order_amount": 140.0,
-            "delivery_time_min": 20,
-            "delivery_time_max": 40,
-            "rating": 4.3,
-            "review_count": 122
-        },
-        {
-            "name": "Mezze Manor",
-            "description": "Elegant Mediterranean spreads, mezze boards and slow-roasted lamb",
-            "phone": "+91-98765-00235",
-            "email": "hello@mezzemanor.in",
-            "address": "3, Baner Road",
-            "city": "Pune",
-            "state": "Maharashtra",
-            "zip_code": "411045",
-            "cuisine_type": CuisineType.MEDITERRANEAN,
-            "status": RestaurantStatus.ACTIVE,
-            "delivery_fee": 40.0,
-            "min_order_amount": 240.0,
-            "delivery_time_min": 30,
-            "delivery_time_max": 52,
-            "rating": 4.5,
-            "review_count": 145
-        },
-        # Ahmedabad (5)
-        {
-            "name": "Dim Sum Den",
-            "description": "Bamboo-steamed dim sum, wonton soups and Cantonese favourites daily",
-            "phone": "+91-98765-00236",
-            "email": "contact@dimsumden.in",
-            "address": "22, CG Road",
-            "city": "Ahmedabad",
-            "state": "Gujarat",
-            "zip_code": "380006",
-            "cuisine_type": CuisineType.CHINESE,
-            "status": RestaurantStatus.ACTIVE,
-            "delivery_fee": 35.0,
-            "min_order_amount": 170.0,
-            "delivery_time_min": 25,
-            "delivery_time_max": 45,
-            "rating": 4.3,
-            "review_count": 108
-        },
-        {
-            "name": "Thali Town",
-            "description": "Authentic Gujarati and North Indian thali meals with unlimited refills",
-            "phone": "+91-98765-00237",
-            "email": "info@thalitown.in",
-            "address": "7, Law Garden",
-            "city": "Ahmedabad",
-            "state": "Gujarat",
-            "zip_code": "380006",
-            "cuisine_type": CuisineType.INDIAN,
-            "status": RestaurantStatus.ACTIVE,
-            "delivery_fee": 20.0,
-            "min_order_amount": 100.0,
-            "delivery_time_min": 25,
-            "delivery_time_max": 45,
-            "rating": 4.7,
-            "review_count": 265
-        },
-        {
-            "name": "Laksa Lane",
-            "description": "Spicy Thai laksa, coconut curries and fresh spring rolls to brighten your day",
-            "phone": "+91-98765-00238",
-            "email": "orders@laksalane.in",
-            "address": "15, Navrangpura",
-            "city": "Ahmedabad",
-            "state": "Gujarat",
-            "zip_code": "380009",
-            "cuisine_type": CuisineType.THAI,
-            "status": RestaurantStatus.ACTIVE,
-            "delivery_fee": 30.0,
-            "min_order_amount": 150.0,
-            "delivery_time_min": 22,
-            "delivery_time_max": 44,
-            "rating": 4.2,
-            "review_count": 81
-        },
-        {
-            "name": "Wrap World",
-            "description": "Korean lettuce wraps, doenjang stews and veggie-forward bibimbap bowls",
-            "phone": "+91-98765-00239",
-            "email": "hello@wrapworld.in",
-            "address": "11, Satellite Road",
-            "city": "Ahmedabad",
-            "state": "Gujarat",
-            "zip_code": "380015",
-            "cuisine_type": CuisineType.KOREAN,
-            "status": RestaurantStatus.ACTIVE,
-            "delivery_fee": 35.0,
-            "min_order_amount": 175.0,
-            "delivery_time_min": 25,
-            "delivery_time_max": 47,
-            "rating": 4.1,
-            "review_count": 69
-        },
-        {
-            "name": "Crepe Corner",
-            "description": "Sweet and savoury French crêpes, galettes and light café fare all day",
-            "phone": "+91-98765-00240",
-            "email": "contact@crepecorner.in",
-            "address": "4, Prahlad Nagar",
-            "city": "Ahmedabad",
-            "state": "Gujarat",
-            "zip_code": "380015",
-            "cuisine_type": CuisineType.FRENCH,
-            "status": RestaurantStatus.ACTIVE,
-            "delivery_fee": 35.0,
-            "min_order_amount": 160.0,
-            "delivery_time_min": 25,
-            "delivery_time_max": 45,
-            "rating": 4.4,
-            "review_count": 136
-        },
-        # Jaipur (5)
-        {
-            "name": "Noodle Nest",
-            "description": "Steaming Chinese noodle soups, stir-fries and hand-pulled noodles",
-            "phone": "+91-98765-00241",
-            "email": "info@noodlenest.in",
-            "address": "8, MI Road",
-            "city": "Jaipur",
-            "state": "Rajasthan",
-            "zip_code": "302001",
-            "cuisine_type": CuisineType.CHINESE,
-            "status": RestaurantStatus.ACTIVE,
-            "delivery_fee": 30.0,
-            "min_order_amount": 150.0,
-            "delivery_time_min": 25,
-            "delivery_time_max": 45,
-            "rating": 4.1,
-            "review_count": 77
-        },
-        {
+            "owner_email": "arjun@crave.com",
             "name": "Ramen Rack",
             "description": "Japanese tonkotsu and shoyu ramen, gyoza and matcha desserts in Jaipur",
             "phone": "+91-98765-00242",
@@ -881,61 +389,141 @@ def seed_restaurants(db: Session):
             "review_count": 99
         },
         {
-            "name": "Chimichanga Chase",
-            "description": "Deep-fried chimichangas, beef enchiladas and vibrant Mexican street flavours",
-            "phone": "+91-98765-00243",
-            "email": "hello@chimichangachase.in",
-            "address": "17, Malviya Nagar",
-            "city": "Jaipur",
-            "state": "Rajasthan",
-            "zip_code": "302017",
-            "cuisine_type": CuisineType.MEXICAN,
+            "owner_email": "arjun@crave.com",
+            "name": "Kebab Kitchen",
+            "description": "Middle-Eastern kebabs, mezze platters and freshly baked pita all day",
+            "phone": "+91-98765-00213",
+            "email": "contact@kebabkitchen.in",
+            "address": "5, Juhu Tara Road",
+            "city": "Mumbai",
+            "state": "Maharashtra",
+            "zip_code": "400049",
+            "cuisine_type": CuisineType.MEDITERRANEAN,
             "status": RestaurantStatus.ACTIVE,
-            "delivery_fee": 25.0,
-            "min_order_amount": 130.0,
-            "delivery_time_min": 22,
-            "delivery_time_max": 43,
-            "rating": 4.0,
-            "review_count": 61
+            "delivery_fee": 40.0,
+            "min_order_amount": 220.0,
+            "delivery_time_min": 28,
+            "delivery_time_max": 48,
+            "rating": 4.6,
+            "review_count": 162
         },
         {
-            "name": "Pav Pavilion",
-            "description": "Authentic Thai pavilion dining — curries, satays and herbed sticky rice",
-            "phone": "+91-98765-00244",
-            "email": "contact@pavpavilion.in",
-            "address": "11, C-Scheme",
+            "owner_email": "arjun@crave.com",
+            "name": "Tandoor Trail",
+            "description": "Smoky tandoor-grilled meats, dal makhani and fresh naans baked daily",
+            "phone": "+91-98765-00211",
+            "email": "info@tandoortrail.in",
+            "address": "9, Andheri East",
+            "city": "Mumbai",
+            "state": "Maharashtra",
+            "zip_code": "400069",
+            "cuisine_type": CuisineType.INDIAN,
+            "status": RestaurantStatus.ACTIVE,
+            "delivery_fee": 30.0,
+            "min_order_amount": 200.0,
+            "delivery_time_min": 25,
+            "delivery_time_max": 45,
+            "rating": 4.5,
+            "review_count": 189
+        },
+        {
+            "owner_email": "arjun@crave.com",
+            "name": "Noodle Nest",
+            "description": "Steaming Chinese noodle soups, stir-fries and hand-pulled noodles",
+            "phone": "+91-98765-00241",
+            "email": "info@noodlenest.in",
+            "address": "8, MI Road",
             "city": "Jaipur",
             "state": "Rajasthan",
             "zip_code": "302001",
-            "cuisine_type": CuisineType.THAI,
+            "cuisine_type": CuisineType.CHINESE,
             "status": RestaurantStatus.ACTIVE,
             "delivery_fee": 30.0,
-            "min_order_amount": 160.0,
+            "min_order_amount": 150.0,
             "delivery_time_min": 25,
-            "delivery_time_max": 47,
-            "rating": 4.2,
-            "review_count": 84
+            "delivery_time_max": 45,
+            "rating": 4.1,
+            "review_count": 77
         },
         {
-            "name": "Salad Square",
-            "description": "Parisian-style salads, quiches and French-pressed coffee in Jaipur",
-            "phone": "+91-98765-00245",
-            "email": "info@saladsquare.in",
-            "address": "6, Mansarovar Sector 3",
-            "city": "Jaipur",
-            "state": "Rajasthan",
-            "zip_code": "302020",
-            "cuisine_type": CuisineType.FRENCH,
+            "owner_email": "arjun@crave.com",
+            "name": "Taco Tower",
+            "description": "Tower-tall tacos, sizzling fajitas and frozen margarita treats in Pune",
+            "phone": "+91-98765-00234",
+            "email": "orders@tacotower.in",
+            "address": "19, Kalyani Nagar",
+            "city": "Pune",
+            "state": "Maharashtra",
+            "zip_code": "411006",
+            "cuisine_type": CuisineType.MEXICAN,
             "status": RestaurantStatus.ACTIVE,
-            "delivery_fee": 40.0,
-            "min_order_amount": 200.0,
-            "delivery_time_min": 28,
-            "delivery_time_max": 50,
+            "delivery_fee": 30.0,
+            "min_order_amount": 140.0,
+            "delivery_time_min": 20,
+            "delivery_time_max": 40,
             "rating": 4.3,
-            "review_count": 102
+            "review_count": 122
         },
-        # Surat (5)
         {
+            "owner_email": "arjun@crave.com",
+            "name": "Biryani Bowl",
+            "description": "Slow-cooked dum biryanis, kebabs and Indian gravies with royal richness",
+            "phone": "+91-98765-00222",
+            "email": "orders@biryanibowl.in",
+            "address": "33, Ballygunge",
+            "city": "Kolkata",
+            "state": "West Bengal",
+            "zip_code": "700019",
+            "cuisine_type": CuisineType.INDIAN,
+            "status": RestaurantStatus.ACTIVE,
+            "delivery_fee": 30.0,
+            "min_order_amount": 220.0,
+            "delivery_time_min": 30,
+            "delivery_time_max": 55,
+            "rating": 4.6,
+            "review_count": 201
+        },
+        {
+            "owner_email": "arjun@crave.com",
+            "name": "Shawarma Station",
+            "description": "Rotating shawarma spits, crispy falafels and fresh mezze since 2018",
+            "phone": "+91-98765-00216",
+            "email": "contact@shawarmastation.in",
+            "address": "12, Indiranagar 100 Feet Road",
+            "city": "Bangalore",
+            "state": "Karnataka",
+            "zip_code": "560038",
+            "cuisine_type": CuisineType.MEDITERRANEAN,
+            "status": RestaurantStatus.ACTIVE,
+            "delivery_fee": 30.0,
+            "min_order_amount": 150.0,
+            "delivery_time_min": 20,
+            "delivery_time_max": 40,
+            "rating": 4.5,
+            "review_count": 210
+        },
+        # ── priya@crave.com — 8 restaurants ─────────────────────────────────
+        {
+            "owner_email": "priya@crave.com",
+            "name": "Dosa Den",
+            "description": "Crispy dosas, fluffy uttapams and hearty South Indian meals on banana leaf",
+            "phone": "+91-98765-00233",
+            "email": "info@dosaden.in",
+            "address": "8, Koregaon Park",
+            "city": "Pune",
+            "state": "Maharashtra",
+            "zip_code": "411001",
+            "cuisine_type": CuisineType.INDIAN,
+            "status": RestaurantStatus.ACTIVE,
+            "delivery_fee": 20.0,
+            "min_order_amount": 100.0,
+            "delivery_time_min": 20,
+            "delivery_time_max": 40,
+            "rating": 4.5,
+            "review_count": 218
+        },
+        {
+            "owner_email": "priya@crave.com",
             "name": "Wok Walk",
             "description": "Walk-in Chinese wok bar — fresh stir-fries, noodles and fried rice to order",
             "phone": "+91-98765-00246",
@@ -954,6 +542,255 @@ def seed_restaurants(db: Session):
             "review_count": 86
         },
         {
+            "owner_email": "priya@crave.com",
+            "name": "Falafel Fort",
+            "description": "Golden-fried falafels, hummus bowls and Mediterranean grain salads",
+            "phone": "+91-98765-00220",
+            "email": "contact@falafelfort.in",
+            "address": "21, Adyar",
+            "city": "Chennai",
+            "state": "Tamil Nadu",
+            "zip_code": "600020",
+            "cuisine_type": CuisineType.MEDITERRANEAN,
+            "status": RestaurantStatus.ACTIVE,
+            "delivery_fee": 35.0,
+            "min_order_amount": 160.0,
+            "delivery_time_min": 25,
+            "delivery_time_max": 45,
+            "rating": 4.4,
+            "review_count": 97
+        },
+        {
+            "owner_email": "priya@crave.com",
+            "name": "Dim Sum Den",
+            "description": "Bamboo-steamed dim sum, wonton soups and Cantonese favourites daily",
+            "phone": "+91-98765-00236",
+            "email": "contact@dimsumden.in",
+            "address": "22, CG Road",
+            "city": "Ahmedabad",
+            "state": "Gujarat",
+            "zip_code": "380006",
+            "cuisine_type": CuisineType.CHINESE,
+            "status": RestaurantStatus.ACTIVE,
+            "delivery_fee": 35.0,
+            "min_order_amount": 170.0,
+            "delivery_time_min": 25,
+            "delivery_time_max": 45,
+            "rating": 4.3,
+            "review_count": 108
+        },
+        {
+            "owner_email": "priya@crave.com",
+            "name": "Crepe Corner",
+            "description": "Sweet and savoury French crêpes, galettes and light café fare all day",
+            "phone": "+91-98765-00240",
+            "email": "contact@crepecorner.in",
+            "address": "4, Prahlad Nagar",
+            "city": "Ahmedabad",
+            "state": "Gujarat",
+            "zip_code": "380015",
+            "cuisine_type": CuisineType.FRENCH,
+            "status": RestaurantStatus.ACTIVE,
+            "delivery_fee": 35.0,
+            "min_order_amount": 160.0,
+            "delivery_time_min": 25,
+            "delivery_time_max": 45,
+            "rating": 4.4,
+            "review_count": 136
+        },
+        {
+            "owner_email": "priya@crave.com",
+            "name": "Pita Palace",
+            "description": "Fluffy pita breads, grilled meats and colourful Mediterranean spreads",
+            "phone": "+91-98765-00229",
+            "email": "info@pitapalace.in",
+            "address": "7, HITEC City",
+            "city": "Hyderabad",
+            "state": "Telangana",
+            "zip_code": "500081",
+            "cuisine_type": CuisineType.MEDITERRANEAN,
+            "status": RestaurantStatus.ACTIVE,
+            "delivery_fee": 30.0,
+            "min_order_amount": 160.0,
+            "delivery_time_min": 22,
+            "delivery_time_max": 44,
+            "rating": 4.4,
+            "review_count": 176
+        },
+        {
+            "owner_email": "priya@crave.com",
+            "name": "Nacho Nest",
+            "description": "Loaded nachos, quesadillas and spicy Mexican bowls perfect for sharing",
+            "phone": "+91-98765-00223",
+            "email": "hello@nachonest.in",
+            "address": "11, Salt Lake Sector V",
+            "city": "Kolkata",
+            "state": "West Bengal",
+            "zip_code": "700091",
+            "cuisine_type": CuisineType.MEXICAN,
+            "status": RestaurantStatus.ACTIVE,
+            "delivery_fee": 25.0,
+            "min_order_amount": 120.0,
+            "delivery_time_min": 20,
+            "delivery_time_max": 42,
+            "rating": 4.0,
+            "review_count": 65
+        },
+        {
+            "owner_email": "priya@crave.com",
+            "name": "Salad Square",
+            "description": "Parisian-style salads, quiches and French-pressed coffee in Jaipur",
+            "phone": "+91-98765-00245",
+            "email": "info@saladsquare.in",
+            "address": "6, Mansarovar Sector 3",
+            "city": "Jaipur",
+            "state": "Rajasthan",
+            "zip_code": "302020",
+            "cuisine_type": CuisineType.FRENCH,
+            "status": RestaurantStatus.ACTIVE,
+            "delivery_fee": 40.0,
+            "min_order_amount": 200.0,
+            "delivery_time_min": 28,
+            "delivery_time_max": 50,
+            "rating": 4.3,
+            "review_count": 102
+        },
+        # ── rahul@crave.com — 8 restaurants ─────────────────────────────────
+        {
+            "owner_email": "rahul@crave.com",
+            "name": "Wrap World",
+            "description": "Korean lettuce wraps, doenjang stews and veggie-forward bibimbap bowls",
+            "phone": "+91-98765-00239",
+            "email": "hello@wrapworld.in",
+            "address": "11, Satellite Road",
+            "city": "Ahmedabad",
+            "state": "Gujarat",
+            "zip_code": "380015",
+            "cuisine_type": CuisineType.KOREAN,
+            "status": RestaurantStatus.ACTIVE,
+            "delivery_fee": 35.0,
+            "min_order_amount": 175.0,
+            "delivery_time_min": 25,
+            "delivery_time_max": 47,
+            "rating": 4.1,
+            "review_count": 69
+        },
+        {
+            "owner_email": "rahul@crave.com",
+            "name": "Grill Grove",
+            "description": "Flame-grilled American burgers, BBQ ribs and loaded fries in Chennai",
+            "phone": "+91-98765-00218",
+            "email": "orders@grillgrove.in",
+            "address": "14, Anna Salai",
+            "city": "Chennai",
+            "state": "Tamil Nadu",
+            "zip_code": "600002",
+            "cuisine_type": CuisineType.AMERICAN,
+            "status": RestaurantStatus.ACTIVE,
+            "delivery_fee": 45.0,
+            "min_order_amount": 200.0,
+            "delivery_time_min": 25,
+            "delivery_time_max": 48,
+            "rating": 4.0,
+            "review_count": 134
+        },
+        {
+            "owner_email": "rahul@crave.com",
+            "name": "Momo Mountain",
+            "description": "Steamed and fried Japanese dumplings, gyoza and bao in every flavour",
+            "phone": "+91-98765-00212",
+            "email": "orders@momomountain.in",
+            "address": "14, Fort Area",
+            "city": "Mumbai",
+            "state": "Maharashtra",
+            "zip_code": "400001",
+            "cuisine_type": CuisineType.JAPANESE,
+            "status": RestaurantStatus.ACTIVE,
+            "delivery_fee": 35.0,
+            "min_order_amount": 180.0,
+            "delivery_time_min": 25,
+            "delivery_time_max": 45,
+            "rating": 4.3,
+            "review_count": 141
+        },
+        {
+            "owner_email": "rahul@crave.com",
+            "name": "Thali Town",
+            "description": "Authentic Gujarati and North Indian thali meals with unlimited refills",
+            "phone": "+91-98765-00237",
+            "email": "info@thalitown.in",
+            "address": "7, Law Garden",
+            "city": "Ahmedabad",
+            "state": "Gujarat",
+            "zip_code": "380006",
+            "cuisine_type": CuisineType.INDIAN,
+            "status": RestaurantStatus.ACTIVE,
+            "delivery_fee": 20.0,
+            "min_order_amount": 100.0,
+            "delivery_time_min": 25,
+            "delivery_time_max": 45,
+            "rating": 4.7,
+            "review_count": 265
+        },
+        {
+            "owner_email": "rahul@crave.com",
+            "name": "Idli Inn",
+            "description": "Japanese udon, soba noodles and warming miso soups in a serene setting",
+            "phone": "+91-98765-00228",
+            "email": "contact@idliinn.in",
+            "address": "30, Madhapur",
+            "city": "Hyderabad",
+            "state": "Telangana",
+            "zip_code": "500081",
+            "cuisine_type": CuisineType.JAPANESE,
+            "status": RestaurantStatus.ACTIVE,
+            "delivery_fee": 35.0,
+            "min_order_amount": 200.0,
+            "delivery_time_min": 28,
+            "delivery_time_max": 50,
+            "rating": 4.2,
+            "review_count": 106
+        },
+        {
+            "owner_email": "rahul@crave.com",
+            "name": "Chaat Chart",
+            "description": "Korean fusion street bowls, bibimbap and spicy fried chicken in Bangalore",
+            "phone": "+91-98765-00217",
+            "email": "info@chaatchart.in",
+            "address": "3, Jayanagar 4th Block",
+            "city": "Bangalore",
+            "state": "Karnataka",
+            "zip_code": "560011",
+            "cuisine_type": CuisineType.KOREAN,
+            "status": RestaurantStatus.ACTIVE,
+            "delivery_fee": 35.0,
+            "min_order_amount": 175.0,
+            "delivery_time_min": 25,
+            "delivery_time_max": 45,
+            "rating": 4.1,
+            "review_count": 79
+        },
+        {
+            "owner_email": "rahul@crave.com",
+            "name": "Pav Pavilion",
+            "description": "Authentic Thai pavilion dining — curries, satays and herbed sticky rice",
+            "phone": "+91-98765-00244",
+            "email": "contact@pavpavilion.in",
+            "address": "11, C-Scheme",
+            "city": "Jaipur",
+            "state": "Rajasthan",
+            "zip_code": "302001",
+            "cuisine_type": CuisineType.THAI,
+            "status": RestaurantStatus.ACTIVE,
+            "delivery_fee": 30.0,
+            "min_order_amount": 160.0,
+            "delivery_time_min": 25,
+            "delivery_time_max": 47,
+            "rating": 4.2,
+            "review_count": 84
+        },
+        {
+            "owner_email": "rahul@crave.com",
             "name": "Satay Street",
             "description": "Chargrilled Thai satay skewers, som tam salad and sweet coconut desserts",
             "phone": "+91-98765-00247",
@@ -971,7 +808,47 @@ def seed_restaurants(db: Session):
             "rating": 4.3,
             "review_count": 93
         },
+        # ── sneha@crave.com — 9 restaurants ─────────────────────────────────
         {
+            "owner_email": "sneha@crave.com",
+            "name": "Tagine Tower",
+            "description": "Fragrant North African tagines and French-inspired couscous dishes",
+            "phone": "+91-98765-00230",
+            "email": "orders@taginetower.in",
+            "address": "22, Gachibowli",
+            "city": "Hyderabad",
+            "state": "Telangana",
+            "zip_code": "500032",
+            "cuisine_type": CuisineType.FRENCH,
+            "status": RestaurantStatus.ACTIVE,
+            "delivery_fee": 45.0,
+            "min_order_amount": 250.0,
+            "delivery_time_min": 32,
+            "delivery_time_max": 55,
+            "rating": 4.3,
+            "review_count": 88
+        },
+        {
+            "owner_email": "sneha@crave.com",
+            "name": "Mezze Manor",
+            "description": "Elegant Mediterranean spreads, mezze boards and slow-roasted lamb",
+            "phone": "+91-98765-00235",
+            "email": "hello@mezzemanor.in",
+            "address": "3, Baner Road",
+            "city": "Pune",
+            "state": "Maharashtra",
+            "zip_code": "411045",
+            "cuisine_type": CuisineType.MEDITERRANEAN,
+            "status": RestaurantStatus.ACTIVE,
+            "delivery_fee": 40.0,
+            "min_order_amount": 240.0,
+            "delivery_time_min": 30,
+            "delivery_time_max": 52,
+            "rating": 4.5,
+            "review_count": 145
+        },
+        {
+            "owner_email": "sneha@crave.com",
             "name": "Gyro Grove",
             "description": "Korean-style spiced meats, pickled vegetables and warming gochujang broths",
             "phone": "+91-98765-00248",
@@ -990,6 +867,217 @@ def seed_restaurants(db: Session):
             "review_count": 71
         },
         {
+            "owner_email": "sneha@crave.com",
+            "name": "Empanada End",
+            "description": "Stuffed Mexican empanadas, burritos and street-style nachos to go",
+            "phone": "+91-98765-00219",
+            "email": "hello@empanada-end.in",
+            "address": "8, T Nagar",
+            "city": "Chennai",
+            "state": "Tamil Nadu",
+            "zip_code": "600017",
+            "cuisine_type": CuisineType.MEXICAN,
+            "status": RestaurantStatus.ACTIVE,
+            "delivery_fee": 30.0,
+            "min_order_amount": 130.0,
+            "delivery_time_min": 22,
+            "delivery_time_max": 42,
+            "rating": 4.2,
+            "review_count": 88
+        },
+        {
+            "owner_email": "sneha@crave.com",
+            "name": "Schnitzel Shack",
+            "description": "Italian breaded cutlets, pasta bakes and antipasti in rustic surroundings",
+            "phone": "+91-98765-00226",
+            "email": "orders@schnitzelshack.in",
+            "address": "9, Banjara Hills Road 12",
+            "city": "Hyderabad",
+            "state": "Telangana",
+            "zip_code": "500034",
+            "cuisine_type": CuisineType.ITALIAN,
+            "status": RestaurantStatus.ACTIVE,
+            "delivery_fee": 40.0,
+            "min_order_amount": 230.0,
+            "delivery_time_min": 30,
+            "delivery_time_max": 50,
+            "rating": 4.1,
+            "review_count": 91
+        },
+        {
+            "owner_email": "sneha@crave.com",
+            "name": "Pretzel Post",
+            "description": "Italian street-food classics, bruschetta, thin-crust pizzas and gelato",
+            "phone": "+91-98765-00231",
+            "email": "hello@pretzelpost.in",
+            "address": "6, FC Road",
+            "city": "Pune",
+            "state": "Maharashtra",
+            "zip_code": "411004",
+            "cuisine_type": CuisineType.ITALIAN,
+            "status": RestaurantStatus.ACTIVE,
+            "delivery_fee": 30.0,
+            "min_order_amount": 180.0,
+            "delivery_time_min": 25,
+            "delivery_time_max": 45,
+            "rating": 4.2,
+            "review_count": 93
+        },
+        {
+            "owner_email": "sneha@crave.com",
+            "name": "Bao Barn",
+            "description": "Steamed Chinese bao buns, dim sum and noodle soups made fresh",
+            "phone": "+91-98765-00214",
+            "email": "hello@baobarn.in",
+            "address": "25, MG Road",
+            "city": "Bangalore",
+            "state": "Karnataka",
+            "zip_code": "560001",
+            "cuisine_type": CuisineType.CHINESE,
+            "status": RestaurantStatus.ACTIVE,
+            "delivery_fee": 35.0,
+            "min_order_amount": 180.0,
+            "delivery_time_min": 22,
+            "delivery_time_max": 42,
+            "rating": 4.2,
+            "review_count": 98
+        },
+        {
+            "owner_email": "sneha@crave.com",
+            "name": "Laksa Lane",
+            "description": "Spicy Thai laksa, coconut curries and fresh spring rolls to brighten your day",
+            "phone": "+91-98765-00238",
+            "email": "orders@laksalane.in",
+            "address": "15, Navrangpura",
+            "city": "Ahmedabad",
+            "state": "Gujarat",
+            "zip_code": "380009",
+            "cuisine_type": CuisineType.THAI,
+            "status": RestaurantStatus.ACTIVE,
+            "delivery_fee": 30.0,
+            "min_order_amount": 150.0,
+            "delivery_time_min": 22,
+            "delivery_time_max": 44,
+            "rating": 4.2,
+            "review_count": 81
+        },
+        {
+            "owner_email": "sneha@crave.com",
+            "name": "Rendang Ridge",
+            "description": "Rich Thai curries and Southeast Asian stir-fries bursting with coconut flavour",
+            "phone": "+91-98765-00224",
+            "email": "contact@rendangridge.in",
+            "address": "44, New Town Action Area",
+            "city": "Kolkata",
+            "state": "West Bengal",
+            "zip_code": "700156",
+            "cuisine_type": CuisineType.THAI,
+            "status": RestaurantStatus.ACTIVE,
+            "delivery_fee": 35.0,
+            "min_order_amount": 170.0,
+            "delivery_time_min": 28,
+            "delivery_time_max": 50,
+            "rating": 4.2,
+            "review_count": 83
+        },
+        # ── vikram@crave.com — 8 restaurants ────────────────────────────────
+        {
+            "owner_email": "vikram@crave.com",
+            "name": "Jerk Junction",
+            "description": "Smoky American BBQ, slow-cooked ribs and spiced jerk chicken done right",
+            "phone": "+91-98765-00227",
+            "email": "hello@jerkjunction.in",
+            "address": "4, Jubilee Hills",
+            "city": "Hyderabad",
+            "state": "Telangana",
+            "zip_code": "500033",
+            "cuisine_type": CuisineType.AMERICAN,
+            "status": RestaurantStatus.ACTIVE,
+            "delivery_fee": 45.0,
+            "min_order_amount": 200.0,
+            "delivery_time_min": 25,
+            "delivery_time_max": 48,
+            "rating": 4.3,
+            "review_count": 147
+        },
+        {
+            "owner_email": "vikram@crave.com",
+            "name": "Plantain Place",
+            "description": "Caribbean-American fusion with plantain chips, po boys and BBQ bowls",
+            "phone": "+91-98765-00232",
+            "email": "contact@plantainplace.in",
+            "address": "14, MG Road Camp",
+            "city": "Pune",
+            "state": "Maharashtra",
+            "zip_code": "411001",
+            "cuisine_type": CuisineType.AMERICAN,
+            "status": RestaurantStatus.ACTIVE,
+            "delivery_fee": 35.0,
+            "min_order_amount": 160.0,
+            "delivery_time_min": 22,
+            "delivery_time_max": 45,
+            "rating": 4.1,
+            "review_count": 77
+        },
+        {
+            "owner_email": "vikram@crave.com",
+            "name": "Sorrel Square",
+            "description": "Classic French bistro cooking — soups, braises and elegant patisserie",
+            "phone": "+91-98765-00225",
+            "email": "info@sorrelsquare.in",
+            "address": "17, Camac Street",
+            "city": "Kolkata",
+            "state": "West Bengal",
+            "zip_code": "700016",
+            "cuisine_type": CuisineType.FRENCH,
+            "status": RestaurantStatus.ACTIVE,
+            "delivery_fee": 50.0,
+            "min_order_amount": 280.0,
+            "delivery_time_min": 35,
+            "delivery_time_max": 60,
+            "rating": 4.5,
+            "review_count": 119
+        },
+        {
+            "owner_email": "vikram@crave.com",
+            "name": "Chimichanga Chase",
+            "description": "Deep-fried chimichangas, beef enchiladas and vibrant Mexican street flavours",
+            "phone": "+91-98765-00243",
+            "email": "hello@chimichangachase.in",
+            "address": "17, Malviya Nagar",
+            "city": "Jaipur",
+            "state": "Rajasthan",
+            "zip_code": "302017",
+            "cuisine_type": CuisineType.MEXICAN,
+            "status": RestaurantStatus.ACTIVE,
+            "delivery_fee": 25.0,
+            "min_order_amount": 130.0,
+            "delivery_time_min": 22,
+            "delivery_time_max": 43,
+            "rating": 4.0,
+            "review_count": 61
+        },
+        {
+            "owner_email": "vikram@crave.com",
+            "name": "Ceviche Cove",
+            "description": "Vibrant Mexican street food, fresh ceviche and margarita-worthy tacos",
+            "phone": "+91-98765-00215",
+            "email": "orders@cevichecove.in",
+            "address": "7, Koramangala 5th Block",
+            "city": "Bangalore",
+            "state": "Karnataka",
+            "zip_code": "560095",
+            "cuisine_type": CuisineType.MEXICAN,
+            "status": RestaurantStatus.ACTIVE,
+            "delivery_fee": 40.0,
+            "min_order_amount": 200.0,
+            "delivery_time_min": 25,
+            "delivery_time_max": 45,
+            "rating": 4.4,
+            "review_count": 115
+        },
+        {
+            "owner_email": "vikram@crave.com",
             "name": "Arepa Arc",
             "description": "Korean BBQ and street-food-inspired arc bowls with bold fermented flavours",
             "phone": "+91-98765-00249",
@@ -1008,6 +1096,26 @@ def seed_restaurants(db: Session):
             "review_count": 58
         },
         {
+            "owner_email": "vikram@crave.com",
+            "name": "Bobotie Base",
+            "description": "Soulful Korean comfort food — bulgogi, stews and rice bowls with kimchi",
+            "phone": "+91-98765-00221",
+            "email": "info@bobotiebase.in",
+            "address": "6, Velachery Main Road",
+            "city": "Chennai",
+            "state": "Tamil Nadu",
+            "zip_code": "600042",
+            "cuisine_type": CuisineType.KOREAN,
+            "status": RestaurantStatus.ACTIVE,
+            "delivery_fee": 40.0,
+            "min_order_amount": 190.0,
+            "delivery_time_min": 28,
+            "delivery_time_max": 50,
+            "rating": 4.3,
+            "review_count": 72
+        },
+        {
+            "owner_email": "vikram@crave.com",
             "name": "Injera Inn",
             "description": "French-influenced slow-cooked braises, warm baguettes and silky pâtés",
             "phone": "+91-98765-00250",
@@ -1033,26 +1141,32 @@ def seed_restaurants(db: Session):
         if existing:
             print(f"  Restaurant {rest_data['name']} already exists, skipping")
             continue
-        
+
+        owner_email = rest_data.pop('owner_email')
+        owner = owner_map.get(owner_email)
+        if not owner:
+            print(f"  Owner {owner_email} not found, skipping {rest_data['name']}")
+            continue
+
         restaurant = Restaurant(
             **rest_data,
             owner_id=owner.id
         )
         db.add(restaurant)
         db.flush()  # Get restaurant ID
-        
+
         # Add menu items for this restaurant
         seed_menu_items(db, restaurant)
-        
-        print(f"  Created restaurant: {rest_data['name']}")
-    
+
+        print(f"  Created restaurant: {rest_data['name']} (owner: {owner_email})")
+
     db.commit()
     print("✅ Restaurants seeded successfully")
 
 
 def seed_menu_items(db: Session, restaurant: Restaurant):
     """Seed menu items for a restaurant"""
-    
+
     menu_items_by_cuisine = {
         CuisineType.ITALIAN: [
             {"name": "Margherita Pizza", "description": "Fresh mozzarella, tomato sauce, basil", "price": 399.0, "category": "Pizza", "is_vegetarian": True},
@@ -1130,9 +1244,9 @@ def seed_menu_items(db: Session, restaurant: Restaurant):
             {"name": "Quiche Lorraine", "description": "Buttery shortcrust tart with smoked bacon, egg and cream filling", "price": 269.0, "category": "Baked"},
         ],
     }
-    
+
     items = menu_items_by_cuisine.get(restaurant.cuisine_type, [])
-    
+
     for item_data in items:
         menu_item = MenuItem(
             **item_data,
@@ -1147,19 +1261,19 @@ def init_database():
     print("=" * 50)
     print("Database Initialization")
     print("=" * 50)
-    
+
     # Create tables
     create_tables()
 
     # Build a session factory from the (now-initialised) engine
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=get_engine())
     db = SessionLocal()
-    
+
     try:
         # Seed data
         seed_users(db)
         seed_restaurants(db)
-        
+
         print("=" * 50)
         print("✅ Database initialization complete!")
         print("=" * 50)
@@ -1169,7 +1283,12 @@ def init_database():
         print("  Driver: driver@example.com / password123")
         print("  Admin: admin@example.com / admin123")
         print("  Developer: developer@example.com / developer123")
-        
+        print("  Owner 1: arjun@crave.com / Owner@1234")
+        print("  Owner 2: priya@crave.com / Owner@1234")
+        print("  Owner 3: rahul@crave.com / Owner@1234")
+        print("  Owner 4: sneha@crave.com / Owner@1234")
+        print("  Owner 5: vikram@crave.com / Owner@1234")
+
     except Exception as e:
         print(f"❌ Error seeding database: {e}")
         db.rollback()
