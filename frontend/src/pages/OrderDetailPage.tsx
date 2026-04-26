@@ -42,6 +42,7 @@ const OrderDetailPage = () => {
   }
 
   const currentStepIndex = statusSteps.findIndex(s => s.key === order.status);
+  const safeIndex = currentStepIndex === -1 ? 0 : currentStepIndex;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -104,7 +105,7 @@ const OrderDetailPage = () => {
                 animation: order.status !== 'delivered'
                   ? 'pulse 2s infinite' : 'none',
               }}>
-                {statusSteps[currentStepIndex]?.icon}
+                {statusSteps[safeIndex]?.icon}
               </span>
               <div>
                 <p style={{
@@ -112,13 +113,13 @@ const OrderDetailPage = () => {
                   color: order.status === 'delivered'
                     ? '#22c55e' : '#ff4500',
                 }}>
-                  {statusSteps[currentStepIndex]?.label}
+                  {statusSteps[safeIndex]?.label}
                 </p>
                 <p style={{
                   fontSize: '0.82rem', color: '#6b7280',
                   margin: '2px 0 0 0',
                 }}>
-                  {statusSteps[currentStepIndex]?.subtitle}
+                  {statusSteps[safeIndex]?.subtitle}
                 </p>
               </div>
             </div>
@@ -128,7 +129,7 @@ const OrderDetailPage = () => {
                 <div
                   className="h-full bg-primary-600 transition-all"
                   style={{
-                    width: `${((currentStepIndex + 1) / statusSteps.length) * 100}%`,
+                    width: `${((safeIndex + 1) / statusSteps.length) * 100}%`,
                   }}
                 />
               </div>
@@ -138,21 +139,27 @@ const OrderDetailPage = () => {
                     <div
                       className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium"
                       style={{
-                        background: index < currentStepIndex
+                        background: index < safeIndex
                           ? '#22c55e'
-                          : index === currentStepIndex
+                          : index === safeIndex
                           ? '#ff4500'
-                          : '#e5e7eb',
-                        color: index <= currentStepIndex ? '#fff' : '#6b7280',
+                          : 'rgba(255,255,255,0.08)',
+                        color: index <= safeIndex ? '#fff' : '#6b7280',
                       }}
                     >
-                      {index < currentStepIndex ? '✓' : step.icon}
+                      {index < safeIndex ? '✓' : step.icon}
                     </div>
                     <span
-                      className={`text-xs mt-2 text-center w-20 ${index <= currentStepIndex
-                        ? 'text-primary-600 font-medium'
-                        : 'text-gray-400'
-                        }`}
+                      style={{
+                        fontSize: '0.75rem', marginTop: 8, textAlign: 'center',
+                        width: 80, display: 'block',
+                        color: index < safeIndex
+                          ? '#22c55e'
+                          : index === safeIndex
+                          ? '#ff4500'
+                          : 'var(--text-muted, #6b7280)',
+                        fontWeight: index <= safeIndex ? 500 : 400,
+                      }}
                     >
                       {step.label}
                     </span>
