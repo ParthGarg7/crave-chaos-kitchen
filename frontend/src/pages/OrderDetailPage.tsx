@@ -10,13 +10,13 @@ import { orderApi } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 const statusSteps = [
-  { key: 'pending', label: 'Order Placed' },
-  { key: 'confirmed', label: 'Confirmed' },
-  { key: 'preparing', label: 'Preparing' },
-  { key: 'ready', label: 'Ready' },
-  { key: 'picked_up', label: 'Picked Up' },
-  { key: 'in_transit', label: 'On the Way' },
-  { key: 'delivered', label: 'Delivered' },
+  { key: 'pending',    label: 'Order Placed', icon: '📋', subtitle: 'We received your order' },
+  { key: 'confirmed',  label: 'Confirmed',    icon: '✅', subtitle: 'Restaurant accepted' },
+  { key: 'preparing',  label: 'Preparing',    icon: '👨‍🍳', subtitle: 'Being cooked fresh' },
+  { key: 'ready',      label: 'Ready',        icon: '📦', subtitle: 'Packed and waiting' },
+  { key: 'picked_up',  label: 'Picked Up',   icon: '🛵', subtitle: 'Driver collected' },
+  { key: 'in_transit', label: 'On the Way',  icon: '🚀', subtitle: 'Heading to you' },
+  { key: 'delivered',  label: 'Delivered',   icon: '🎉', subtitle: 'Enjoy your meal!' },
 ];
 
 const OrderDetailPage = () => {
@@ -26,6 +26,7 @@ const OrderDetailPage = () => {
     queryKey: ['order', id],
     queryFn: () => orderApi.getById(Number(id)),
     select: (res) => res.data,
+    refetchInterval: 15000,
   });
 
   if (isLoading) {
@@ -85,6 +86,43 @@ const OrderDetailPage = () => {
             <h2 className="text-lg font-semibold text-gray-900 mb-4">
               Order Status
             </h2>
+
+            {/* Live status banner */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 16,
+              padding: '16px 20px', marginBottom: 24,
+              borderRadius: 12,
+              background: order.status === 'delivered'
+                ? 'rgba(34,197,94,0.08)' : 'rgba(255,69,0,0.08)',
+              border: order.status === 'delivered'
+                ? '1px solid rgba(34,197,94,0.2)'
+                : '1px solid rgba(255,69,0,0.2)',
+            }}>
+              <span style={{
+                fontSize: '2rem',
+                display: 'inline-block',
+                animation: order.status !== 'delivered'
+                  ? 'pulse 2s infinite' : 'none',
+              }}>
+                {statusSteps[currentStepIndex]?.icon}
+              </span>
+              <div>
+                <p style={{
+                  fontSize: '1.1rem', fontWeight: 600, margin: 0,
+                  color: order.status === 'delivered'
+                    ? '#22c55e' : '#ff4500',
+                }}>
+                  {statusSteps[currentStepIndex]?.label}
+                </p>
+                <p style={{
+                  fontSize: '0.82rem', color: '#6b7280',
+                  margin: '2px 0 0 0',
+                }}>
+                  {statusSteps[currentStepIndex]?.subtitle}
+                </p>
+              </div>
+            </div>
+
             <div className="relative">
               <div className="absolute top-4 left-0 right-0 h-1 bg-gray-200">
                 <div
@@ -98,12 +136,17 @@ const OrderDetailPage = () => {
                 {statusSteps.map((step, index) => (
                   <div key={step.key} className="flex flex-col items-center">
                     <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${index <= currentStepIndex
-                        ? 'bg-primary-600 text-white'
-                        : 'bg-gray-200 text-gray-500'
-                        }`}
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium"
+                      style={{
+                        background: index < currentStepIndex
+                          ? '#22c55e'
+                          : index === currentStepIndex
+                          ? '#ff4500'
+                          : '#e5e7eb',
+                        color: index <= currentStepIndex ? '#fff' : '#6b7280',
+                      }}
                     >
-                      {index + 1}
+                      {index < currentStepIndex ? '✓' : step.icon}
                     </div>
                     <span
                       className={`text-xs mt-2 text-center w-20 ${index <= currentStepIndex
@@ -116,6 +159,30 @@ const OrderDetailPage = () => {
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Status info box */}
+            <div style={{
+              marginTop: 20, padding: '12px 16px',
+              borderRadius: 8, background: '#f9fafb',
+              border: '1px solid #e5e7eb',
+            }}>
+              <p style={{ fontSize: '0.82rem', color: '#6b7280', margin: 0 }}>
+                {order.status === 'pending' &&
+                  '⏳ Waiting for restaurant to confirm your order'}
+                {order.status === 'confirmed' &&
+                  '✅ Restaurant confirmed! Preparing soon'}
+                {order.status === 'preparing' &&
+                  '👨‍🍳 Your food is being freshly prepared'}
+                {order.status === 'ready' &&
+                  '📦 Food packed — driver being assigned'}
+                {order.status === 'picked_up' &&
+                  '🛵 Driver has your order and is on the way'}
+                {order.status === 'in_transit' &&
+                  '🚀 Almost there! Your order is nearby'}
+                {order.status === 'delivered' &&
+                  '🎉 Delivered! Enjoy your meal!'}
+              </p>
             </div>
           </div>
         )}
@@ -142,7 +209,7 @@ const OrderDetailPage = () => {
                   )}
                 </div>
                 <p className="font-medium text-gray-900">
-                  ${item.subtotal.toFixed(2)}
+                  ₹{item.subtotal.toLocaleString('en-IN')}
                 </p>
               </div>
             ))}
@@ -152,25 +219,25 @@ const OrderDetailPage = () => {
           <div className="border-t border-gray-200 mt-4 pt-4 space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Subtotal</span>
-              <span>${order.subtotal.toFixed(2)}</span>
+              <span>₹{order.subtotal.toLocaleString('en-IN')}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Delivery Fee</span>
-              <span>${order.delivery_fee.toFixed(2)}</span>
+              <span>₹{order.delivery_fee.toLocaleString('en-IN')}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Tax</span>
-              <span>${order.tax.toFixed(2)}</span>
+              <span>₹{order.tax.toLocaleString('en-IN')}</span>
             </div>
             {order.tip > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Tip</span>
-                <span>${order.tip.toFixed(2)}</span>
+                <span>₹{order.tip.toLocaleString('en-IN')}</span>
               </div>
             )}
             <div className="flex justify-between text-lg font-semibold pt-2 border-t border-gray-200">
               <span>Total</span>
-              <span>${order.total.toFixed(2)}</span>
+              <span>₹{order.total.toLocaleString('en-IN')}</span>
             </div>
           </div>
         </div>
@@ -223,6 +290,12 @@ const OrderDetailPage = () => {
           </div>
         </div>
       </div>
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.15); }
+        }
+      `}</style>
     </div>
   );
 };

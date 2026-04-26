@@ -4,6 +4,7 @@ import { useMutation } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { authApi } from '../services/api';
+import { useAuthStore } from '../stores/authStore';
 
 const ROLE_OPTIONS = [
   { value: 'customer', label: 'Customer', icon: '🛒', desc: 'Browse & order food' },
@@ -13,6 +14,7 @@ const ROLE_OPTIONS = [
 
 const RegisterPage = () => {
   const navigate = useNavigate();
+  const { setAuth } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -26,9 +28,30 @@ const RegisterPage = () => {
 
   const registerMutation = useMutation({
     mutationFn: (data: typeof formData) => authApi.register(data),
-    onSuccess: () => {
-      toast.success('Account created! Please sign in. 🎉');
-      navigate('/login');
+    onSuccess: async () => {
+      try {
+        const loginRes = await authApi.login(
+          formData.email,
+          formData.password
+        );
+        setAuth(loginRes.data);
+        toast.success('Welcome to CRAVE! 🎉');
+        const role = loginRes.data.user?.role;
+        if (role === 'restaurant_owner') {
+          navigate('/setup-restaurant');
+        } else if (role === 'driver') {
+          navigate('/driver-dashboard');
+        } else if (role === 'admin') {
+          navigate('/admin');
+        } else if (role === 'developer') {
+          navigate('/developer');
+        } else {
+          navigate('/');
+        }
+      } catch {
+        toast.success('Account created! Please sign in. 🎉');
+        navigate('/login');
+      }
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.detail || 'Registration failed');

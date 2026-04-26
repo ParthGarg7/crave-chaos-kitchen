@@ -448,7 +448,7 @@ function NoRestaurantPanel() {
 
 // ── Main Dashboard ─────────────────────────────────────────────────────────
 export default function RestaurantDashboard() {
-    const { user } = useAuthStore();
+    const { user, isHydrated } = useAuthStore();
     const navigate = useNavigate();
 
     const [allRestaurants, setAllRestaurants] = useState<Restaurant[]>([]);
@@ -467,6 +467,7 @@ export default function RestaurantDashboard() {
 
     // Auth guard
     useEffect(() => {
+        if (!isHydrated) return;
         if (!user) {
             navigate('/login');
             return;
@@ -475,7 +476,7 @@ export default function RestaurantDashboard() {
             toast.error('Access denied');
             navigate('/');
         }
-    }, [user, navigate]);
+    }, [isHydrated, user, navigate]);
 
     const loadOrdersForRestaurant = useCallback(async (restId: number) => {
         try {
@@ -555,7 +556,7 @@ export default function RestaurantDashboard() {
         fetchRestaurantData();
     };
 
-    if (loading) {
+    if (!isHydrated || loading) {
         return (
             <div style={{ minHeight: '100vh', background: 'var(--bg-void)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <div style={{ textAlign: 'center' }}>
