@@ -384,4 +384,9 @@ export const chaosApi = {
   getState: () => api.get('/chaos/state'),
 };
 
+export const observationApi = {
+  getLogs: (params?: { limit?: number }) =>
+    api.get('/observation/logs', { params }),
+};
+
 export default api;

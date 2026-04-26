@@ -122,6 +122,13 @@ export default function DeveloperDashboard() {
             onClick={() => navigate('/developer/dual-view')}
             accentColor="#3fb950"
           />
+          <DevCard
+            icon="📡"
+            title="Observation Logs"
+            description="Real-time CRAVE traffic logs showing service names, failure tags, and response times — exactly what flows to Niramay for detection."
+            onClick={() => navigate('/developer/observation-logs')}
+            accentColor="#58a6ff"
+          />
         </div>
 
         {/* Info banner */}
