@@ -389,4 +389,15 @@ export const observationApi = {
     api.get('/observation/logs', { params }),
 };
 
+export const injectorApi = {
+  getState: () =>
+    api.get('/failure-simulator/injector/state'),
+  setInjectorState: (state: 'idle' | 'active') =>
+    api.post('/failure-simulator/injector/state', null, { params: { state } }),
+  setTraffic: (enabled: boolean) =>
+    api.post('/failure-simulator/injector/traffic', null, { params: { enabled } }),
+  clearPause: () =>
+    api.post('/failure-simulator/injector/clear-pause'),
+};
+
 export default api;

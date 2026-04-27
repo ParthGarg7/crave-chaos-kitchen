@@ -16,7 +16,7 @@ start automatically on container startup.
 
 Redis keys used:
   crave:injector:state       — current state (idle/active/paused)
-  crave:injector:paused      — set by heal endpoint, TTL 300s
+  crave:injector:paused      — marker set by heal endpoint (no TTL, permanent until cleared)
   crave:injector:current     — name of currently active scenario
   crave:traffic:enabled      — "0" to pause traffic gen, "1"/absent to run
 
@@ -180,9 +180,6 @@ def disable_all() -> bool:
         log.error("Error disabling all: %s", e)
         return False
 
-def is_paused(r) -> bool:
-    return r.exists("crave:injector:paused") > 0
-
 def get_state(r) -> str:
     return r.get("crave:injector:state") or "idle"
 
@@ -199,7 +196,12 @@ def traffic_generator():
 
     while True:
         try:
-            # Respect the Redis pause flag
+            # Respect the injector state and traffic-enabled flag
+            state = get_state(r)
+            if state == "paused":
+                time.sleep(5)
+                continue
+
             enabled = r.get("crave:traffic:enabled")
             if enabled == "0":
                 time.sleep(5)
@@ -223,8 +225,8 @@ def traffic_generator():
             ]
 
             for method, url, session in cycle:
-                # Re-check pause flag before each individual request
-                if r.get("crave:traffic:enabled") == "0":
+                # Re-check state and traffic flag before each individual request
+                if get_state(r) == "paused" or r.get("crave:traffic:enabled") == "0":
                     break
 
                 try:
@@ -278,24 +280,17 @@ def main():
         try:
             state = get_state(r)
 
-            # ── PAUSED state ─────────────────────────────────
-            if is_paused(r):
-                if state != "paused":
-                    set_state(r, "paused")
-                    disable_all()
-                    log.info(
-                        "Injector paused — heal endpoint was called. "
-                        "Will resume when crave:injector:paused TTL expires"
-                    )
-                time.sleep(10)
+            # ── PAUSED state — heal endpoint wrote this, stay until cleared ──
+            if state == "paused":
+                time.sleep(5)
                 continue
 
-            # ── IDLE state ───────────────────────────────────
+            # ── IDLE state ───────────────────────────────────────────────────
             if state == "idle":
                 time.sleep(5)
                 continue
 
-            # ── ACTIVE state ─────────────────────────────────
+            # ── ACTIVE state ─────────────────────────────────────────────────
             if state == "active":
                 # Pick next scenario
                 scenario = INJECTABLE_SCENARIOS[
@@ -315,13 +310,12 @@ def main():
                         "Injecting scenario: %s for %ss",
                         scenario, SCENARIO_DURATION
                     )
-                    # Hold scenario active for SCENARIO_DURATION
-                    # checking for pause every 5 seconds
+                    # Hold scenario active for SCENARIO_DURATION,
+                    # bailing early if state changes
                     elapsed = 0
                     while elapsed < SCENARIO_DURATION:
-                        if is_paused(r):
-                            break
-                        if get_state(r) == "idle":
+                        current = get_state(r)
+                        if current in ("paused", "idle"):
                             break
                         time.sleep(5)
                         elapsed += 5
@@ -334,10 +328,10 @@ def main():
                     scenario, INJECT_INTERVAL
                 )
 
-                # Wait between scenarios checking for pause/idle
+                # Wait between scenarios, bail if state changes
                 elapsed = 0
                 while elapsed < INJECT_INTERVAL:
-                    if is_paused(r) or get_state(r) == "idle":
+                    if get_state(r) in ("paused", "idle"):
                         break
                     time.sleep(5)
                     elapsed += 5
