@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { observationApi } from '../services/api';
+import { observationApi, failureSimulatorApi } from '../services/api';
+import { FailureSimulatorMetrics } from '../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ObservationLog {
@@ -103,10 +104,29 @@ const pulseDotStyle: React.CSSProperties = {
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function ObservationLogsPage() {
   const navigate = useNavigate();
+
+  // ── Metrics (same source as AnalysisPage left panel) ──────────────────────
+  const [metrics, setMetrics] = useState<FailureSimulatorMetrics | null>(null);
+  const metricsIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const fetchMetrics = useCallback(async () => {
+    try {
+      const res = await failureSimulatorApi.getMetrics();
+      setMetrics(res.data as FailureSimulatorMetrics);
+    } catch { /* silently ignore */ }
+  }, []);
+
+  useEffect(() => { void fetchMetrics(); }, [fetchMetrics]);
+
+  useEffect(() => {
+    metricsIntervalRef.current = setInterval(() => { void fetchMetrics(); }, 3000);
+    return () => { if (metricsIntervalRef.current) clearInterval(metricsIntervalRef.current); };
+  }, [fetchMetrics]);
+
+  // ── Observation Logs ──────────────────────────────────────────────────────
   const [logs, setLogs] = useState<ObservationLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [metricsWindow, setMetricsWindow] = useState<'last60s' | 'alltime'>('last60s');
 
   // Filters
   const [search, setSearch] = useState('');
@@ -118,49 +138,34 @@ export default function ObservationLogsPage() {
 
   const fetchLogs = useCallback(async () => {
     try {
-      const res = await observationApi.getLogs({ limit: 500 });
+      const res = await observationApi.getLogs({ limit: 1000 });
       setLogs((res.data as ObservationLog[]) ?? []);
-    } catch {
-      // silently ignore; global interceptor shows toast
-    } finally {
-      setLoading(false);
-    }
+    } catch { /* silently ignore */ }
+    finally { setLoading(false); }
   }, []);
 
-  // Initial fetch
-  useEffect(() => {
-    void fetchLogs();
-  }, [fetchLogs]);
+  useEffect(() => { void fetchLogs(); }, [fetchLogs]);
 
-  // Auto-refresh
   useEffect(() => {
     if (autoRefresh) {
       intervalRef.current = setInterval(() => { void fetchLogs(); }, 5000);
     }
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [autoRefresh, fetchLogs]);
 
   // ─── Derived values ────────────────────────────────────────────────────────
-  const now = Date.now();
-  const last60s = logs.filter(l => {
-    if (!l.timestamp) return false;
-    return now - new Date(l.timestamp).getTime() < 60_000;
-  });
+  // Stats from the same metrics source — consistent with AnalysisPage
+  const totalReqs      = metrics?.total_requests  ?? 0;
+  const failedCount    = metrics?.failed_requests ?? 0;
+  const healthyReqs    = totalReqs - failedCount;
+  const failureRate    = metrics?.failure_rate    ?? 0;
 
-  // metricsData switches between last-60s slice and the full loaded set
-  const metricsData = metricsWindow === 'last60s' ? last60s : logs;
-
-  const totalReqs = metricsData.length;
-  const failedCount = metricsData.filter(l => l.failure_type && l.failure_type !== 'none').length;
-  const failureRate = totalReqs > 0 ? (failedCount / totalReqs) * 100 : 0;
-  const avgRespTime = totalReqs > 0
-    ? Math.round(metricsData.reduce((s, l) => s + (l.response_time_ms ?? 0), 0) / totalReqs)
+  // Avg response time + active services still come from log entries
+  // (no equivalent data in the simulator metrics object)
+  const avgRespTime = logs.length > 0
+    ? Math.round(logs.reduce((s, l) => s + (l.response_time_ms ?? 0), 0) / logs.length)
     : 0;
-  const healthyReqs = metricsData.filter(l => (l.status_code ?? 0) < 400).length;
-  const failedStatusReqs = metricsData.filter(l => (l.status_code ?? 0) >= 400).length;
-  const activeServices = new Set(metricsData.map(l => l.service_name)).size;
+  const activeServices = new Set(logs.map(l => l.service_name).filter(Boolean)).size;
 
   const failureRateColor = failureRate > 10 ? '#f85149' : failureRate > 0 ? '#ffc845' : '#22c55e';
 
@@ -268,40 +273,8 @@ export default function ObservationLogsPage() {
         </div>
 
         {/* ── SECTION A: Live metrics bar ── */}
-        {/* Metrics window toggle */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-          <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.6rem', color: '#8b949e', letterSpacing: 2, textTransform: 'uppercase' }}>
-            Metrics window:
-          </span>
-          {(['last60s', 'alltime'] as const).map(w => (
-            <button
-              key={w}
-              onClick={() => setMetricsWindow(w)}
-              style={{
-                padding: '4px 14px',
-                borderRadius: 6,
-                background: metricsWindow === w ? 'rgba(88,166,255,0.15)' : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${metricsWindow === w ? 'rgba(88,166,255,0.4)' : 'rgba(255,255,255,0.08)'}`,
-                color: metricsWindow === w ? '#58a6ff' : '#8b949e',
-                fontFamily: 'var(--font-body)',
-                fontSize: '0.65rem',
-                cursor: 'none',
-                letterSpacing: 1,
-                transition: 'all 0.2s',
-              }}
-            >
-              {w === 'last60s' ? '⏱ Last 60s' : '📊 All Time'}
-            </button>
-          ))}
-          {metricsWindow === 'alltime' && (
-            <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.6rem', color: '#6e7681', letterSpacing: 1 }}>
-              ({logs.length} logs loaded)
-            </span>
-          )}
-        </div>
-
         <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
-          <StatCard emoji="📊" label={metricsWindow === 'last60s' ? 'Total Requests (60s)' : 'Total Requests (all)'} value={totalReqs} />
+          <StatCard emoji="📊" label="Total Requests" value={totalReqs.toLocaleString()} />
           <StatCard
             emoji="🔥"
             label="Failure Rate %"
@@ -309,8 +282,8 @@ export default function ObservationLogsPage() {
             valueColor={failureRateColor}
           />
           <StatCard emoji="⏱" label="Avg Resp Time" value={`${avgRespTime}ms`} valueColor={avgRespTime > 300 ? '#f85149' : '#22c55e'} />
-          <StatCard emoji="✅" label="Healthy Requests" value={healthyReqs} valueColor="#22c55e" />
-          <StatCard emoji="❌" label="Failed Requests" value={failedStatusReqs} valueColor={failedStatusReqs > 0 ? '#f85149' : '#e6edf3'} />
+          <StatCard emoji="✅" label="Healthy Requests" value={healthyReqs.toLocaleString()} valueColor="#22c55e" />
+          <StatCard emoji="❌" label="Failed Requests" value={failedCount.toLocaleString()} valueColor={failedCount > 0 ? '#f85149' : '#e6edf3'} />
           <StatCard emoji="🌐" label="Services Active" value={activeServices} />
         </div>
 
@@ -540,7 +513,7 @@ export default function ObservationLogsPage() {
               justifyContent: 'space-between',
             }}>
               <span>Showing {filtered.length} of {logs.length} logs</span>
-              <span>Max 200 rows displayed · limit=500 fetched</span>
+              <span>{logs.length} entries fetched · max 200 rows displayed</span>
             </div>
           )}
         </div>

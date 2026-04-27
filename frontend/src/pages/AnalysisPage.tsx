@@ -92,7 +92,7 @@ export default function AnalysisPage() {
 
   const fetchLogs = useCallback(async () => {
     try {
-      const res = await observationApi.getLogs({ limit: 300 });
+      const res = await observationApi.getLogs({ limit: 1000 });
       setLogs((res.data as ObservationLog[]) ?? []);
     } catch { /* silently ignore */ }
     finally { setLogsLoading(false); }
@@ -107,7 +107,14 @@ export default function AnalysisPage() {
     return () => { if (logsIntervalRef.current) clearInterval(logsIntervalRef.current); };
   }, [logsAutoRefresh, fetchLogs]);
 
-  // Derived log values
+  // Stats are derived from the SAME metrics object as the left panel so both
+  // panels always show consistent numbers from one source of truth.
+  const totalRequests  = metrics?.total_requests  ?? 0;
+  const failedRequests = metrics?.failed_requests ?? 0;
+  const healthyRequests = totalRequests - failedRequests;
+  const failureRate    = metrics?.failure_rate    ?? 0;
+
+  // Dropdowns list all services seen in the log entries
   const uniqueServices = Array.from(new Set(logs.map(l => l.service_name).filter(Boolean))).sort();
 
   const filteredLogs = logs.filter(l => {
@@ -115,9 +122,6 @@ export default function AnalysisPage() {
     if (serviceFilter !== 'all' && l.service_name !== serviceFilter) return false;
     return true;
   }).slice(0, 200);
-
-  const failureCount = logs.filter(l => l.failure_type && l.failure_type !== 'none').length;
-  const failureRate  = logs.length > 0 ? (failureCount / logs.length) * 100 : 0;
 
   const fmtTime = (ts: string | null) => {
     if (!ts) return '--:--:--';
@@ -260,13 +264,14 @@ export default function AnalysisPage() {
 
           {/* Quick stats + filters */}
           <div style={{ padding: '8px 14px', background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.05)', flexShrink: 0 }}>
-            {/* Mini stats */}
+            {/* Mini stats — same source as left panel (failureSimulatorApi.getMetrics) */}
             <div style={{ display: 'flex', gap: 16, marginBottom: 8, flexWrap: 'wrap' }}>
               {[
-                { label: 'Total', value: logs.length, color: '#e6edf3' },
-                { label: 'Failures', value: failureCount, color: failureCount > 0 ? '#f85149' : '#22c55e' },
-                { label: 'Failure %', value: `${failureRate.toFixed(1)}%`, color: failureRate > 10 ? '#f85149' : failureRate > 0 ? '#ffc845' : '#22c55e' },
-                { label: 'Services', value: uniqueServices.length, color: '#58a6ff' },
+                { label: 'Total',     value: totalRequests.toLocaleString(),          color: '#e6edf3' },
+                { label: 'Failures',  value: failedRequests.toLocaleString(),         color: failedRequests > 0 ? '#f85149' : '#22c55e' },
+                { label: 'Healthy',   value: healthyRequests.toLocaleString(),        color: '#22c55e' },
+                { label: 'Failure %', value: `${failureRate.toFixed(1)}%`,            color: failureRate > 10 ? '#f85149' : failureRate > 0 ? '#ffc845' : '#22c55e' },
+                { label: 'Services',  value: uniqueServices.length,                   color: '#58a6ff' },
               ].map(s => (
                 <span key={s.label} style={{ fontFamily: 'var(--font-body)', fontSize: '0.6rem', color: '#8b949e' }}>
                   {s.label}: <span style={{ color: s.color, fontFamily: 'var(--font-accent)', fontSize: '0.85rem' }}>{s.value}</span>
@@ -370,7 +375,7 @@ export default function AnalysisPage() {
                 Showing {filteredLogs.length} of {logs.length} logs
               </span>
               <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.58rem', color: '#6e7681' }}>
-                limit=300 fetched · max 200 shown
+                {logs.length} entries fetched · max 200 shown
               </span>
             </div>
           )}
