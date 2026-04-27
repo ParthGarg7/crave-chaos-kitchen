@@ -47,12 +47,12 @@ services:
     restart: unless-stopped
     environment:
       DEBUG: "true"
-      POSTGRES_SERVER: postgres
+      POSTGRES_SERVER: crave-postgres
       POSTGRES_PORT: "5432"
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
       POSTGRES_DB: food_delivery
-      REDIS_HOST: redis
+      REDIS_HOST: crave-redis
       REDIS_PORT: "6379"
       SECRET_KEY: "crave-super-secret-jwt-key-2024-change-in-prod"
       ACCESS_TOKEN_EXPIRE_MINUTES: "60"
