@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import BrowsePage from './BrowsePage';
+import MetricsPanel from '../components/failure-simulator/MetricsPanel';
+import { FailureSimulatorMetrics } from '../types';
 
 // ─── Demo credentials for each panel role ─────────────────────────────────────
 type PanelType = 'customer' | 'driver' | 'restaurant' | 'admin' | 'dev';
@@ -489,48 +491,90 @@ function AdminViewPanel({ token }: { token: string }) {
   );
 }
 
-// ─── DEV PANEL ───────────────────────────────────────────────────────────────
-function DevPanel({ token }: { token: string }) {
+// ─── Shared log-row colors (reused across dev tabs) ──────────────────────────
+const DEV_SERVICE_COLORS: Record<string, string> = {
+  'crave-payments': '#a78bfa', 'crave-orders': '#58a6ff', 'crave-auth': '#22d3ee',
+  'crave-restaurant': '#f0883e', 'crave-delivery': '#22c55e', 'crave-simulator': '#ffc845',
+  'crave-chaos': '#f85149', 'crave-gateway': '#8b949e',
+};
+const devFmtTime = (ts: string | null) =>
+  ts ? new Date(ts).toTimeString().slice(0, 8) : '--:--:--';
+
+// ─── Compact log table used by Logs tab and Analysis tab ─────────────────────
+function DevLogTable({ logs, maxHeight = '60vh' }: { logs: any[]; maxHeight?: string }) {
+  return (
+    <div style={{ background: 'var(--bg-elevated)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.05)', overflow: 'hidden' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '65px 110px 1fr 55px 80px', padding: '6px 10px', background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        {['Time', 'Service', 'Endpoint', 'Status', 'Failure'].map(h => (
+          <span key={h} style={{ fontFamily: 'var(--font-body)', fontSize: '0.55rem', color: '#8b949e', letterSpacing: 2, textTransform: 'uppercase' }}>{h}</span>
+        ))}
+      </div>
+      <div style={{ maxHeight, overflowY: 'auto' }}>
+        {logs.length === 0 ? (
+          <div style={{ padding: '24px 16px', textAlign: 'center', color: '#8b949e', fontFamily: 'var(--font-body)', fontSize: '0.72rem' }}>
+            📡 Waiting for traffic...
+          </div>
+        ) : (
+          logs.slice(0, 150).map((log: any, i: number) => {
+            const hasFailure = log.failure_type && log.failure_type !== 'none';
+            return (
+              <div key={i} style={{
+                display: 'grid', gridTemplateColumns: '65px 110px 1fr 55px 80px',
+                padding: '5px 10px', fontSize: '0.6rem', alignItems: 'center',
+                background: i % 2 === 1 ? 'rgba(255,255,255,0.015)' : 'transparent',
+                borderLeft: hasFailure ? '2px solid rgba(248,81,73,0.4)' : '2px solid transparent',
+              }}>
+                <span style={{ color: '#8b949e', fontVariantNumeric: 'tabular-nums' }}>{devFmtTime(log.timestamp)}</span>
+                <span style={{ color: DEV_SERVICE_COLORS[log.service_name] ?? '#e6edf3', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.58rem' }}>{log.service_name || '—'}</span>
+                <span style={{ color: '#c9d1d9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 4, fontSize: '0.58rem' }} title={log.endpoint}>
+                  {log.endpoint?.length > 34 ? `${log.endpoint.slice(0, 34)}…` : (log.endpoint || '—')}
+                </span>
+                <span style={{ color: (log.status_code ?? 0) < 400 ? '#22c55e' : '#f85149', fontVariantNumeric: 'tabular-nums' }}>{log.status_code ?? '?'}</span>
+                <span>
+                  {hasFailure
+                    ? <span style={{ background: 'rgba(248,81,73,0.12)', color: '#f85149', padding: '1px 6px', borderRadius: 4, fontSize: '0.55rem' }}>{log.failure_type}</span>
+                    : <span style={{ color: '#484f58' }}>—</span>}
+                </span>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── DEV TAB: Logs ────────────────────────────────────────────────────────────
+function DevLogsTab({ token }: { token: string }) {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [failuresOnly, setFailuresOnly] = useState(false);
 
-  const SERVICE_COLORS: Record<string, string> = {
-    'crave-payments': '#a78bfa', 'crave-orders': '#58a6ff', 'crave-auth': '#22d3ee',
-    'crave-restaurant': '#f0883e', 'crave-delivery': '#22c55e', 'crave-simulator': '#ffc845',
-    'crave-chaos': '#f85149', 'crave-gateway': '#8b949e',
-  };
-
-  const load = async () => {
-    try {
-      const data = await panelFetch<any[]>(token, '/observation/logs', { limit: '100' });
-      setLogs(Array.isArray(data) ? data : []);
-    } catch { /* ignore */ }
-    finally { setLoading(false); }
-  };
-
   useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await panelFetch<any[]>(token, '/observation/logs', { limit: '200' });
+        setLogs(Array.isArray(data) ? data : []);
+      } catch { /* ignore */ }
+      finally { setLoading(false); }
+    };
     void load();
     const t = setInterval(() => { void load(); }, 5000);
     return () => clearInterval(t);
   }, [token]);
 
-  const filtered = failuresOnly ? logs.filter((l: any) => l.failure_type && l.failure_type !== 'none') : logs;
-
-  const fmtTime = (ts: string | null) => {
-    if (!ts) return '--:--:--';
-    return new Date(ts).toTimeString().slice(0, 8);
-  };
+  const filtered = failuresOnly
+    ? logs.filter((l: any) => l.failure_type && l.failure_type !== 'none')
+    : logs;
 
   if (loading) return (
-    <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 6 }}>
+    <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 6 }}>
       {[1, 2, 3, 4].map(i => <div key={i} className="skeleton" style={{ height: 32, borderRadius: 6 }} />)}
     </div>
   );
 
   return (
     <div style={{ padding: '12px' }}>
-      {/* Controls */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
         <button
           onClick={() => setFailuresOnly(p => !p)}
@@ -542,54 +586,350 @@ function DevPanel({ token }: { token: string }) {
           {filtered.length} entries · auto-refresh 5s
         </span>
       </div>
+      <DevLogTable logs={filtered} />
+    </div>
+  );
+}
 
-      {/* Compact log table */}
-      <div style={{ background: 'var(--bg-elevated)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.05)', overflow: 'hidden' }}>
-        {/* Header */}
-        <div style={{ display: 'grid', gridTemplateColumns: '65px 110px 1fr 55px 80px', gap: 0, padding: '6px 10px', background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-          {['Time', 'Service', 'Endpoint', 'Status', 'Failure'].map(h => (
-            <span key={h} style={{ fontFamily: 'var(--font-body)', fontSize: '0.55rem', color: '#8b949e', letterSpacing: 2, textTransform: 'uppercase' }}>{h}</span>
-          ))}
-        </div>
+// ─── DEV TAB: Failure Simulator ───────────────────────────────────────────────
+function DevFailureSimTab({ token }: { token: string }) {
+  const [metrics, setMetrics]     = useState<FailureSimulatorMetrics | null>(null);
+  const [scenarios, setScenarios] = useState<Record<string, any>>({});
+  const [loading, setLoading]     = useState(true);
+  const [toggling, setToggling]   = useState<string | null>(null);
 
-        <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
-          {filtered.length === 0 ? (
-            <div style={{ padding: '24px 16px', textAlign: 'center', color: '#8b949e', fontFamily: 'var(--font-body)', fontSize: '0.72rem' }}>
-              {logs.length === 0 ? '📡 Waiting for traffic...' : '🔍 No failures found'}
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [m, s] = await Promise.all([
+          panelFetch<FailureSimulatorMetrics>(token, '/failure-simulator/metrics'),
+          panelFetch<Record<string, any>>(token, '/failure-simulator/scenarios'),
+        ]);
+        setMetrics(m);
+        setScenarios(s ?? {});
+      } catch { /* ignore */ }
+      finally { setLoading(false); }
+    };
+    void load();
+    const t = setInterval(() => { void load(); }, 5000);
+    return () => clearInterval(t);
+  }, [token]);
+
+  const toggle = async (name: string, currentlyEnabled: boolean) => {
+    setToggling(name);
+    try {
+      const action = currentlyEnabled ? 'disable' : 'enable';
+      await panelPost(token, `/failure-simulator/scenarios/${name}/${action}`);
+      const s = await panelFetch<Record<string, any>>(token, '/failure-simulator/scenarios');
+      setScenarios(s ?? {});
+    } catch { /* ignore */ }
+    finally { setToggling(null); }
+  };
+
+  if (loading) return (
+    <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {[1, 2, 3].map(i => <div key={i} className="skeleton" style={{ height: 60, borderRadius: 8 }} />)}
+    </div>
+  );
+
+  return (
+    <div style={{ padding: '12px' }}>
+      {/* Metrics charts */}
+      <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.58rem', color: '#f0883e', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 10 }}>
+        📊 Metrics
+      </p>
+      <MetricsPanel metrics={metrics} />
+
+      {/* Scenario list */}
+      <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.58rem', color: '#f85149', letterSpacing: 3, textTransform: 'uppercase', margin: '16px 0 10px' }}>
+        💥 Scenarios
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {Object.entries(scenarios).map(([name, s]: [string, any]) => (
+          <div key={name} style={{
+            background: 'var(--bg-elevated)', borderRadius: 8, padding: '9px 12px',
+            border: `1px solid ${s.enabled ? 'rgba(248,81,73,0.3)' : 'rgba(255,255,255,0.05)'}`,
+            display: 'flex', alignItems: 'center', gap: 10,
+          }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.63rem', color: '#e6edf3', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</p>
+              <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.57rem', color: '#8b949e', marginTop: 2 }}>
+                {s.failure_type} · {Math.round((s.probability ?? 0) * 100)}%
+              </p>
             </div>
-          ) : (
-            filtered.slice(0, 100).map((log: any, i: number) => {
-              const hasFailure = log.failure_type && log.failure_type !== 'none';
-              return (
-                <div key={i} style={{
-                  display: 'grid', gridTemplateColumns: '65px 110px 1fr 55px 80px', gap: 0,
-                  padding: '6px 10px', fontSize: '0.62rem',
-                  background: i % 2 === 1 ? 'rgba(255,255,255,0.015)' : 'transparent',
-                  borderLeft: hasFailure ? '2px solid rgba(248,81,73,0.4)' : '2px solid transparent',
-                  alignItems: 'center',
-                }}>
-                  <span style={{ color: '#8b949e', fontVariantNumeric: 'tabular-nums' }}>{fmtTime(log.timestamp)}</span>
-                  <span style={{ color: SERVICE_COLORS[log.service_name] ?? '#e6edf3', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.58rem' }}>{log.service_name || '—'}</span>
-                  <span style={{ color: '#c9d1d9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 6, fontSize: '0.58rem' }} title={log.endpoint}>
-                    {log.endpoint?.length > 35 ? `${log.endpoint.slice(0, 35)}…` : (log.endpoint || '—')}
-                  </span>
-                  <span style={{ color: (log.status_code ?? 0) < 400 ? '#22c55e' : '#f85149', fontVariantNumeric: 'tabular-nums' }}>{log.status_code ?? '?'}</span>
-                  <span>
-                    {hasFailure ? (
-                      <span style={{ background: 'rgba(248,81,73,0.12)', color: '#f85149', padding: '1px 6px', borderRadius: 4, fontSize: '0.55rem' }}>
-                        {log.failure_type}
-                      </span>
-                    ) : (
-                      <span style={{ color: '#484f58' }}>—</span>
-                    )}
-                  </span>
-                </div>
-              );
-            })
-          )}
-        </div>
+            <button
+              onClick={() => void toggle(name, s.enabled)}
+              disabled={toggling === name}
+              style={{
+                padding: '4px 10px', borderRadius: 6, cursor: 'none',
+                fontFamily: 'var(--font-body)', fontSize: '0.58rem', letterSpacing: 1, flexShrink: 0,
+                background: s.enabled ? 'rgba(248,81,73,0.15)' : 'rgba(34,197,94,0.1)',
+                color:      s.enabled ? '#f85149' : '#22c55e',
+                border:    `1px solid ${s.enabled ? 'rgba(248,81,73,0.3)' : 'rgba(34,197,94,0.25)'}`,
+              }}
+            >
+              {toggling === name ? '...' : s.enabled ? 'Disable' : 'Enable'}
+            </button>
+          </div>
+        ))}
+        {Object.keys(scenarios).length === 0 && (
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.72rem', color: '#6e7681', textAlign: 'center', padding: '16px 0' }}>
+            No scenarios found
+          </p>
+        )}
       </div>
     </div>
+  );
+}
+
+// ─── DEV TAB: Chaos Engineer ──────────────────────────────────────────────────
+function DevChaosTab({ token }: { token: string }) {
+  const [experiments, setExperiments] = useState<any[]>([]);
+  const [impactLog, setImpactLog]     = useState<any[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [toggling, setToggling]       = useState<string | null>(null);
+
+  const CHAOS_CATEGORY_META: Record<string, { icon: string; color: string }> = {
+    A: { icon: '🚫', color: '#f85149' },
+    B: { icon: '⏱️', color: '#d29922' },
+    C: { icon: '⚡', color: '#f0883e' },
+    D: { icon: '🔀', color: '#a78bfa' },
+    E: { icon: '🔥', color: '#ff6b6b' },
+    F: { icon: '🌊', color: '#58a6ff' },
+  };
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [exps, log] = await Promise.all([
+          panelFetch<any[]>(token, '/chaos/experiments'),
+          panelFetch<any[]>(token, '/chaos/impact-log', { limit: '20' }),
+        ]);
+        setExperiments(Array.isArray(exps) ? exps : []);
+        setImpactLog(Array.isArray(log) ? log : []);
+      } catch { /* ignore */ }
+      finally { setLoading(false); }
+    };
+    void load();
+    const t = setInterval(() => { void load(); }, 5000);
+    return () => clearInterval(t);
+  }, [token]);
+
+  const toggle = async (id: string) => {
+    setToggling(id);
+    try {
+      await panelPost(token, `/chaos/experiments/${id}/toggle`);
+      const exps = await panelFetch<any[]>(token, '/chaos/experiments');
+      setExperiments(Array.isArray(exps) ? exps : []);
+    } catch { /* ignore */ }
+    finally { setToggling(null); }
+  };
+
+  if (loading) return (
+    <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {[1, 2, 3, 4].map(i => <div key={i} className="skeleton" style={{ height: 50, borderRadius: 8 }} />)}
+    </div>
+  );
+
+  const activeCount = experiments.filter((e: any) => e.enabled).length;
+
+  return (
+    <div style={{ padding: '12px' }}>
+      {/* Summary chips */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+        {[
+          { label: 'Total',    value: experiments.length,                                   color: '#ffc845' },
+          { label: 'Active',   value: activeCount, color: activeCount > 0 ? '#f85149' : '#22c55e' },
+          { label: 'Impact',   value: impactLog.length,                                     color: '#58a6ff' },
+        ].map(s => (
+          <div key={s.label} style={{ flex: 1, background: 'var(--bg-elevated)', borderRadius: 8, padding: '8px 12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.55rem', color: 'var(--text-muted)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 2 }}>{s.label}</p>
+            <p style={{ fontFamily: 'var(--font-accent)', fontSize: '1.5rem', color: s.color }}>{s.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Experiment list */}
+      <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.58rem', color: '#58a6ff', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 10 }}>
+        ⚡ Experiments
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {experiments.map((exp: any) => {
+          const meta = CHAOS_CATEGORY_META[exp.category] ?? { icon: '🔧', color: '#8b949e' };
+          return (
+            <div key={exp.id} style={{
+              background: 'var(--bg-elevated)', borderRadius: 8, padding: '9px 12px',
+              border: `1px solid ${exp.enabled ? `${meta.color}44` : 'rgba(255,255,255,0.05)'}`,
+              display: 'flex', alignItems: 'center', gap: 10,
+            }}>
+              <span style={{ fontSize: '1rem', flexShrink: 0 }}>{meta.icon}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.62rem', color: '#e6edf3', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{exp.name}</p>
+                <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.56rem', color: '#8b949e', marginTop: 1 }}>
+                  {exp.category_label ?? exp.category} · {exp.failure_type}
+                </p>
+              </div>
+              <button
+                onClick={() => void toggle(exp.id)}
+                disabled={toggling === exp.id}
+                style={{
+                  padding: '4px 10px', borderRadius: 6, cursor: 'none', flexShrink: 0,
+                  fontFamily: 'var(--font-body)', fontSize: '0.58rem', letterSpacing: 1,
+                  background: exp.enabled ? `${meta.color}18` : 'rgba(255,255,255,0.05)',
+                  color:      exp.enabled ? meta.color : '#8b949e',
+                  border:    `1px solid ${exp.enabled ? `${meta.color}44` : 'rgba(255,255,255,0.08)'}`,
+                }}
+              >
+                {toggling === exp.id ? '...' : exp.enabled ? 'ON' : 'OFF'}
+              </button>
+            </div>
+          );
+        })}
+        {experiments.length === 0 && (
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.72rem', color: '#6e7681', textAlign: 'center', padding: '16px 0' }}>
+            No experiments found
+          </p>
+        )}
+      </div>
+
+      {/* Impact log */}
+      {impactLog.length > 0 && (
+        <>
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.58rem', color: '#f85149', letterSpacing: 3, textTransform: 'uppercase', margin: '16px 0 8px' }}>
+            💥 Recent Impact
+          </p>
+          <div style={{ background: 'var(--bg-elevated)', borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)' }}>
+            {impactLog.slice(0, 10).map((entry: any, i: number) => (
+              <div key={entry.id ?? i} style={{
+                display: 'flex', gap: 8, padding: '6px 10px', alignItems: 'center', fontSize: '0.6rem',
+                borderBottom: i < Math.min(impactLog.length, 10) - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+              }}>
+                <span style={{ color: '#8b949e', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+                  {entry.timestamp ? new Date(entry.timestamp).toTimeString().slice(0, 8) : '--:--'}
+                </span>
+                <span style={{ color: '#c9d1d9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                  {entry.endpoint}
+                </span>
+                <span style={{ color: '#f85149', flexShrink: 0 }}>{entry.failure_type}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── DEV TAB: Analysis ───────────────────────────────────────────────────────
+function DevAnalysisTab({ token }: { token: string }) {
+  const [metrics, setMetrics] = useState<FailureSimulatorMetrics | null>(null);
+  const [logs, setLogs]       = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [m, l] = await Promise.all([
+          panelFetch<FailureSimulatorMetrics>(token, '/failure-simulator/metrics'),
+          panelFetch<any[]>(token, '/observation/logs', { limit: '200' }),
+        ]);
+        setMetrics(m);
+        setLogs(Array.isArray(l) ? l : []);
+      } catch { /* ignore */ }
+      finally { setLoading(false); }
+    };
+    void load();
+    const t = setInterval(() => { void load(); }, 5000);
+    return () => clearInterval(t);
+  }, [token]);
+
+  if (loading) return (
+    <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {[1, 2, 3].map(i => <div key={i} className="skeleton" style={{ height: 60, borderRadius: 8 }} />)}
+    </div>
+  );
+
+  // Stats derived from metrics (same source as AnalysisPage)
+  const totalReqs   = metrics?.total_requests  ?? 0;
+  const failedReqs  = metrics?.failed_requests ?? 0;
+  const failureRate = metrics?.failure_rate    ?? 0;
+  const healthyReqs = totalReqs - failedReqs;
+
+  return (
+    <div style={{ padding: '12px' }}>
+      {/* Compact stats from metrics */}
+      <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.58rem', color: '#f0883e', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 10 }}>
+        ⚡ Simulator Metrics
+      </p>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+        {[
+          { label: 'Total',     value: totalReqs.toLocaleString(),         color: '#e6edf3' },
+          { label: 'Failures',  value: failedReqs.toLocaleString(),        color: failedReqs  > 0 ? '#f85149' : '#22c55e' },
+          { label: 'Healthy',   value: healthyReqs.toLocaleString(),       color: '#22c55e' },
+          { label: 'Fail %',    value: `${failureRate.toFixed(1)}%`,       color: failureRate > 10 ? '#f85149' : failureRate > 0 ? '#ffc845' : '#22c55e' },
+          { label: 'Scenarios', value: `${metrics?.active_scenarios ?? 0}/${metrics?.total_scenarios ?? 0}`, color: '#f0883e' },
+        ].map(s => (
+          <div key={s.label} style={{ background: 'var(--bg-elevated)', borderRadius: 8, padding: '8px 12px', border: '1px solid rgba(255,255,255,0.05)', flex: '1 1 80px' }}>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.52rem', color: 'var(--text-muted)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 3 }}>{s.label}</p>
+            <p style={{ fontFamily: 'var(--font-accent)', fontSize: '1.2rem', color: s.color, lineHeight: 1 }}>{s.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Observation logs */}
+      <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.58rem', color: '#58a6ff', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 8 }}>
+        📡 Observation Logs
+      </p>
+      <DevLogTable logs={logs} maxHeight="45vh" />
+    </div>
+  );
+}
+
+// ─── DEV PANEL (tabbed shell) ─────────────────────────────────────────────────
+type DevTab = 'logs' | 'failsim' | 'chaos' | 'analysis';
+
+const DEV_TABS: { id: DevTab; icon: string; label: string; color: string }[] = [
+  { id: 'logs',     icon: '📡', label: 'Logs',     color: '#58a6ff' },
+  { id: 'failsim',  icon: '💥', label: 'Fail Sim', color: '#f85149' },
+  { id: 'chaos',    icon: '⚡', label: 'Chaos',    color: '#f0883e' },
+  { id: 'analysis', icon: '🔬', label: 'Analysis', color: '#a78bfa' },
+];
+
+function DevPanel({ token }: { token: string }) {
+  const [activeTab, setActiveTab] = useState<DevTab>('logs');
+
+  return (
+    <>
+      {/* Sticky tab bar */}
+      <div style={{
+        display: 'flex', gap: 2, padding: '6px 10px', flexShrink: 0,
+        background: '#1c2128', borderBottom: '1px solid #30363d',
+        position: 'sticky', top: 0, zIndex: 2,
+      }}>
+        {DEV_TABS.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            style={{
+              padding: '4px 10px', borderRadius: 6, cursor: 'none', whiteSpace: 'nowrap',
+              background: activeTab === tab.id ? `${tab.color}18` : 'transparent',
+              border:     `1px solid ${activeTab === tab.id ? `${tab.color}55` : 'transparent'}`,
+              color:      activeTab === tab.id ? tab.color : '#8b949e',
+              fontFamily: 'var(--font-body)', fontSize: '0.6rem', letterSpacing: 1,
+              transition: 'all 0.2s',
+            }}
+          >
+            {tab.icon} {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab content */}
+      {activeTab === 'logs'     && <DevLogsTab      token={token} />}
+      {activeTab === 'failsim'  && <DevFailureSimTab token={token} />}
+      {activeTab === 'chaos'    && <DevChaosTab      token={token} />}
+      {activeTab === 'analysis' && <DevAnalysisTab   token={token} />}
+    </>
   );
 }
 
