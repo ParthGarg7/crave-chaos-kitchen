@@ -129,6 +129,13 @@ export default function DeveloperDashboard() {
             onClick={() => navigate('/developer/observation-logs')}
             accentColor="#58a6ff"
           />
+          <DevCard
+            icon="🔬"
+            title="Analysis View"
+            description="Failure Simulator metrics and live Observation Logs side-by-side — correlate injected failures with real traffic in one screen."
+            onClick={() => navigate('/developer/analysis')}
+            accentColor="#a78bfa"
+          />
         </div>
 
         {/* Info banner */}

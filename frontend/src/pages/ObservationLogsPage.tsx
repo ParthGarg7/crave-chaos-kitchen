@@ -106,6 +106,7 @@ export default function ObservationLogsPage() {
   const [logs, setLogs] = useState<ObservationLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [metricsWindow, setMetricsWindow] = useState<'last60s' | 'alltime'>('last60s');
 
   // Filters
   const [search, setSearch] = useState('');
@@ -148,15 +149,18 @@ export default function ObservationLogsPage() {
     return now - new Date(l.timestamp).getTime() < 60_000;
   });
 
-  const totalReqs = last60s.length;
-  const failedCount = last60s.filter(l => l.failure_type && l.failure_type !== 'none').length;
+  // metricsData switches between last-60s slice and the full loaded set
+  const metricsData = metricsWindow === 'last60s' ? last60s : logs;
+
+  const totalReqs = metricsData.length;
+  const failedCount = metricsData.filter(l => l.failure_type && l.failure_type !== 'none').length;
   const failureRate = totalReqs > 0 ? (failedCount / totalReqs) * 100 : 0;
   const avgRespTime = totalReqs > 0
-    ? Math.round(last60s.reduce((s, l) => s + (l.response_time_ms ?? 0), 0) / totalReqs)
+    ? Math.round(metricsData.reduce((s, l) => s + (l.response_time_ms ?? 0), 0) / totalReqs)
     : 0;
-  const healthyReqs = last60s.filter(l => (l.status_code ?? 0) < 400).length;
-  const failedStatusReqs = last60s.filter(l => (l.status_code ?? 0) >= 400).length;
-  const activeServices = new Set(last60s.map(l => l.service_name)).size;
+  const healthyReqs = metricsData.filter(l => (l.status_code ?? 0) < 400).length;
+  const failedStatusReqs = metricsData.filter(l => (l.status_code ?? 0) >= 400).length;
+  const activeServices = new Set(metricsData.map(l => l.service_name)).size;
 
   const failureRateColor = failureRate > 10 ? '#f85149' : failureRate > 0 ? '#ffc845' : '#22c55e';
 
@@ -264,8 +268,40 @@ export default function ObservationLogsPage() {
         </div>
 
         {/* ── SECTION A: Live metrics bar ── */}
+        {/* Metrics window toggle */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+          <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.6rem', color: '#8b949e', letterSpacing: 2, textTransform: 'uppercase' }}>
+            Metrics window:
+          </span>
+          {(['last60s', 'alltime'] as const).map(w => (
+            <button
+              key={w}
+              onClick={() => setMetricsWindow(w)}
+              style={{
+                padding: '4px 14px',
+                borderRadius: 6,
+                background: metricsWindow === w ? 'rgba(88,166,255,0.15)' : 'rgba(255,255,255,0.04)',
+                border: `1px solid ${metricsWindow === w ? 'rgba(88,166,255,0.4)' : 'rgba(255,255,255,0.08)'}`,
+                color: metricsWindow === w ? '#58a6ff' : '#8b949e',
+                fontFamily: 'var(--font-body)',
+                fontSize: '0.65rem',
+                cursor: 'none',
+                letterSpacing: 1,
+                transition: 'all 0.2s',
+              }}
+            >
+              {w === 'last60s' ? '⏱ Last 60s' : '📊 All Time'}
+            </button>
+          ))}
+          {metricsWindow === 'alltime' && (
+            <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.6rem', color: '#6e7681', letterSpacing: 1 }}>
+              ({logs.length} logs loaded)
+            </span>
+          )}
+        </div>
+
         <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
-          <StatCard emoji="📊" label="Total Requests (60s)" value={totalReqs} />
+          <StatCard emoji="📊" label={metricsWindow === 'last60s' ? 'Total Requests (60s)' : 'Total Requests (all)'} value={totalReqs} />
           <StatCard
             emoji="🔥"
             label="Failure Rate %"
