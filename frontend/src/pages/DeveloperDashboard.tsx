@@ -136,6 +136,13 @@ export default function DeveloperDashboard() {
             onClick={() => navigate('/developer/analysis')}
             accentColor="#a78bfa"
           />
+          <DevCard
+            icon="🎛️"
+            title="Injector Control"
+            description="Start and stop traffic generation and failure injection. Control the auto-injector state and manually trigger individual failure scenarios for demo and testing."
+            onClick={() => navigate('/developer/injector-control')}
+            accentColor="#f0883e"
+          />
         </div>
 
         {/* Info banner */}

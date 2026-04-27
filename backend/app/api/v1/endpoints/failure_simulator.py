@@ -156,17 +156,18 @@ async def heal_service(_: User = _developer):
     3. Return what was disabled for Component A audit logging
     
     No connections to Component A are made here.
-    The auto-injector pause is implemented via a Redis flag:
-      key: crave:injector:paused
-      value: "1"
-      expiry: 300 seconds (5 minutes)
-    After 5 minutes the auto-injector can resume if re-triggered.
-    
+    The auto-injector pause is implemented via two permanent Redis keys
+    (no TTL) so it stays paused until the developer explicitly clears it
+    via the Injector Control page:
+      crave:injector:paused = "1"   (heal marker)
+      crave:injector:state  = "paused"
+
     Returns:
       healed: bool
       scenarios_disabled: list of scenario names that were active
       count: number of scenarios disabled
-      injector_paused: bool
+      injector_state: "paused"
+      message: str
       timestamp: ISO8601
     """
     from datetime import datetime, timezone
@@ -183,8 +184,7 @@ async def heal_service(_: User = _developer):
     # Disable all active scenarios
     failure_simulator.reset_all()
     
-    # Pause the auto-injector via Redis flag
-    injector_paused = False
+    # Pause the auto-injector permanently via Redis (no TTL)
     try:
         r = redis_sync.Redis(
             host=settings.REDIS_HOST,
@@ -192,16 +192,17 @@ async def heal_service(_: User = _developer):
             db=0,
             decode_responses=True
         )
-        r.setex("crave:injector:paused", 300, "1")
-        injector_paused = True
+        r.set("crave:injector:paused", "1")
+        r.set("crave:injector:state", "paused")
     except Exception:
-        injector_paused = False
-    
+        pass
+
     return {
         "healed": True,
         "scenarios_disabled": active_scenarios,
         "count": len(active_scenarios),
-        "injector_paused": injector_paused,
+        "injector_state": "paused",
+        "message": "Injector paused permanently until manually resumed via Injector Control page",
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
@@ -293,3 +294,131 @@ async def health_check(_: User = _developer):
         "simulator_enabled": failure_simulator.state.enabled,
         "active_scenarios": sum(1 for s in failure_simulator.state.scenarios.values() if s.enabled)
     }
+
+
+# ── Injector Control endpoints ────────────────────────────────────────────────
+
+@router.get("/injector/state")
+async def get_injector_state(_: User = _developer):
+    """
+    Returns current state of the auto-injector and traffic generator
+    by reading Redis keys directly.
+    """
+    import redis as redis_sync
+    from app.core.config import settings
+    try:
+        r = redis_sync.Redis(
+            host=settings.REDIS_HOST,
+            port=settings.REDIS_PORT,
+            db=0,
+            decode_responses=True
+        )
+        injector_state = r.get("crave:injector:state") or "idle"
+        traffic_enabled = r.get("crave:traffic:enabled")
+        current_scenario = r.get("crave:injector:current")
+        is_paused_by_heal = r.exists("crave:injector:paused") > 0
+        return {
+            "injector_state": injector_state,
+            "traffic_enabled": traffic_enabled != "0",
+            "current_scenario": current_scenario,
+            "is_paused_by_heal": is_paused_by_heal,
+        }
+    except Exception as e:
+        return {
+            "injector_state": "unknown",
+            "traffic_enabled": True,
+            "current_scenario": None,
+            "is_paused_by_heal": False,
+            "error": str(e),
+        }
+
+
+@router.post("/injector/state")
+async def set_injector_state(
+    state: str,
+    _: User = _developer
+):
+    """
+    Set the auto-injector state.
+    state must be one of: idle, active.
+    paused is set only by the heal endpoint and cleared only via clear-pause.
+    """
+    import redis as redis_sync
+    from app.core.config import settings
+    if state not in ("idle", "active"):
+        raise HTTPException(
+            status_code=400,
+            detail="state must be idle or active"
+        )
+    try:
+        r = redis_sync.Redis(
+            host=settings.REDIS_HOST,
+            port=settings.REDIS_PORT,
+            db=0,
+            decode_responses=True
+        )
+        r.set("crave:injector:state", state)
+        if state == "idle":
+            r.delete("crave:injector:current")
+        return {
+            "injector_state": state,
+            "message": f"Injector set to {state}"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/injector/traffic")
+async def set_traffic_state(
+    enabled: bool,
+    _: User = _developer
+):
+    """
+    Enable or disable the traffic generator.
+    When disabled the injector stops making HTTP requests to CRAVE
+    so no new logs are produced.
+    """
+    import redis as redis_sync
+    from app.core.config import settings
+    try:
+        r = redis_sync.Redis(
+            host=settings.REDIS_HOST,
+            port=settings.REDIS_PORT,
+            db=0,
+            decode_responses=True
+        )
+        r.set("crave:traffic:enabled", "1" if enabled else "0")
+        return {
+            "traffic_enabled": enabled,
+            "message": f"Traffic generator {'enabled' if enabled else 'disabled'}"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/injector/clear-pause")
+async def clear_injector_pause(_: User = _developer):
+    """
+    Clear the heal-triggered pause.
+    Deletes the pause marker and sets state back to idle so the developer
+    can manually restart injection when ready.
+    Does NOT automatically restart injection — developer must explicitly
+    set state to active.
+    """
+    import redis as redis_sync
+    from app.core.config import settings
+    try:
+        r = redis_sync.Redis(
+            host=settings.REDIS_HOST,
+            port=settings.REDIS_PORT,
+            db=0,
+            decode_responses=True
+        )
+        r.delete("crave:injector:paused")
+        r.set("crave:injector:state", "idle")
+        return {
+            "message": "Heal pause cleared. Injector set to idle. Click START INJECTION to resume.",
+            "injector_state": "idle"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
