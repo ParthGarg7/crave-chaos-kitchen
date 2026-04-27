@@ -18,6 +18,8 @@ import AdminPanel from './pages/AdminPanel';
 import DeveloperDashboard from './pages/DeveloperDashboard';
 import ChaosEngineer from './pages/ChaosEngineer';
 import DualView from './pages/DualView';
+import ObservationLogsPage from './pages/ObservationLogsPage';
+import AnalysisPage from './pages/AnalysisPage';
 import PaymentModal, { type PaymentConfirmation } from './components/PaymentModal';
 import ContactSupportModal from './components/ContactSupportModal';
 
@@ -589,6 +591,8 @@ function AppContent() {
             <Route path="/developer/chaos-engineer" element={<RequireRole role="developer"><PageWrap key="chaos"><ChaosEngineer /></PageWrap></RequireRole>} />
             <Route path="/developer/dual-view" element={<RequireRole role="developer"><DualView /></RequireRole>} />
             <Route path="/developer/failure-simulator" element={<RequireRole role="developer"><PageWrap key="fsim"><div style={{ paddingTop: '0px' }}><FailureSimulatorPage /></div></PageWrap></RequireRole>} />
+            <Route path="/developer/observation-logs" element={<RequireRole role="developer"><PageWrap key="obs-logs"><ObservationLogsPage /></PageWrap></RequireRole>} />
+            <Route path="/developer/analysis" element={<RequireRole role="developer"><PageWrap key="analysis"><AnalysisPage /></PageWrap></RequireRole>} />
             {/* Role-protected dashboards — auth guards handled inside each dashboard */}
             <Route path="/restaurant-dashboard" element={<PageWrap key="rdash"><RestaurantDashboard /></PageWrap>} />
             <Route path="/setup-restaurant" element={<PageWrap key="setup-rest"><SetupRestaurantPage /></PageWrap>} />
