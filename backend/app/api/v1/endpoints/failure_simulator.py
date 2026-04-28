@@ -422,3 +422,92 @@ async def clear_injector_pause(_: User = _developer):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── RabbitMQ publishing control ───────────────────────────────────────────────
+
+@router.get("/rabbitmq/state")
+async def get_rabbitmq_state(_: User = _developer):
+    """
+    Returns whether CRAVE is currently publishing
+    logs to Niramay's RabbitMQ.
+    """
+    import redis as redis_sync
+    from app.core.config import settings
+    try:
+        r = redis_sync.Redis(
+            host=settings.REDIS_HOST,
+            port=settings.REDIS_PORT,
+            db=0,
+            decode_responses=True,
+        )
+        enabled = r.get("crave:rabbitmq:enabled")
+        host_configured = bool((settings.RABBITMQ_HOST or "").strip())
+        return {
+            "publishing_enabled": enabled == "1",
+            "rabbitmq_host_configured": host_configured,
+            "rabbitmq_host": settings.RABBITMQ_HOST or "",
+            "rabbitmq_queue": settings.RABBITMQ_QUEUE,
+            "ready": host_configured and enabled == "1",
+        }
+    except Exception as e:
+        return {
+            "publishing_enabled": False,
+            "rabbitmq_host_configured": False,
+            "rabbitmq_host": "",
+            "rabbitmq_queue": "",
+            "ready": False,
+            "error": str(e),
+        }
+
+
+@router.post("/rabbitmq/state")
+async def set_rabbitmq_state(
+    enabled: bool,
+    _: User = _developer,
+):
+    """
+    Enable or disable log publishing to Niramay RabbitMQ.
+    When enabled CRAVE starts sending all observation
+    logs to niramay-rabbitmq:5672 queue component-c-logs.
+    When disabled logs are only stored locally in
+    PostgreSQL and Redis as usual.
+    Requires RABBITMQ_HOST to be configured in
+    docker-compose.yml environment.
+    """
+    import redis as redis_sync
+    from app.core.config import settings
+    host = (settings.RABBITMQ_HOST or "").strip()
+    if enabled and not host:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "RABBITMQ_HOST is not configured. "
+                "Set RABBITMQ_HOST: niramay-rabbitmq in "
+                "docker-compose.yml backend environment "
+                "and restart the backend container."
+            ),
+        )
+    try:
+        r = redis_sync.Redis(
+            host=settings.REDIS_HOST,
+            port=settings.REDIS_PORT,
+            db=0,
+            decode_responses=True,
+        )
+        r.set("crave:rabbitmq:enabled", "1" if enabled else "0")
+        return {
+            "publishing_enabled": enabled,
+            "rabbitmq_host": host,
+            "rabbitmq_queue": settings.RABBITMQ_QUEUE,
+            "message": (
+                f"RabbitMQ publishing {'ENABLED' if enabled else 'DISABLED'}. "
+                + (
+                    f"Logs now flowing to {host} queue {settings.RABBITMQ_QUEUE}"
+                    if enabled else
+                    "Logs stored locally only."
+                )
+            ),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

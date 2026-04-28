@@ -400,4 +400,11 @@ export const injectorApi = {
     api.post('/failure-simulator/injector/clear-pause'),
 };
 
+export const rabbitmqApi = {
+  getState: () =>
+    api.get('/failure-simulator/rabbitmq/state'),
+  setState: (enabled: boolean) =>
+    api.post('/failure-simulator/rabbitmq/state', null, { params: { enabled } }),
+};
+
 export default api;
