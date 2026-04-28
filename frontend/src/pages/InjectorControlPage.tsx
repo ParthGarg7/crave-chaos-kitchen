@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { injectorApi, failureSimulatorApi } from '../services/api';
+import { injectorApi, failureSimulatorApi, rabbitmqApi } from '../services/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface InjectorState {
@@ -76,11 +76,21 @@ export default function InjectorControlPage() {
   const navigate = useNavigate();
 
   // ── State ──────────────────────────────────────────────────────────────────
-  const [injState, setInjState]       = useState<InjectorState | null>(null);
-  const [scenarios, setScenarios]     = useState<Record<string, ScenarioEntry>>({});
+  const [injState, setInjState]         = useState<InjectorState | null>(null);
+  const [scenarios, setScenarios]       = useState<Record<string, ScenarioEntry>>({});
   const [stateLoading, setStateLoading] = useState(true);
-  const [busy, setBusy]               = useState<string | null>(null); // tracks which action is in-flight
-  const intervalRef                   = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [busy, setBusy]                 = useState<string | null>(null); // tracks which action is in-flight
+  const intervalRef                     = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const [rabbitState, setRabbitState] = useState<{
+    publishing_enabled: boolean;
+    rabbitmq_host_configured: boolean;
+    rabbitmq_host: string;
+    rabbitmq_queue: string;
+    ready: boolean;
+    error?: string;
+  } | null>(null);
+  const [rabbitLoading, setRabbitLoading] = useState(false);
 
   // ── Fetch injector state (auto-refresh) ───────────────────────────────────
   const fetchState = useCallback(async () => {
@@ -94,11 +104,24 @@ export default function InjectorControlPage() {
     }
   }, []);
 
+  const fetchRabbitState = useCallback(async () => {
+    try {
+      const res = await rabbitmqApi.getState();
+      setRabbitState(res.data);
+    } catch {
+      // silently ignore
+    }
+  }, []);
+
   useEffect(() => {
     void fetchState();
-    intervalRef.current = setInterval(() => { void fetchState(); }, 3000);
+    void fetchRabbitState();
+    intervalRef.current = setInterval(() => {
+      void fetchState();
+      void fetchRabbitState();
+    }, 3000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [fetchState]);
+  }, [fetchState, fetchRabbitState]);
 
   // ── Fetch scenarios (once on mount, and after actions) ───────────────────
   const fetchScenarios = useCallback(async () => {
@@ -176,6 +199,23 @@ export default function InjectorControlPage() {
     toast.success('All scenarios reset');
     await fetchScenarios();
   });
+
+  const handleRabbitToggle = async (enable: boolean) => {
+    setRabbitLoading(true);
+    try {
+      await rabbitmqApi.setState(enable);
+      await fetchRabbitState();
+      toast.success(
+        enable
+          ? 'RabbitMQ publishing enabled — logs now flowing to Niramay'
+          : 'RabbitMQ publishing disabled'
+      );
+    } catch {
+      // handled by interceptor
+    } finally {
+      setRabbitLoading(false);
+    }
+  };
 
   // ── Derived values ─────────────────────────────────────────────────────────
   const isPaused         = injState?.injector_state === 'paused';
@@ -587,7 +627,7 @@ export default function InjectorControlPage() {
         </div>
 
         {/* ── QUICK ACTIONS ── */}
-        <div style={{ ...card, marginBottom: 0 }}>
+        <div style={card}>
           <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.6rem', color: '#8b949e', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 16 }}>
             Quick Actions
           </p>
@@ -624,6 +664,155 @@ export default function InjectorControlPage() {
             >
               💥 Failure Simulator
             </motion.button>
+          </div>
+        </div>
+
+        {/* ── NIRAMAY PIPELINE ── */}
+        <div style={{ ...card, marginBottom: 0, borderColor: 'rgba(88,166,255,0.15)' }}>
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.6rem', color: '#58a6ff', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 6 }}>
+            Niramay Pipeline
+          </p>
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.72rem', color: '#8b949e', lineHeight: 1.7, marginBottom: 18 }}>
+            Control whether CRAVE sends observation logs to Niramay via RabbitMQ. Enable this when both systems are running and you want the full self-healing pipeline to operate.
+          </p>
+
+          {/* Status area */}
+          {rabbitState === null ? (
+            <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+              {[1, 2].map(i => <div key={i} className="skeleton" style={{ height: 28, borderRadius: 20, width: 140 }} />)}
+            </div>
+          ) : !rabbitState.rabbitmq_host_configured ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              style={{
+                marginBottom: 16, padding: '12px 16px',
+                background: 'rgba(255,200,69,0.08)',
+                border: '1px solid rgba(255,200,69,0.3)',
+                borderRadius: 8,
+              }}
+            >
+              <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.7rem', color: '#ffc845', lineHeight: 1.7 }}>
+                ⚠️ <strong>RABBITMQ_HOST not configured.</strong><br />
+                Set <code style={{ background: 'rgba(255,255,255,0.07)', padding: '1px 5px', borderRadius: 3 }}>RABBITMQ_HOST: niramay-rabbitmq</code> in CRAVE <code style={{ background: 'rgba(255,255,255,0.07)', padding: '1px 5px', borderRadius: 3 }}>docker-compose.yml</code> backend environment and rebuild the backend container.
+              </p>
+            </motion.div>
+          ) : (
+            <div style={{ marginBottom: 16 }}>
+              {/* Host + Queue badges */}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  background: 'rgba(34,197,94,0.1)', color: '#22c55e',
+                  border: '1px solid rgba(34,197,94,0.25)',
+                  borderRadius: 20, padding: '3px 12px',
+                  fontFamily: 'var(--font-body)', fontSize: '0.62rem', letterSpacing: 1,
+                }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
+                  Host: {rabbitState.rabbitmq_host}
+                </span>
+                <span style={{
+                  background: 'rgba(88,166,255,0.1)', color: '#58a6ff',
+                  border: '1px solid rgba(88,166,255,0.25)',
+                  borderRadius: 20, padding: '3px 12px',
+                  fontFamily: 'var(--font-body)', fontSize: '0.62rem', letterSpacing: 1,
+                }}>
+                  Queue: {rabbitState.rabbitmq_queue}
+                </span>
+              </div>
+              {/* Publishing status badge */}
+              {rabbitState.publishing_enabled ? (
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  background: 'rgba(34,197,94,0.12)', color: '#22c55e',
+                  border: '1px solid rgba(34,197,94,0.3)',
+                  borderRadius: 20, padding: '4px 14px',
+                  fontFamily: 'var(--font-body)', fontSize: '0.65rem', letterSpacing: 2,
+                }}>
+                  <span style={{
+                    width: 7, height: 7, borderRadius: '50%', background: '#22c55e',
+                    animation: 'injPulse 1.2s ease-in-out infinite', flexShrink: 0,
+                  }} />
+                  PUBLISHING
+                </span>
+              ) : (
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  background: 'rgba(139,148,158,0.1)', color: '#8b949e',
+                  border: '1px solid rgba(139,148,158,0.2)',
+                  borderRadius: 20, padding: '4px 14px',
+                  fontFamily: 'var(--font-body)', fontSize: '0.65rem', letterSpacing: 2,
+                }}>
+                  ■ STOPPED
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Buttons */}
+          <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+            <motion.button
+              whileHover={{ scale: (rabbitState?.publishing_enabled || !rabbitState?.rabbitmq_host_configured || rabbitLoading) ? 1 : 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => void handleRabbitToggle(true)}
+              disabled={rabbitState?.publishing_enabled || !rabbitState?.rabbitmq_host_configured || rabbitLoading}
+              style={{
+                ...btnBase,
+                flex: 1,
+                padding: '11px 20px',
+                background: (rabbitState?.publishing_enabled || !rabbitState?.rabbitmq_host_configured) ? 'rgba(34,197,94,0.05)' : 'rgba(34,197,94,0.15)',
+                color: (rabbitState?.publishing_enabled || !rabbitState?.rabbitmq_host_configured) ? '#484f58' : '#22c55e',
+                border: `1px solid ${(rabbitState?.publishing_enabled || !rabbitState?.rabbitmq_host_configured) ? 'rgba(255,255,255,0.05)' : 'rgba(34,197,94,0.3)'}`,
+                opacity: (rabbitState?.publishing_enabled || !rabbitState?.rabbitmq_host_configured || rabbitLoading) ? 0.5 : 1,
+              }}
+            >
+              {rabbitLoading ? '⏳ Working…' : '▶ Start Publishing'}
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: (!rabbitState?.publishing_enabled || rabbitLoading) ? 1 : 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => void handleRabbitToggle(false)}
+              disabled={!rabbitState?.publishing_enabled || rabbitLoading}
+              style={{
+                ...btnBase,
+                flex: 1,
+                padding: '11px 20px',
+                background: 'transparent',
+                color: (!rabbitState?.publishing_enabled || rabbitLoading) ? '#484f58' : '#f85149',
+                border: `1px solid ${(!rabbitState?.publishing_enabled || rabbitLoading) ? 'rgba(255,255,255,0.05)' : 'rgba(248,81,73,0.35)'}`,
+                opacity: (!rabbitState?.publishing_enabled || rabbitLoading) ? 0.5 : 1,
+              }}
+            >
+              ■ Stop Publishing
+            </motion.button>
+          </div>
+
+          {/* Pipeline info box */}
+          <div style={{
+            padding: '12px 16px',
+            background: rabbitState?.publishing_enabled ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.03)',
+            border: `1px solid ${rabbitState?.publishing_enabled ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.06)'}`,
+            borderRadius: 8,
+          }}>
+            {rabbitState?.publishing_enabled ? (
+              <>
+                <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.6rem', color: '#22c55e', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>
+                  Pipeline status: CONNECTED
+                </p>
+                <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.68rem', color: '#8b949e', lineHeight: 1.8 }}>
+                  CRAVE → RabbitMQ → Niramay detection → Component A → CRAVE heal endpoint
+                </p>
+              </>
+            ) : (
+              <>
+                <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.6rem', color: '#6e7681', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>
+                  Pipeline status: DISCONNECTED
+                </p>
+                <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.68rem', color: '#8b949e', lineHeight: 1.8 }}>
+                  CRAVE logs stored locally only. Enable to start the self-healing pipeline.
+                </p>
+              </>
+            )}
           </div>
         </div>
 

@@ -60,7 +60,7 @@ services:
       ALGORITHM: HS256
       CORS_ORIGINS: '["http://localhost:3001","http://localhost:3001","http://127.0.0.1:3001","http://127.0.0.1:3001"]'
       FAILURE_SIMULATOR_ENABLED: "true"
-      RABBITMQ_HOST: ""
+      RABBITMQ_HOST: "niramay-rabbitmq"
       COMPONENT_A_HEAL_ENDPOINT: ""
     ports:
       - "8001:8000"
