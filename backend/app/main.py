@@ -27,11 +27,11 @@ async def lifespan(app: FastAPI):
     # Startup
     init_db()
     Base.metadata.create_all(bind=get_engine())
-    start_log_shipper_thread()
 
-    # ── Reset all toggles to OFF on every startup ─────────────────────────
-    # Redis volume persists across restarts, so we must explicitly reset
-    # to ensure a clean-slate default for all control toggles.
+    # ── Reset all toggles to OFF and flush stale data on every startup ────
+    # Redis volume and PostgreSQL persist across restarts, so we must
+    # explicitly reset toggles and clear old observation data to ensure
+    # the UI only shows current-session logs.
     try:
         import redis as _redis_sync
         _r = _redis_sync.Redis(
@@ -41,10 +41,34 @@ async def lifespan(app: FastAPI):
             decode_responses=True,
             socket_connect_timeout=3,
         )
+        # 1. Force RabbitMQ publishing OFF before shipper thread starts
         _r.set("crave:rabbitmq:enabled", "0")
-        logger.info("Toggle reset: RabbitMQ publishing → OFF")
+        # 2. Flush stale observation logs from Redis
+        _r.delete("observation:logs")
+        logger.info("Startup reset: RabbitMQ publishing → OFF, observation logs flushed from Redis")
     except Exception:
         pass
+
+    # 3. Flush stale observation logs from PostgreSQL
+    try:
+        from app.db.base import get_session_factory
+        from app.models.api_call_log import ApiCallLog
+        _sf = get_session_factory()
+        _db = _sf()
+        try:
+            deleted = _db.query(ApiCallLog).delete()
+            _db.commit()
+            logger.info("Startup reset: cleared %d stale api_call_logs from PostgreSQL", deleted)
+        except Exception as _exc:
+            _db.rollback()
+            logger.warning("Startup reset: failed to clear api_call_logs: %s", _exc)
+        finally:
+            _db.close()
+    except Exception:
+        pass
+
+    # Start log shipper AFTER toggles are reset (prevents publishing race)
+    start_log_shipper_thread()
 
     logger.info(
         "Application starting",

@@ -268,10 +268,12 @@ def stop_log_shipper_thread() -> None:
 def enqueue_log_event(event: Dict[str, Any]) -> None:
     """
     Non-blocking enqueue.
-    Drops silently if queue is full.
-    The worker decides whether to publish based on
-    the runtime enabled state -- no check needed here.
+    Drops silently if queue is full OR publishing is disabled.
+    The early gate prevents events from accumulating in the
+    in-memory queue when the toggle is OFF.
     """
+    if not _is_publishing_enabled():
+        return
     try:
         _queue.put_nowait(event)
     except queue.Full:
