@@ -61,6 +61,8 @@ services:
       CORS_ORIGINS: '["http://localhost:3001","http://localhost:3001","http://127.0.0.1:3001","http://127.0.0.1:3001"]'
       FAILURE_SIMULATOR_ENABLED: "true"
       RABBITMQ_HOST: "niramay-rabbitmq"
+      RABBITMQ_PORT: "5672"
+      NIRAMAY_PUBLISH_ENABLED: "true"
       COMPONENT_A_HEAL_ENDPOINT: ""
     ports:
       - "8001:8000"
@@ -122,11 +124,11 @@ services:
       CRAVE_DEVELOPER_PASSWORD: "developer123"
       REDIS_HOST: "crave-redis"
       REDIS_PORT: "6379"
-      INJECT_INTERVAL_SECONDS: "120"
-      SCENARIO_DURATION_SECONDS: "60"
+      INJECT_INTERVAL_SECONDS: "45"
+      SCENARIO_DURATION_SECONDS: "40"
       CRAVE_CUSTOMER_EMAIL: "customer@example.com"
       CRAVE_CUSTOMER_PASSWORD: "password123"
-      TRAFFIC_INTERVAL_SECONDS: "2"
+      TRAFFIC_INTERVAL_SECONDS: "1"
     depends_on:
       backend:
         condition: service_healthy

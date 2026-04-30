@@ -64,12 +64,12 @@ def log_request(
     else:
         logger.info(**log_data)
 
-    try:
-        from app.core.log_shipper import enqueue_log_event
-
-        enqueue_log_event({**log_data, "source": "api_request"})
-    except Exception:
-        pass
+    # DO NOT publish to RabbitMQ here.
+    # ObservationMiddleware already handles RabbitMQ publishing with
+    # proper service resolution via service_registry.resolve_service().
+    # Publishing here as well creates duplicate queue entries that
+    # normalize to service:"unknown" because this format lacks a
+    # service field and uses path/duration_ms instead of endpoint/response_time_ms.
 
 
 def log_failure_injection(
