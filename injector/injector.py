@@ -268,6 +268,8 @@ def main():
 
     r = get_redis()
     set_state(r, "idle")
+    r.set("crave:traffic:enabled", "0")
+    log.info("Traffic generator set to OFF (default)")
     get_token()
 
     # Start traffic generator as an independent daemon thread

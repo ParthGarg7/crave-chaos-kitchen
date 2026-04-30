@@ -28,6 +28,24 @@ async def lifespan(app: FastAPI):
     init_db()
     Base.metadata.create_all(bind=get_engine())
     start_log_shipper_thread()
+
+    # ── Reset all toggles to OFF on every startup ─────────────────────────
+    # Redis volume persists across restarts, so we must explicitly reset
+    # to ensure a clean-slate default for all control toggles.
+    try:
+        import redis as _redis_sync
+        _r = _redis_sync.Redis(
+            host=settings.REDIS_HOST,
+            port=settings.REDIS_PORT,
+            db=0,
+            decode_responses=True,
+            socket_connect_timeout=3,
+        )
+        _r.set("crave:rabbitmq:enabled", "0")
+        logger.info("Toggle reset: RabbitMQ publishing → OFF")
+    except Exception:
+        pass
+
     logger.info(
         "Application starting",
         app_name=settings.APP_NAME,
