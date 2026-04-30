@@ -94,8 +94,8 @@ DEFAULT_SCENARIOS = {
     "database_error": FailureScenario(
         enabled=False,
         failure_type=FailureType.SERVER_ERROR,
-        probability=0.2,
-        endpoints=["/api/v1/restaurants/*", "/api/v1/orders/*"],
+        probability=0.7,
+        endpoints=["/api/v1/restaurants", "/api/v1/orders", "/api/v1/auth/me"],
         error_message="Database connection error. Please try again later."
     ),
     "validation_error": FailureScenario(
@@ -122,14 +122,14 @@ DEFAULT_SCENARIOS = {
     "config_error": FailureScenario(
         enabled=False,
         failure_type=FailureType.CONFIGURATION,
-        probability=0.2,
-        endpoints=["/api/v1/admin/*"],
+        probability=0.7,
+        endpoints=["/api/v1/restaurants", "/api/v1/orders", "/api/v1/auth/me"],
         error_message="Service configuration error. Contact support."
     ),
     "service_overload": FailureScenario(
         enabled=False,
         failure_type=FailureType.SERVICE_UNAVAILABLE,
-        probability=0.3,
+        probability=0.8,
         endpoints=["*"],
         error_message="Service temporarily overloaded. Please try again later."
     ),

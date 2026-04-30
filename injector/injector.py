@@ -56,9 +56,9 @@ CUST_EMAIL = os.getenv("CRAVE_CUSTOMER_EMAIL", "customer@example.com")
 CUST_PASSWORD = os.getenv("CRAVE_CUSTOMER_PASSWORD", "password123")
 REDIS_HOST = os.getenv("REDIS_HOST", "crave-redis")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
-INJECT_INTERVAL = int(os.getenv("INJECT_INTERVAL_SECONDS", "120"))
-SCENARIO_DURATION = int(os.getenv("SCENARIO_DURATION_SECONDS", "60"))
-TRAFFIC_INTERVAL = float(os.getenv("TRAFFIC_INTERVAL_SECONDS", "2"))
+INJECT_INTERVAL = int(os.getenv("INJECT_INTERVAL_SECONDS", "45"))
+SCENARIO_DURATION = int(os.getenv("SCENARIO_DURATION_SECONDS", "40"))
+TRAFFIC_INTERVAL = float(os.getenv("TRAFFIC_INTERVAL_SECONDS", "1"))
 
 # Scenarios the injector cycles through.
 # These are the failures that are genuinely healable by
@@ -268,6 +268,8 @@ def main():
 
     r = get_redis()
     set_state(r, "idle")
+    r.set("crave:traffic:enabled", "0")
+    log.info("Traffic generator set to OFF (default)")
     get_token()
 
     # Start traffic generator as an independent daemon thread

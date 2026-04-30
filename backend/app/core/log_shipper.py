@@ -7,7 +7,13 @@ queue component-c-logs on the selfhealing-network.
 Publishing is controlled by two conditions; both must
 be true for any log to be sent:
   1. RABBITMQ_HOST is set and non-empty in config
-  2. Redis key crave:rabbitmq:enabled equals "1"
+  2. EITHER the env var NIRAMAY_PUBLISH_ENABLED=true
+     OR the Redis key crave:rabbitmq:enabled == "1"
+
+The env var override (NIRAMAY_PUBLISH_ENABLED=true) allows
+enabling publishing at container startup without needing
+a manual Redis key set. The Redis key remains supported
+for runtime enable/disable without restart.
 
 When either condition is false no connection is made
 and no logs are sent. This allows the pipeline to be
@@ -24,6 +30,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import queue
 import threading
 import time
@@ -50,15 +57,21 @@ def _get_settings():
 
 def _is_publishing_enabled() -> bool:
     """
-    Check both conditions required for publishing:
-    1. RABBITMQ_HOST is configured
-    2. Redis key crave:rabbitmq:enabled == "1"
-    Returns True only when both are satisfied.
+    Check conditions required for publishing:
+    1. RABBITMQ_HOST is configured (non-empty)
+    2. Redis key crave:rabbitmq:enabled determines the state:
+       - "0" → disabled (always respected, even if env var is true)
+       - "1" → enabled
+       - absent → fall back to NIRAMAY_PUBLISH_ENABLED env var
+
+    The Redis key is the runtime toggle controlled by the UI.
+    The env var is ONLY a fallback default when no Redis key exists.
     """
     settings = _get_settings()
     host = (getattr(settings, "RABBITMQ_HOST", None) or "").strip()
     if not host:
         return False
+
     try:
         import redis as redis_sync
         r = redis_sync.Redis(
@@ -69,9 +82,14 @@ def _is_publishing_enabled() -> bool:
             socket_connect_timeout=2,
         )
         val = r.get("crave:rabbitmq:enabled")
-        return val == "1"
+        if val is not None:
+            # Redis key exists — it is the authoritative source
+            return val == "1"
     except Exception:
-        return False
+        pass
+
+    # No Redis key set yet — fall back to env var default
+    return os.getenv("NIRAMAY_PUBLISH_ENABLED", "").lower() == "true"
 
 
 def _connect() -> bool:
@@ -250,10 +268,12 @@ def stop_log_shipper_thread() -> None:
 def enqueue_log_event(event: Dict[str, Any]) -> None:
     """
     Non-blocking enqueue.
-    Drops silently if queue is full.
-    The worker decides whether to publish based on
-    the runtime enabled state -- no check needed here.
+    Drops silently if queue is full OR publishing is disabled.
+    The early gate prevents events from accumulating in the
+    in-memory queue when the toggle is OFF.
     """
+    if not _is_publishing_enabled():
+        return
     try:
         _queue.put_nowait(event)
     except queue.Full:

@@ -151,9 +151,10 @@ async def heal_service(_: User = _developer):
     This endpoint is the contract between Niramay Component A 
     and CRAVE. When Component A executes a healing action, it 
     calls this endpoint to:
-    1. Disable all currently active failure scenarios
-    2. Signal the auto-injector to pause
-    3. Return what was disabled for Component A audit logging
+    1. Disable all currently active failure simulator scenarios
+    2. Reset all 23 chaos engineer experiments
+    3. Signal the auto-injector to pause
+    4. Return what was disabled for Component A audit logging
     
     No connections to Component A are made here.
     The auto-injector pause is implemented via two permanent Redis keys
@@ -162,9 +163,13 @@ async def heal_service(_: User = _developer):
       crave:injector:paused = "1"   (heal marker)
       crave:injector:state  = "paused"
 
+    RabbitMQ publishing is NOT stopped — logs continue flowing
+    so Niramay can verify the system recovered after restart.
+
     Returns:
       healed: bool
       scenarios_disabled: list of scenario names that were active
+      chaos_experiments_disabled: list of chaos experiment IDs that were active
       count: number of scenarios disabled
       injector_state: "paused"
       message: str
@@ -173,18 +178,27 @@ async def heal_service(_: User = _developer):
     from datetime import datetime, timezone
     import redis as redis_sync
     from app.core.config import settings
+    from app.api.v1.endpoints.chaos_engineer import chaos_state
 
-    # Find all currently active scenarios before disabling
+    # 1. Find all currently active failure simulator scenarios before disabling
     active_scenarios = [
         name for name, scenario 
         in failure_simulator.state.scenarios.items()
         if scenario.enabled
     ]
     
-    # Disable all active scenarios
+    # Disable all active failure simulator scenarios
     failure_simulator.reset_all()
+
+    # 2. Find and reset all active chaos engineer experiments
+    active_chaos = [
+        exp_id for exp_id, enabled
+        in chaos_state.enabled.items()
+        if enabled
+    ]
+    chaos_state.reset_all()
     
-    # Pause the auto-injector permanently via Redis (no TTL)
+    # 3. Pause the auto-injector permanently via Redis (no TTL)
     try:
         r = redis_sync.Redis(
             host=settings.REDIS_HOST,
@@ -200,9 +214,14 @@ async def heal_service(_: User = _developer):
     return {
         "healed": True,
         "scenarios_disabled": active_scenarios,
-        "count": len(active_scenarios),
+        "chaos_experiments_disabled": active_chaos,
+        "count": len(active_scenarios) + len(active_chaos),
         "injector_state": "paused",
-        "message": "Injector paused permanently until manually resumed via Injector Control page",
+        "message": (
+            "All failure scenarios and chaos experiments disabled. "
+            "Injector paused permanently. "
+            "Resume via Injector Control page."
+        ),
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
