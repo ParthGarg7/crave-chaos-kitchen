@@ -41,11 +41,15 @@ async def lifespan(app: FastAPI):
             decode_responses=True,
             socket_connect_timeout=3,
         )
-        # 1. Force RabbitMQ publishing OFF before shipper thread starts
-        _r.set("crave:rabbitmq:enabled", "0")
+        # 1. Preserve RabbitMQ publishing state across restarts.
+        #    Only initialise to OFF when no key exists yet (first-ever startup).
+        #    This prevents the heal-triggered restart from turning off
+        #    publishing that the user explicitly enabled.
+        if _r.get("crave:rabbitmq:enabled") is None:
+            _r.set("crave:rabbitmq:enabled", "0")
         # 2. Flush stale observation logs from Redis
         _r.delete("observation:logs")
-        logger.info("Startup reset: RabbitMQ publishing → OFF, observation logs flushed from Redis")
+        logger.info("Startup reset: RabbitMQ publishing state preserved, observation logs flushed from Redis")
     except Exception:
         pass
 
