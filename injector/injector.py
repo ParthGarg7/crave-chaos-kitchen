@@ -268,6 +268,7 @@ def main():
 
     r = get_redis()
     set_state(r, "idle")
+    r.delete("crave:injector:paused")   # clear any stale heal-pause from last session
     r.set("crave:traffic:enabled", "0")
     log.info("Traffic generator set to OFF (default)")
     get_token()
