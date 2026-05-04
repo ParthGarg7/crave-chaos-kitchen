@@ -1,0 +1,45 @@
+# ServiceAccount for Niramay running in K3s.
+# Grants permissions to manage CRAVE Deployments
+# and exec into pods for cache flushing.
+# Apply before deploying Niramay.
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: niramay
+  namespace: selfhealing
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: niramay-healer
+rules:
+  # Deployment management for healing actions
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch", "patch", "update"]
+  # Pod management for exec and status checks
+  - apiGroups: [""]
+    resources: ["pods", "pods/exec", "pods/log"]
+    verbs: ["get", "list", "watch", "create"]
+  # Service reading for DNS resolution
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list"]
+  # Chaos Mesh custom resources for status checks
+  - apiGroups: ["chaos-mesh.org"]
+    resources: ["*"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: niramay-healer-binding
+subjects:
+  - kind: ServiceAccount
+    name: niramay
+    namespace: selfhealing
+roleRef:
+  kind: ClusterRole
+  name: niramay-healer
+  apiGroup: rbac.authorization.k8s.io

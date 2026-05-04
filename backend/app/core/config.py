@@ -76,7 +76,54 @@ class Settings(BaseSettings):
     # Log shipping — leave empty to disable. When set, JSON log batches are POSTed here.
     LOG_SHIP_ENDPOINT: str = ""
 
-    
+    # ── K3s Cluster Settings ─────────────────────────────
+    # K3S_ENABLED=false: Docker Compose mode (default)
+    # K3S_ENABLED=true:  K3s cluster mode
+    # All tests run with K3S_ENABLED=false
+    K3S_ENABLED: bool = False
+
+    # Kubernetes namespace for all CRAVE and Niramay pods
+    K3S_NAMESPACE: str = "selfhealing"
+
+    # Name of the CRAVE backend Deployment in K3s
+    K3S_CRAVE_DEPLOYMENT_NAME: str = "crave-backend"
+
+    # True = load in-cluster service account
+    # False = load ~/.kube/config from WSL2
+    K3S_IN_CLUSTER: bool = True
+
+    # Maximum replicas scale_up will set
+    K3S_MAX_REPLICAS: int = 5
+
+    # Seconds circuit_breaker holds at minimum replicas
+    K3S_CIRCUIT_BREAKER_DURATION_SECONDS: int = 30
+
+    # Label to find CRAVE Redis pod for flush_cache
+    K3S_CRAVE_REDIS_POD_LABEL: str = "app=crave-redis"
+
+    # CRAVE internal K3s service URL
+    CRAVE_K3S_URL: str = (
+        "http://crave-backend.selfhealing.svc.cluster.local:8000"
+    )
+
+    # Niramay URL for optional recovery signal
+    NIRAMAY_URL: str = ""
+
+    # Healing enabled key in Redis
+    HEALING_ENABLED_KEY: str = "niramay:healing:enabled"
+
+    # Pipeline stage tracking key
+    PIPELINE_STAGE_KEY: str = "pipeline:stage:current"
+
+    # Verification thresholds
+    VERIFICATION_FAILURE_RATE_THRESHOLD: float = 0.10
+    VERIFICATION_CLEAN_WINDOW_SECONDS: int = 30
+    VERIFICATION_TOTAL_WINDOW_SECONDS: int = 60
+
+    # Silence detection
+    SILENCE_THRESHOLD_SECONDS: int = 600
+    SILENCE_CHECK_INTERVAL_SECONDS: int = 60
+
     class Config:
         env_file = ".env"
         case_sensitive = True

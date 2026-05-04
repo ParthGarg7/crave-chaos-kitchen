@@ -1,0 +1,41 @@
+# K3s ConfigMap for CRAVE environment
+# Kept in CRAVE repo — authoritative source for CRAVE K3s config
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: crave-config
+  namespace: selfhealing
+data:
+  RABBITMQ_HOST: "niramay-rabbitmq"
+  RABBITMQ_PORT: "5672"
+  NIRAMAY_PUBLISH_ENABLED: "true"
+  K3S_ENABLED: "true"
+  K3S_NAMESPACE: "selfhealing"
+---
+# CRAVE-specific Chaos Mesh permission
+# Allows CRAVE to READ Chaos Mesh experiment status
+# Used by chaos_detector.py
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: crave-chaos-reader
+  namespace: selfhealing
+rules:
+  - apiGroups: ["chaos-mesh.org"]
+    resources: ["networkchaos", "stresschaos", "podchaos"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: crave-chaos-reader-binding
+  namespace: selfhealing
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: selfhealing
+roleRef:
+  kind: Role
+  name: crave-chaos-reader
+  apiGroup: rbac.authorization.k8s.io

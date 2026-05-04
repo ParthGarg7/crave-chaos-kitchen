@@ -23,6 +23,9 @@ httpx==0.25.2
 aiohttp==3.9.1
 docker==7.1.0
 
+# Kubernetes (K3s healing strategies — only used when K3S_ENABLED=true)
+kubernetes>=28.1.0
+
 # WebSockets (for real-time monitoring)
 websockets==12.0
 

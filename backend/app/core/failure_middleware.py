@@ -16,6 +16,27 @@ from app.core.config import settings
 from app.core.logging import logger
 
 
+# ── Scenario name → Niramay failure_tag mapping ──────────────────────────────
+# These strings are the integration contract with Niramay's causal engine.
+# Niramay maps these exact strings to healing actions. If CRAVE sends a
+# string that isn't in this map, Niramay falls back to anomaly_reason
+# detection which is less precise and may route to the wrong action.
+#
+# IMPORTANT: Do not change these values without coordinating with Niramay.
+# See NIRAMAY_IMPLEMENTATION.md CHANGE 4 for the matching TAG_MAP.
+SCENARIO_TO_TAG = {
+    "database_error":    "database_error",
+    "service_overload":  "service_unavailable",   # NOT "service_overload"
+    "config_error":      "config_error",
+    "rate_limiting":     "rate_limiting",
+    "payment_timeout":   "payment_timeout",
+    "maps_dependency":   "dependency",             # shortened to match Niramay
+    "stripe_dependency": "dependency",             # unified with maps_dependency
+    "auth_expiration":   "auth_expiration",
+    "validation_error":  "none",                   # 400s are not healing-worthy
+}
+
+
 class FailureSimulationMiddleware(BaseHTTPMiddleware):
     """
     Middleware that intercepts HTTP requests and injects failures
@@ -53,8 +74,13 @@ class FailureSimulationMiddleware(BaseHTTPMiddleware):
                     failure_simulator.record_request(failed=False)
                     return await call_next(request)
 
-            # Stamp the specific scenario name for the observation layer
-            request.state.observation_failure_type = scenario.name or scenario.failure_type.value
+            # Map scenario name to Niramay-compatible failure_tag.
+            # Uses SCENARIO_TO_TAG for precise mapping; falls back to
+            # failure_type.value for unknown/new scenarios.
+            scenario_key = scenario.name or scenario.failure_type.value
+            request.state.observation_failure_type = SCENARIO_TO_TAG.get(
+                scenario_key, scenario_key
+            )
             
             logger.info(
                 f"Injecting failure: {scenario.name or scenario.failure_type.value} for {method} {endpoint}"

@@ -1,0 +1,156 @@
+# CRAVE backend as a K3s Deployment.
+# imagePullPolicy: Never because images are imported
+# directly into K3s containerd from local Docker builds.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crave-backend
+  namespace: selfhealing
+  labels:
+    app: crave-backend
+    component: crave
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: crave-backend
+  template:
+    metadata:
+      labels:
+        app: crave-backend
+        component: crave
+    spec:
+      containers:
+        - name: crave-backend
+          image: crave-backend:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DATABASE_URL
+              value: "postgresql://crave:crave@crave-postgres:5432/crave"
+            - name: POSTGRES_SERVER
+              value: "crave-postgres"
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: POSTGRES_USER
+              value: "crave"
+            - name: POSTGRES_PASSWORD
+              value: "crave"
+            - name: POSTGRES_DB
+              value: "crave"
+            - name: REDIS_HOST
+              value: "crave-redis"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: RABBITMQ_HOST
+              value: "niramay-rabbitmq"
+            - name: RABBITMQ_PORT
+              value: "5672"
+            - name: NIRAMAY_PUBLISH_ENABLED
+              value: "true"
+            - name: K3S_ENABLED
+              value: "true"
+            - name: K3S_NAMESPACE
+              value: "selfhealing"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: crave-backend
+  namespace: selfhealing
+spec:
+  selector:
+    app: crave-backend
+  ports:
+    - port: 8000
+      targetPort: 8000
+  type: ClusterIP
+---
+# CRAVE Postgres
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crave-postgres
+  namespace: selfhealing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: crave-postgres
+  template:
+    metadata:
+      labels:
+        app: crave-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15
+          env:
+            - name: POSTGRES_DB
+              value: crave
+            - name: POSTGRES_USER
+              value: crave
+            - name: POSTGRES_PASSWORD
+              value: crave
+          ports:
+            - containerPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: crave-postgres
+  namespace: selfhealing
+spec:
+  selector:
+    app: crave-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+# CRAVE Redis (separate from Niramay Redis)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crave-redis
+  namespace: selfhealing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: crave-redis
+  template:
+    metadata:
+      labels:
+        app: crave-redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            - containerPort: 6379
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: crave-redis
+  namespace: selfhealing
+spec:
+  selector:
+    app: crave-redis
+  ports:
+    - port: 6379
+      targetPort: 6379

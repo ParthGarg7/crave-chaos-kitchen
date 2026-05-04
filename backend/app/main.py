@@ -173,6 +173,88 @@ async def health_check():
     }
 
 
+@app.get("/health/detailed")
+async def detailed_health():
+    """
+    Detailed health reflecting actual component state.
+    Returns 200 only when all components are healthy.
+    Returns 503 when any component is degraded.
+    Used by Niramay verification worker.
+    """
+    from datetime import datetime, timezone
+    import redis as redis_sync
+
+    health = {
+        "status": "healthy",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "components": {},
+    }
+
+    # Check database
+    try:
+        from app.db.base import get_session_factory
+        sf = get_session_factory()
+        db = sf()
+        try:
+            db.execute("SELECT 1")
+            health["components"]["database"] = "healthy"
+        except Exception as e:
+            health["components"]["database"] = f"unhealthy: {type(e).__name__}"
+            health["status"] = "degraded"
+        finally:
+            db.close()
+    except Exception as e:
+        health["components"]["database"] = f"unhealthy: {str(e)[:50]}"
+        health["status"] = "degraded"
+
+    # Check CRAVE Redis
+    try:
+        r = redis_sync.Redis(
+            host=settings.REDIS_HOST,
+            port=settings.REDIS_PORT,
+            db=0,
+            socket_connect_timeout=2,
+        )
+        r.ping()
+        health["components"]["redis"] = "healthy"
+    except Exception as e:
+        health["components"]["redis"] = f"unhealthy: {str(e)[:50]}"
+        health["status"] = "degraded"
+
+    # Check RabbitMQ publisher
+    try:
+        from app.core.log_shipper import _is_publishing_enabled
+        health["components"]["rabbitmq_publisher"] = (
+            "enabled" if _is_publishing_enabled() else "disabled"
+        )
+    except Exception:
+        health["components"]["rabbitmq_publisher"] = "unknown"
+
+    # Check failure injector state
+    try:
+        r = redis_sync.Redis(
+            host=settings.REDIS_HOST,
+            port=settings.REDIS_PORT,
+            db=0,
+            decode_responses=True,
+            socket_connect_timeout=2,
+        )
+        paused = r.get("crave:injector:paused")
+        active_count = sum(
+            1 for s in failure_simulator.state.scenarios.values()
+            if s.enabled
+        )
+        health["components"]["failure_injector"] = {
+            "paused": paused == "1",
+            "active_scenarios": active_count,
+        }
+    except Exception:
+        health["components"]["failure_injector"] = "unknown"
+
+    status_code = 200 if health["status"] == "healthy" else 503
+    return JSONResponse(content=health, status_code=status_code)
+
+
 @app.get("/")
 async def root():
     """Root endpoint with API information"""
