@@ -208,6 +208,9 @@ async def heal_service(_: User = _developer):
         )
         r.set("crave:injector:paused", "1")
         r.set("crave:injector:state", "paused")
+        # Notify the frontend that a heal just happened (10-minute TTL so it
+        # survives a tab switch but auto-clears if never consumed)
+        r.set("crave:heal:notification", "1", ex=600)
     except Exception:
         pass
 
@@ -413,6 +416,29 @@ async def set_traffic_state(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/injector/heal-notification")
+async def get_heal_notification(_: User = _developer):
+    """
+    Check (and consume) a pending heal notification.
+    Returns { pending: true } if the heal endpoint fired since the last
+    time this was called, then immediately deletes the key so the
+    notification is shown only once.
+    """
+    import redis as redis_sync
+    from app.core.config import settings
+    try:
+        r = redis_sync.Redis(
+            host=settings.REDIS_HOST,
+            port=settings.REDIS_PORT,
+            db=0,
+            decode_responses=True
+        )
+        pending = r.getdel("crave:heal:notification") == "1"
+        return {"pending": pending}
+    except Exception:
+        return {"pending": False}
 
 
 @router.post("/injector/clear-pause")

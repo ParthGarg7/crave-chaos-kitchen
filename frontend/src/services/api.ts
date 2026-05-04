@@ -398,6 +398,8 @@ export const injectorApi = {
     api.post('/failure-simulator/injector/traffic', null, { params: { enabled } }),
   clearPause: () =>
     api.post('/failure-simulator/injector/clear-pause'),
+  checkHealNotification: () =>
+    api.get('/failure-simulator/injector/heal-notification'),
 };
 
 export const rabbitmqApi = {

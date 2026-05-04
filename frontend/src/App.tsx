@@ -26,7 +26,7 @@ import ContactSupportModal from './components/ContactSupportModal';
 
 // Auth store & API
 import { useAuthStore } from './stores/authStore';
-import { orderApi, paymentApi, formatApiDetail } from './services/api';
+import { orderApi, paymentApi, formatApiDetail, injectorApi } from './services/api';
 
 // ─── Types ───
 export interface CartItem { id: number; name: string; price: number; emoji: string; qty: number; restaurantId: number }
@@ -529,6 +529,106 @@ function AppContent() {
       }, 100);
     }
   }, [isAuthenticated, location.pathname]);
+
+  // ── Global heal notification watcher ──────────────────────────────────────
+  // Polls every 8 s AND fires immediately when the user switches back to
+  // this browser tab so the toast appears wherever they are in the app.
+  const showHealToast = useCallback(() => {
+    toast.custom((t) => (
+      <motion.div
+        initial={{ opacity: 0, y: -20, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: -20, scale: 0.95 }}
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 14,
+          background: 'linear-gradient(135deg, rgba(13,17,23,0.98) 0%, rgba(22,35,22,0.98) 100%)',
+          border: '1px solid rgba(34,197,94,0.45)',
+          borderRadius: 14,
+          boxShadow: '0 8px 40px rgba(0,0,0,0.7), 0 0 24px rgba(34,197,94,0.15)',
+          padding: '16px 20px',
+          maxWidth: 360,
+          opacity: t.visible ? 1 : 0,
+          cursor: 'pointer',
+        }}
+        onClick={() => toast.dismiss(t.id)}
+      >
+        {/* Pulse icon */}
+        <div style={{
+          flexShrink: 0,
+          width: 40, height: 40,
+          borderRadius: '50%',
+          background: 'rgba(34,197,94,0.15)',
+          border: '1.5px solid rgba(34,197,94,0.4)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '1.2rem',
+          boxShadow: '0 0 16px rgba(34,197,94,0.3)',
+        }}>
+          ✅
+        </div>
+        <div>
+          <p style={{
+            fontFamily: 'var(--font-body)',
+            fontSize: '0.72rem',
+            letterSpacing: 2,
+            textTransform: 'uppercase',
+            color: '#22c55e',
+            marginBottom: 4,
+          }}>
+            System Healed
+          </p>
+          <p style={{
+            fontFamily: 'var(--font-body)',
+            fontSize: '0.78rem',
+            color: '#c9d1d9',
+            lineHeight: 1.55,
+          }}>
+            All failure scenarios cleared. System is operating normally.
+          </p>
+          <p style={{
+            fontFamily: 'var(--font-body)',
+            fontSize: '0.62rem',
+            color: '#484f58',
+            marginTop: 6,
+            letterSpacing: 1,
+          }}>
+            Click to dismiss
+          </p>
+        </div>
+      </motion.div>
+    ), { duration: 8000, position: 'top-right' });
+  }, []);
+
+  useEffect(() => {
+    // Only poll when a developer is logged in (heal endpoint is developer-only)
+    if (!isAuthenticated || user?.role !== 'developer') return;
+
+    const check = async () => {
+      try {
+        const res = await injectorApi.checkHealNotification();
+        const data = res.data as { pending: boolean };
+        if (data.pending) showHealToast();
+      } catch {
+        // silently ignore — backend may not be running
+      }
+    };
+
+    // Check once immediately, then on an interval
+    void check();
+    const timer = setInterval(() => { void check(); }, 8000);
+
+    // Also fire when the user switches back to this browser tab
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void check();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [isAuthenticated, user?.role, showHealToast]);
 
   return (
     <>
