@@ -210,10 +210,8 @@ async def detailed_health():
     # Check CRAVE Redis
     try:
         r = redis_sync.Redis(
-            host=settings.REDIS_HOST,
-            port=settings.REDIS_PORT,
-            db=0,
-            socket_connect_timeout=2,
+            host=settings.REDIS_HOST, port=settings.REDIS_PORT,
+            db=0, socket_connect_timeout=2,
         )
         r.ping()
         health["components"]["redis"] = "healthy"
@@ -229,27 +227,6 @@ async def detailed_health():
         )
     except Exception:
         health["components"]["rabbitmq_publisher"] = "unknown"
-
-    # Check failure injector state
-    try:
-        r = redis_sync.Redis(
-            host=settings.REDIS_HOST,
-            port=settings.REDIS_PORT,
-            db=0,
-            decode_responses=True,
-            socket_connect_timeout=2,
-        )
-        paused = r.get("crave:injector:paused")
-        active_count = sum(
-            1 for s in failure_simulator.state.scenarios.values()
-            if s.enabled
-        )
-        health["components"]["failure_injector"] = {
-            "paused": paused == "1",
-            "active_scenarios": active_count,
-        }
-    except Exception:
-        health["components"]["failure_injector"] = "unknown"
 
     status_code = 200 if health["status"] == "healthy" else 503
     return JSONResponse(content=health, status_code=status_code)
