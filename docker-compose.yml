@@ -64,6 +64,8 @@ services:
       RABBITMQ_PORT: "5672"
       NIRAMAY_PUBLISH_ENABLED: "false"
       COMPONENT_A_HEAL_ENDPOINT: ""
+      NIRAMAY_URL: ""
+      K3S_ENABLED: "false"
     ports:
       - "8001:8000"
     depends_on:

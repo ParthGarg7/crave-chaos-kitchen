@@ -24,6 +24,103 @@ _EXCLUDED_PATHS = {
     "/openapi.json",
 }
 
+# ── Paths to skip from RabbitMQ publishing ───────────────────────────────────
+# These are CRAVE's internal control endpoints. Publishing them to Niramay
+# creates noise in detection engines (they look like normal traffic but
+# have unusual patterns that trigger false positives).
+SKIP_PUBLISH_PATHS = {
+    "/api/v1/failure-simulator/heal",
+    "/api/v1/failure-simulator/injector/state",
+    "/api/v1/failure-simulator/injector/traffic",
+    "/api/v1/failure-simulator/injector/clear-pause",
+    "/api/v1/failure-simulator/scenarios",
+    "/api/v1/failure-simulator/rabbitmq/state",
+    "/api/v1/failure-simulator/reset",
+    "/api/v1/failure-simulator/toggle",
+    "/api/v1/failure-simulator/status",
+    "/api/v1/failure-simulator/metrics",
+    "/api/v1/failure-simulator/presets",
+    "/api/v1/failure-simulator/global-rate",
+    "/api/v1/failure-simulator/payment-config",
+    "/api/v1/failure-simulator/health",
+    "/api/v1/auth/login",
+    "/api/v1/auth/register",
+    "/api/v1/auth/refresh",
+    "/api/v1/chaos",
+    "/api/v1/observation",
+    "/api/v1/developer",
+    "/health",
+    "/health/detailed",
+    "/",
+    "/api/v1/",
+}
+
+
+def _should_publish_to_niramay(path: str) -> bool:
+    """Check if this path should be published to Niramay via RabbitMQ.
+
+    Returns False for internal control endpoints that would create
+    noise in Niramay's detection engines.
+    """
+    if not path:
+        return False
+    for skip in SKIP_PUBLISH_PATHS:
+        if path.startswith(skip):
+            return False
+    return True
+
+
+def _classify_exception(exc: Exception) -> str:
+    """
+    Determine failure_tag from a real exception type.
+
+    Used when Chaos Mesh causes real failures that the failure
+    simulator did not inject. The exception string is inspected
+    for keywords that map to specific failure categories.
+
+    Priority: database errors > timeouts > overload > dependency > default
+    """
+    exc_str = str(exc).lower()
+
+    # Real database errors (from Chaos Mesh network loss to postgres)
+    if any(k in exc_str for k in [
+        "connection refused", "database", "postgres",
+        "sqlalchemy", "asyncpg", "connection reset",
+        "could not connect", "connection pool",
+        "psycopg2", "operationalerror",
+    ]):
+        return "database_error"
+
+    # Real timeout errors (from Chaos Mesh network delay)
+    if any(k in exc_str for k in [
+        "timeout", "timed out", "deadline exceeded",
+        "read timeout", "connect timeout",
+    ]):
+        return "payment_timeout"
+
+    # Real overload errors (from Chaos Mesh CPU stress)
+    if any(k in exc_str for k in [
+        "503", "service unavailable", "overloaded",
+        "too many requests", "capacity",
+    ]):
+        return "service_unavailable"
+
+    # Real dependency errors (from Chaos Mesh DNS failure)
+    if any(k in exc_str for k in [
+        "dns", "name resolution", "nodename",
+        "host not found", "external",
+    ]):
+        return "dependency"
+
+    # Redis errors
+    if any(k in exc_str for k in [
+        "redis", "cache", "connection error",
+    ]):
+        return "database_error"
+
+    # Default for unclassified server errors
+    return "database_error"
+
 
 def _persist_api_log(
     *,
@@ -108,7 +205,22 @@ class ObservationMiddleware(BaseHTTPMiddleware):
             response: Response = await call_next(request)
         except Exception as exc:
             duration_ms = round((time.monotonic() - start_time) * 1000, 1)
+
+            # Determine failure_tag: prefer injector tag, then Chaos Mesh,
+            # then classify the real exception
             failure_tag = getattr(request.state, "observation_failure_type", "none")
+            if failure_tag == "none":
+                # No injector scenario active — check if Chaos Mesh is running
+                try:
+                    from app.core.chaos_detector import get_active_chaos_tag
+                    chaos_tag = get_active_chaos_tag()
+                    if chaos_tag != "none":
+                        failure_tag = chaos_tag
+                except Exception:
+                    pass
+            if failure_tag == "none":
+                # Last resort: classify from exception type
+                failure_tag = _classify_exception(exc)
 
             # Niramay-facing log entry — uses 'service' and 'failure_tag'
             log_entry = {
@@ -123,12 +235,13 @@ class ObservationMiddleware(BaseHTTPMiddleware):
             }
             await observation_store.push_log(log_entry)
 
-            # Enqueue for RabbitMQ shipping (best-effort)
-            try:
-                from app.core.log_shipper import enqueue_log_event
-                enqueue_log_event({**log_entry, "source": "observation"})
-            except Exception:
-                pass
+            # Enqueue for RabbitMQ shipping (best-effort, filtered)
+            if _should_publish_to_niramay(path):
+                try:
+                    from app.core.log_shipper import enqueue_log_event
+                    enqueue_log_event({**log_entry, "source": "observation"})
+                except Exception:
+                    pass
 
             # DB write uses internal column names — do not rename these kwargs
             asyncio.get_event_loop().run_in_executor(
@@ -166,12 +279,13 @@ class ObservationMiddleware(BaseHTTPMiddleware):
         }
         await observation_store.push_log(log_entry)
 
-        # 5. Enqueue for RabbitMQ shipping (best-effort)
-        try:
-            from app.core.log_shipper import enqueue_log_event
-            enqueue_log_event({**log_entry, "source": "observation"})
-        except Exception:
-            pass
+        # 5. Enqueue for RabbitMQ shipping (best-effort, filtered)
+        if _should_publish_to_niramay(path):
+            try:
+                from app.core.log_shipper import enqueue_log_event
+                enqueue_log_event({**log_entry, "source": "observation"})
+            except Exception:
+                pass
 
         # 6. Persist to DB asynchronously
         # service_name and failure_type here are DB column kwargs — keep as-is

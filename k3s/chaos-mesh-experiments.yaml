@@ -1,0 +1,137 @@
+# Chaos Mesh experiment definitions for CRAVE.
+# These inject REAL failures into CRAVE pods.
+# Apply manually during demo to trigger healing.
+#
+# Prerequisites:
+#   Chaos Mesh must be installed in chaos-mesh namespace.
+#   See setup-k3s.md for installation instructions.
+#
+# Usage:
+#   kubectl apply -f k3s/chaos-mesh-experiments.yaml
+
+---
+# Experiment 1: Database Error
+# Injects network failure between crave-backend and crave-postgres
+# Triggers: database_error failure_tag
+# Healing: restart_service (rolling restart)
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: database-error-experiment
+  namespace: selfhealing
+spec:
+  action: loss
+  mode: one
+  selector:
+    namespaces:
+      - selfhealing
+    labelSelectors:
+      app: crave-backend
+  direction: to
+  target:
+    mode: one
+    selector:
+      namespaces:
+        - selfhealing
+      labelSelectors:
+        app: crave-postgres
+  loss:
+    loss: "100"
+    correlation: "100"
+  duration: "3m"
+
+---
+# Experiment 2: Service Overload
+# Injects CPU stress into crave-backend pod
+# Triggers: service_unavailable failure_tag
+# Healing: scale_up (add replica)
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: service-overload-experiment
+  namespace: selfhealing
+spec:
+  mode: one
+  selector:
+    namespaces:
+      - selfhealing
+    labelSelectors:
+      app: crave-backend
+  stressors:
+    cpu:
+      workers: 4
+      load: 90
+  duration: "2m"
+
+---
+# Experiment 3: High Latency
+# Injects network delay on all outbound connections
+# Triggers: high_latency anomaly reason
+# Healing: scale_up
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: high-latency-experiment
+  namespace: selfhealing
+spec:
+  action: delay
+  mode: one
+  selector:
+    namespaces:
+      - selfhealing
+    labelSelectors:
+      app: crave-backend
+  delay:
+    latency: "5000ms"
+    correlation: "100"
+    jitter: "500ms"
+  duration: "3m"
+
+---
+# Experiment 4: Pod Failure (Crash)
+# Kills the crave-backend pod entirely
+# K3s restarts it automatically
+# Triggers: service_silence + server_error
+# Healing: restart_service
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: pod-failure-experiment
+  namespace: selfhealing
+spec:
+  action: pod-kill
+  mode: one
+  selector:
+    namespaces:
+      - selfhealing
+    labelSelectors:
+      app: crave-backend
+  duration: "30s"
+
+---
+# Experiment 5: Memory Pressure
+# Fills memory in crave-backend pod
+# Triggers: high_latency + server_error
+# Healing: restart_service
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: memory-pressure-experiment
+  namespace: selfhealing
+spec:
+  mode: one
+  selector:
+    namespaces:
+      - selfhealing
+    labelSelectors:
+      app: crave-backend
+  stressors:
+    memory:
+      workers: 4
+      size: "512MB"
+  duration: "2m"

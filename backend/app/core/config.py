@@ -76,7 +76,13 @@ class Settings(BaseSettings):
     # Log shipping — leave empty to disable. When set, JSON log batches are POSTed here.
     LOG_SHIP_ENDPOINT: str = ""
 
-    
+    # ── K3s Cluster Settings ─────────────────────────────
+    # K3s mode flag — false keeps all Docker Compose behaviour unchanged
+    K3S_ENABLED: bool = False
+    K3S_NAMESPACE: str = "selfhealing"
+    # Niramay URL for optional recovery signal
+    NIRAMAY_URL: str = ""
+
     class Config:
         env_file = ".env"
         case_sensitive = True
