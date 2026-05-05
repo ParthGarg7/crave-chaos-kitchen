@@ -208,9 +208,12 @@ async def heal_service(_: User = _developer):
         )
         r.set("crave:injector:paused", "1")
         r.set("crave:injector:state", "paused")
-        # Notify the frontend that a heal just happened (10-minute TTL so it
-        # survives a tab switch but auto-clears if never consumed)
-        r.set("crave:heal:notification", "1", ex=600)
+        # Signal frontend that a heal-triggered restart is in progress (5-min safety TTL).
+        # Also used by main.py startup to set the heal notification after restart.
+        r.set("crave:healing:in_progress", "1", ex=300)
+        # NOTE: crave:heal:notification is intentionally NOT set here.
+        # It is set by main.py startup so the "System Healed" toast only fires
+        # AFTER the container restarts and the backend is back up.
     except Exception:
         pass
 
@@ -439,6 +442,29 @@ async def get_heal_notification(_: User = _developer):
         return {"pending": pending}
     except Exception:
         return {"pending": False}
+
+
+@router.get("/injector/healing-status")
+async def get_healing_status():
+    """
+    Public endpoint (no auth) — returns whether a heal-triggered restart is
+    currently in progress.  The frontend polls this to show a 'healing in
+    progress' banner instead of a generic network-error toast while the
+    backend container is restarting.
+    """
+    import redis as redis_sync
+    from app.core.config import settings
+    try:
+        r = redis_sync.Redis(
+            host=settings.REDIS_HOST,
+            port=settings.REDIS_PORT,
+            db=0,
+            decode_responses=True
+        )
+        in_progress = r.exists("crave:healing:in_progress") > 0
+        return {"healing_in_progress": in_progress}
+    except Exception:
+        return {"healing_in_progress": False}
 
 
 @router.post("/injector/clear-pause")

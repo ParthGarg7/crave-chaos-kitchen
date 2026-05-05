@@ -26,7 +26,7 @@ import ContactSupportModal from './components/ContactSupportModal';
 
 // Auth store & API
 import { useAuthStore } from './stores/authStore';
-import { orderApi, paymentApi, formatApiDetail, injectorApi } from './services/api';
+import { orderApi, paymentApi, formatApiDetail, injectorApi, setHealingInProgress } from './services/api';
 
 // ─── Types ───
 export interface CartItem { id: number; name: string; price: number; emoji: string; qty: number; restaurantId: number }
@@ -530,6 +530,29 @@ function AppContent() {
     }
   }, [isAuthenticated, location.pathname]);
 
+  // ── Healing-in-progress watcher ───────────────────────────────────────────
+  // Polls every 3 s. When a heal restart is detected, silently sets the flag
+  // that suppresses generic network-error toasts while the container is down.
+  useEffect(() => {
+    if (!isAuthenticated || user?.role !== 'developer') return;
+
+    const checkHealing = async () => {
+      try {
+        const res = await injectorApi.checkHealingStatus();
+        const data = res.data as { healing_in_progress: boolean };
+        if (data.healing_in_progress) {
+          setHealingInProgress(true);
+        }
+      } catch {
+        // silently ignore — backend is unreachable during restart
+      }
+    };
+
+    void checkHealing();
+    const timer = setInterval(() => { void checkHealing(); }, 3000);
+    return () => clearInterval(timer);
+  }, [isAuthenticated, user?.role]);
+
   // ── Global heal notification watcher ──────────────────────────────────────
   // Polls every 8 s AND fires immediately when the user switches back to
   // this browser tab so the toast appears wherever they are in the app.
@@ -597,7 +620,7 @@ function AppContent() {
           </p>
         </div>
       </motion.div>
-    ), { duration: 8000, position: 'top-right' });
+    ), { duration: 20000, position: 'top-right' });
   }, []);
 
   useEffect(() => {
@@ -608,7 +631,10 @@ function AppContent() {
       try {
         const res = await injectorApi.checkHealNotification();
         const data = res.data as { pending: boolean };
-        if (data.pending) showHealToast();
+        if (data.pending) {
+          setHealingInProgress(false);
+          showHealToast();
+        }
       } catch {
         // silently ignore — backend may not be running
       }

@@ -28,10 +28,9 @@ async def lifespan(app: FastAPI):
     init_db()
     Base.metadata.create_all(bind=get_engine())
 
-    # ── Reset all toggles to OFF and flush stale data on every startup ────
-    # Redis volume and PostgreSQL persist across restarts, so we must
-    # explicitly reset toggles and clear old observation data to ensure
-    # the UI only shows current-session logs.
+    # ── Startup housekeeping ─────────────────────────────────────────────────
+    # Redis and PostgreSQL persist across restarts; flush stale observation
+    # data so the UI only shows current-session logs.
     try:
         import redis as _redis_sync
         _r = _redis_sync.Redis(
@@ -41,12 +40,18 @@ async def lifespan(app: FastAPI):
             decode_responses=True,
             socket_connect_timeout=3,
         )
-        # 1. Always reset RabbitMQ publishing to OFF on startup.
-        #    The developer must explicitly enable it via the Injector Control page.
-        _r.set("crave:rabbitmq:enabled", "0")
-        # 2. Flush stale observation logs from Redis
+        # 1. RabbitMQ publishing toggle — intentionally NOT reset on startup.
+        #    Whatever the developer set before the restart is preserved in Redis.
+        #    First run (no key yet) falls back to NIRAMAY_PUBLISH_ENABLED env var.
+        # 2. If a heal-triggered restart is in progress, fire the "System Healed"
+        #    notification now that the backend is back up.
+        if _r.exists("crave:healing:in_progress"):
+            _r.set("crave:heal:notification", "1", ex=600)
+            _r.delete("crave:healing:in_progress")
+            logger.info("Startup: heal-triggered restart detected — heal notification set")
+        # 3. Flush stale observation logs from Redis
         _r.delete("observation:logs")
-        logger.info("Startup reset: RabbitMQ publishing set to OFF, observation logs flushed from Redis")
+        logger.info("Startup reset: observation logs flushed from Redis")
     except Exception:
         pass
 

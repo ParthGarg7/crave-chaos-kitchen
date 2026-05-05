@@ -20,6 +20,12 @@ export function formatApiDetail(detail: unknown): string {
   }
 }
 
+// Module-level flag — set true by App.tsx while a heal-triggered restart is in
+// progress so the network-error interceptor shows the healing banner instead of
+// a generic "Network error" toast.
+let _healingInProgress = false;
+export function setHealingInProgress(val: boolean) { _healingInProgress = val; }
+
 // Create axios instance
 const api: AxiosInstance = axios.create({
   baseURL: '/api/v1',
@@ -165,7 +171,10 @@ api.interceptors.response.use(
           toast.error(data.message || formatApiDetail(data.detail) || 'An error occurred');
       }
     } else if (!skipToast && error.request && !error.response) {
-      toast.error('Network error. Please check your connection.');
+      if (!_healingInProgress) {
+        toast.error('Network error. Please check your connection.');
+      }
+      // When healing is in progress App.tsx already shows the healing banner.
     }
 
     return Promise.reject(error);
@@ -398,8 +407,11 @@ export const injectorApi = {
     api.post('/failure-simulator/injector/traffic', null, { params: { enabled } }),
   clearPause: () =>
     api.post('/failure-simulator/injector/clear-pause'),
+  // skipToast: true — background polls should never trigger error toasts
   checkHealNotification: () =>
-    api.get('/failure-simulator/injector/heal-notification'),
+    api.get('/failure-simulator/injector/heal-notification', { skipToast: true } as any),
+  checkHealingStatus: () =>
+    api.get('/failure-simulator/injector/healing-status', { skipToast: true } as any),
 };
 
 export const rabbitmqApi = {
