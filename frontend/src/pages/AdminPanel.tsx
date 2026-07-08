@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-import { adminApi, failureSimulatorApi } from '../services/api';
+import { adminApi } from '../services/api';
 import toast from 'react-hot-toast';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -152,103 +152,6 @@ function RegistryRow({ entry, onDeactivate, onActivate }: {
                 </button>
             </td>
         </motion.tr>
-    );
-}
-
-// ── Simulator Panel ────────────────────────────────────────────────────────
-function SimulatorPanel() {
-    const [simEnabled, setSimEnabled] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [metrics, setMetrics] = useState<{ total_requests: number; failed_requests: number; success_rate: number; active_scenarios: number } | null>(null);
-
-    useEffect(() => {
-        (async () => {
-            try {
-                const [statusRes, metricsRes] = await Promise.all([
-                    failureSimulatorApi.getStatus(),
-                    failureSimulatorApi.getMetrics(),
-                ]);
-                setSimEnabled(statusRes.data?.enabled ?? false);
-                setMetrics(metricsRes.data);
-            } catch {
-                // backend not running
-            }
-        })();
-    }, []);
-
-    const toggleSim = async (val: boolean) => {
-        setLoading(true);
-        try {
-            await failureSimulatorApi.toggle(val);
-            setSimEnabled(val);
-            toast.success(`Failure Simulator ${val ? 'enabled' : 'disabled'}`);
-        } catch {
-            // handled
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const resetAll = async () => {
-        try {
-            await failureSimulatorApi.resetAll();
-            toast.success('All scenarios reset');
-        } catch {
-            // handled
-        }
-    };
-
-    return (
-        <div className="glass" style={{ borderRadius: 'var(--radius-md)', padding: 'var(--space-md)', border: '1px solid rgba(167,139,250,0.15)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <div>
-                    <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.65rem', color: '#a78bfa', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 4 }}>Failure Simulator</p>
-                    <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Control API failure injection globally</p>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <button
-                        onClick={() => toggleSim(!simEnabled)}
-                        disabled={loading}
-                        style={{
-                            width: 52, height: 28, borderRadius: 14, cursor: 'none',
-                            background: simEnabled ? '#a78bfa' : 'var(--bg-elevated)',
-                            border: simEnabled ? 'none' : '1px solid rgba(255,255,255,0.1)',
-                            position: 'relative', transition: 'background 0.25s', flexShrink: 0,
-                            boxShadow: simEnabled ? '0 0 12px rgba(167,139,250,0.5)' : 'none',
-                        }}
-                    >
-                        <motion.span
-                            animate={{ x: simEnabled ? 24 : 4 }}
-                            transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                            style={{ position: 'absolute', top: 4, width: 20, height: 20, borderRadius: '50%', background: '#fff', display: 'block' }}
-                        />
-                    </button>
-                    <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.72rem', color: simEnabled ? '#a78bfa' : 'var(--text-muted)' }}>
-                        {simEnabled ? 'Enabled' : 'Disabled'}
-                    </span>
-                </div>
-            </div>
-
-            {metrics && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 12 }}>
-                    {[
-                        { label: 'Total Requests', val: metrics.total_requests },
-                        { label: 'Failed', val: metrics.failed_requests },
-                        { label: 'Success Rate', val: `${(metrics.success_rate * 100).toFixed(1)}%` },
-                        { label: 'Active Scenarios', val: metrics.active_scenarios },
-                    ].map(({ label, val }) => (
-                        <div key={label} style={{ background: 'var(--bg-elevated)', borderRadius: 'var(--radius-sm)', padding: '10px 12px', textAlign: 'center' }}>
-                            <p style={{ fontFamily: 'var(--font-accent)', fontSize: '1.2rem', color: 'var(--accent-cream)' }}>{val}</p>
-                            <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.6rem', color: 'var(--text-muted)', letterSpacing: 1 }}>{label}</p>
-                        </div>
-                    ))}
-                </div>
-            )}
-
-            <button onClick={resetAll} style={{ padding: '8px 20px', background: 'rgba(248,113,113,0.1)', color: '#f87171', border: '1px solid rgba(248,113,113,0.2)', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-body)', fontSize: '0.68rem', letterSpacing: 1, cursor: 'none' }}>
-                Reset All Scenarios
-            </button>
-        </div>
     );
 }
 
