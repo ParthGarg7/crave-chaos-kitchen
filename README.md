@@ -1,482 +1,240 @@
-# CRAVE — Self-Healing Cloud · Component C
+<div align="center">
 
-> A full-featured food delivery web application purpose-built as a **controlled failure environment** for the Self-Healing Cloud platform. CRAVE generates realistic API traffic, injects configurable failures, and ships observation logs to **Niramay** (the self-healing orchestrator) via RabbitMQ.
+# 🍔 CRAVE
 
----
+### Full-Stack Food Delivery Platform with a Built-In Chaos Lab
 
-## System Architecture
+*Order food • Run a restaurant • Deliver as a driver • Inject failures • Watch it heal*
 
-```
-┌─────────────────────────── selfhealing-network ───────────────────────────┐
-│                                                                           │
-│  ┌─────────────┐   ┌──────────────┐   ┌───────────────┐                  │
-│  │crave-frontend│   │ crave-backend │   │crave-injector │                  │
-│  │  :3001→3000  │──▶│  :8001→8000  │◀──│  (no port)    │                  │
-│  └─────────────┘   └──────┬───────┘   └───────┬───────┘                  │
-│                           │                     │                          │
-│              ┌────────────┼─────────────────────┘                          │
-│              ▼            ▼                                                │
-│  ┌─────────────┐   ┌──────────────┐                                       │
-│  │crave-postgres│   │  crave-redis  │                                       │
-│  │  :5433→5432  │   │  :6380→6379  │                                       │
-│  └─────────────┘   └──────────────┘                                       │
-│                                                                           │
-│  ┌─────────────────┐   ┌──────────────────┐                               │
-│  │niramay-rabbitmq  │   │ niramay-backend   │  ← Niramay containers        │
-│  │     :5672        │   │ (Component A)     │                               │
-│  └─────────────────┘   └──────────────────┘                               │
-└───────────────────────────────────────────────────────────────────────────┘
-```
-
-All containers share the **`selfhealing-network`** Docker network, enabling cross-system DNS resolution between CRAVE and Niramay.
-
-### Container Overview
-
-| Container | Technology | Port | Role |
-|---|---|---|---|
-| `crave-frontend` | Vite + React 18 + TypeScript | `3001 → 3000` | SPA with role-based dashboards |
-| `crave-backend` | FastAPI + Uvicorn + SQLAlchemy | `8001 → 8000` | REST API, failure injection, observation |
-| `crave-postgres` | PostgreSQL 15 Alpine | `5433 → 5432` | Persistent data store |
-| `crave-redis` | Redis 7 Alpine | `6380 → 6379` | Observation logs, injector state, RabbitMQ toggle |
-| `crave-injector` | Python (requests + redis) | — | Automated failure injection + traffic generation |
+[![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.104-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![React](https://img.shields.io/badge/React-18.2-61DAFB?logo=react&logoColor=white)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.3-3178C6?logo=typescript&logoColor=white)](https://typescriptlang.org)
+[![Vite](https://img.shields.io/badge/Vite-8.1-646CFF?logo=vite&logoColor=white)](https://vite.dev)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1?logo=postgresql&logoColor=white)](https://postgresql.org)
+[![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)](https://redis.io)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://docker.com)
+[![Release](https://img.shields.io/badge/Release-v2.0.0-22c55e?logo=github&logoColor=white)](https://github.com/Self-healing-cloud-simulater/Crave_Food_Delivery_webapp/releases/tag/v2.0.0)
 
 ---
 
-## Features
+</div>
 
-### Core Food Delivery Platform
-- **Multi-role user system** — Customer, Restaurant Owner, Driver, Developer, Admin
-- **Restaurant management** — Browse, search, CRUD, menu management
-- **Order lifecycle** — Create → Confirm → Prepare → Pickup → Deliver
-- **Payment processing** — Simulated card & UPI gateway with configurable success rates
-- **Delivery tracking** — Driver assignment, location updates, completion flow
+## 🌟 What is CRAVE?
 
-### Failure Injection Engine (Two Layers)
+CRAVE is a **complete food delivery web application** — customers browse restaurants and place orders, restaurant owners accept and prepare them, drivers claim ready orders and deliver them, all tracked live on a real order timeline.
 
-#### Layer 1: Failure Simulator (9 scenarios)
-Probability-based, broad failure injection via middleware:
+It is also a **controlled failure environment**: a built-in failure simulator can inject 9 classes of realistic API failures (rate limits, timeouts, database errors, dependency outages…) on demand, and every request is observed and shipped to [**Niramay**](https://github.com/Self-healing-cloud-simulater/Niramay_AI_Based_healing_webapp) — the self-healing orchestrator — over RabbitMQ. That makes CRAVE both a real product and a test bench for automated incident detection and remediation.
 
-| Scenario | HTTP Status | Description |
-|---|---|---|
-| `rate_limiting` | 429 | Token-bucket rate limit enforcement |
-| `auth_expiration` | 401 | Simulated session/token expiry |
-| `payment_timeout` | 504 | Payment gateway timeout with delay |
-| `database_error` | 500 | Database connection failures |
-| `validation_error` | 400 | Request validation errors |
-| `stripe_dependency` | 502/503/504 | External payment service failure |
-| `maps_dependency` | 502/503/504 | Location service failure |
-| `config_error` | 500 | Missing environment/configuration |
-| `service_overload` | 503 | Service capacity exhaustion |
-
-#### Layer 2: Chaos Engineer (23 experiments, 6 categories)
-Surgical, experiment-level injection for research:
-
-| Category | Count | Behavior |
-|---|---|---|
-| **A — Kill Switches** | 5 | Immediate 503 return, endpoint completely unavailable |
-| **B — Latency** | 4 | Artificial delays (2s–10s) before processing |
-| **C — Error Injection** | 4 | Status code replacement (500, 401, 429, 404) |
-| **D — Data Corruption** | 4 | Response body mutation (empty arrays, zeroed totals, null fields, malformed JSON) |
-| **E — Resource Exhaustion** | 3 | CPU spike, 50MB memory pressure, DB connection hold |
-| **F — Cascading Failures** | 3 | Multi-experiment combinations |
-
-### Observation & Logging Pipeline
-- **Triple-write architecture**: Redis (real-time) + PostgreSQL (persistence) + RabbitMQ (export to Niramay)
-- **Service registry** maps URL prefixes to 11 logical microservice names
-- **Log shipping** to Niramay's RabbitMQ queue `component-c-logs` with runtime enable/disable
-
-### Auto-Injector System
-- **State machine**: `IDLE → ACTIVE → PAUSED` controlled via Redis
-- **Traffic generator**: 8-request cycles hitting realistic API paths every second
-- **Scenario cycling**: Rotates through 3 healable failure scenarios (database_error, service_overload, config_error)
-- **Heal integration**: Niramay's `/heal` endpoint pauses injector permanently until developer clears it
+1. 🛒 **Order** — full customer flow: browse → cart → pay (card/UPI/cash) → live tracking
+2. 🍽️ **Manage** — restaurant dashboard: accept/reject, prepare, mark ready
+3. 🛵 **Deliver** — driver dashboard: claim ready orders, advance delivery, get rated
+4. 💥 **Break** — failure simulator + auto-injector cycle failures through the API
+5. 🔭 **Observe** — every request logged to Redis and streamed to Niramay for healing
 
 ---
 
-## Tech Stack
+## 🏗️ System Architecture
 
-### Backend
-- **Framework**: FastAPI (Python 3.11+)
-- **ORM**: SQLAlchemy 2.x with PostgreSQL
-- **Cache/State**: Redis (async via `redis-py`)
-- **Auth**: JWT (access + refresh tokens via `python-jose`)
-- **Message Queue**: RabbitMQ (`pika`)
-- **Docs**: Auto-generated OpenAPI/Swagger at `/docs`
+```mermaid
+graph TB
+    subgraph USER["👤 Users"]
+        BROWSER["Browser — React SPA<br/>Customer · Restaurant · Driver · Admin · Developer"]
+    end
 
-### Frontend
-- **Framework**: React 18 + TypeScript
-- **Build Tool**: Vite
-- **Styling**: TailwindCSS + Vanilla CSS (dark theme)
-- **State Management**: Zustand (persisted to localStorage)
-- **HTTP Client**: Axios (with interceptors for auto-auth, token refresh, global error handling)
-- **Animations**: Framer Motion
-- **Routing**: React Router v6
+    subgraph CRAVE["CRAVE — Docker (selfhealing-network)"]
+        subgraph BACKEND["FastAPI Backend :8001"]
+            MW["Middleware Chain<br/>Chaos → Failure Injection → Observation"]
+            API["API Routers<br/>auth · restaurants · orders · payments · delivery<br/>failure-simulator · chaos-engineer · admin · developer"]
+            SM["Order + Delivery<br/>State Machines"]
+        end
 
-### Infrastructure
-- **Containerization**: Docker + Docker Compose
-- **Networking**: Shared external Docker network (`selfhealing-network`)
-- **Coordination**: Redis pub/sub keys for inter-container state
+        INJECTOR["Auto-Injector<br/>traffic gen + scenario cycling"]
+        POSTGRES[("PostgreSQL 15<br/>:5433")]
+        REDIS[("Redis 7<br/>:6380")]
+        FRONTEND["React Frontend :3001"]
+    end
+
+    subgraph NIRAMAY["Niramay — Self-Healing Orchestrator"]
+        RABBIT["RabbitMQ<br/>component-c-logs"]
+        HEALER["Detection → RCA → Healing"]
+    end
+
+    BROWSER --> FRONTEND --> MW
+    MW --> API --> SM
+    API --> POSTGRES
+    API --> REDIS
+    INJECTOR -->|"enable/disable scenarios"| API
+    INJECTOR -->|"synthetic traffic"| MW
+    MW -->|"observation logs"| REDIS
+    MW -->|"ship logs"| RABBIT --> HEALER
+    HEALER -.->|"heal / restart / pause injector"| CRAVE
+```
 
 ---
 
-## Quick Start
+## 🔄 Order Lifecycle
 
-### Prerequisites
-- Docker and Docker Compose
-- An external Docker network named `selfhealing-network`
+Every order flows through a **validated state machine** — no skipped states, no going backwards, and each transition is authorized per role:
 
-### Setup & Run
-
-```bash
-# 1. Create the shared network (if not already created by Niramay)
-docker network create selfhealing-network
-
-# 2. Clone and start all services
-git clone <repository-url>
-cd CRAVE
-docker-compose up --build
-
-# 3. Access the application
-#    Frontend:  http://localhost:3001
-#    Backend:   http://localhost:8001
-#    API Docs:  http://localhost:8001/docs
+```mermaid
+stateDiagram-v2
+    [*] --> pending : customer places order
+    pending --> confirmed : 🍽️ restaurant accepts
+    pending --> cancelled : customer / restaurant
+    confirmed --> preparing : 🍽️ start cooking
+    confirmed --> cancelled : restaurant
+    preparing --> ready : 🍽️ packed & waiting
+    preparing --> cancelled : restaurant
+    ready --> picked_up : 🛵 assigned driver only
+    ready --> cancelled : restaurant
+    picked_up --> in_transit : 🛵 en route
+    in_transit --> delivered : 🛵 handed over
+    delivered --> [*]
+    cancelled --> [*]
 ```
 
-### Local Development (without Docker)
-
-#### Backend
-```bash
-cd backend
-python -m venv venv
-venv\Scripts\activate          # Windows
-# source venv/bin/activate     # macOS/Linux
-
-pip install -r requirements.txt
-cp .env.example .env           # Edit with your local DB/Redis settings
-python init_db.py
-uvicorn app.main:app --reload --port 8000
-```
-
-#### Frontend
-```bash
-cd frontend
-npm install
-npm run dev                    # Starts on http://localhost:3000
-```
-
-> **Note**: The Vite dev server proxies `/api/*` to `http://localhost:8000` automatically.
+| Rule | Enforcement |
+|------|-------------|
+| Drivers only see orders marked **Ready** | `/delivery/available` gated on order status |
+| Only the **assigned** driver can advance pickup → delivered | driver ↔ delivery match checked per request |
+| Cancelling an order **voids its delivery** | delivery marked `failed`, disappears from driver queues |
+| Customer cancels while **pending**; restaurant until **pickup** | role-based cancellation matrix |
+| ETA computed at confirmation | prep time + route estimate → `estimated_delivery_time` |
+| Ratings come from **customers**, not drivers | `POST /delivery/{id}/rate` after delivery |
 
 ---
 
-## Demo Credentials
+## 🧑‍🤝‍🧑 Roles & Dashboards
+
+| Role | Landing | What they can do |
+|------|---------|------------------|
+| 🛒 **Customer** | `/browse`, `/orders` | Browse restaurants, order, pay, track live timeline, cancel while pending, rate delivery |
+| 🍽️ **Restaurant Owner** | `/restaurant-dashboard` | Accept/Reject incoming orders, advance Preparing → Ready, manage menu & availability |
+| 🛵 **Driver** | `/driver-dashboard` | Go online, claim ready orders, advance delivery states, share location |
+| ⚙️ **Admin** | `/admin` | User registry, activate/deactivate accounts, assign drivers manually |
+| 🛠️ **Developer** | `/developer` | Failure simulator, chaos engineer, injector control, observation logs, dual-view panels |
+
+### Demo Credentials
 
 | Role | Email | Password |
 |------|-------|----------|
-| Customer | customer@example.com | password123 |
-| Restaurant Owner | restaurant@example.com | password123 |
-| Driver | driver@example.com | password123 |
-| Developer | developer@example.com | developer123 |
-| Admin | admin@example.com | admin123 |
+| Customer | `customer@example.com` | `password123` |
+| Restaurant Owner | `restaurant@example.com` | `password123` |
+| Driver | `driver@example.com` | `password123` |
+| Developer | `developer@example.com` | `developer123` |
 
 ---
 
-## Middleware Pipeline
+## 💥 Failure Simulator
 
-Every API request passes through a 4-layer middleware stack (in order):
+Nine configurable failure scenarios, each with its own probability, target endpoints, and error semantics:
 
-```
-Request → CORS → ObservationMiddleware → ApiTrackerMiddleware → ChaosMiddleware → FailureSimulationMiddleware → Route Handler
-```
+| Scenario | Failure Type | HTTP | Simulates |
+|----------|--------------|:----:|-----------|
+| `rate_limiting` | Rate limit | 429 | Traffic exceeding API quotas |
+| `auth_expiration` | Authentication | 401 | Expired sessions/tokens |
+| `payment_timeout` | Timeout | 408/504 | Slow payment gateway |
+| `database_error` | Server error | 500 | Connection pool exhaustion |
+| `validation_error` | Bad request | 400 | Malformed client data |
+| `stripe_dependency` | Dependency | 502/503 | Payment provider outage |
+| `maps_dependency` | Dependency | 502/503 | Location service outage |
+| `config_error` | Configuration | 500 | Bad config deployment |
+| `service_overload` | Unavailable | 503 | Global overload (all endpoints) |
 
-| # | Middleware | Purpose |
-|---|---|---|
-| 1 | **ObservationMiddleware** | Captures request/response timing, resolves logical service name, persists to Redis + PostgreSQL + RabbitMQ |
-| 2 | **ApiTrackerMiddleware** | Tracks in-flight requests for the developer dashboard |
-| 3 | **ChaosMiddleware** | Executes 23 chaos experiments (kill switches, latency, error injection, data corruption, resource exhaustion) |
-| 4 | **FailureSimulationMiddleware** | Applies 9 probability-based failure scenarios |
-
-### Protected Endpoints
-These prefixes are **immune** to failure injection:
-- `/api/v1/failure-simulator`, `/api/v1/chaos`, `/api/v1/observation`, `/api/v1/developer`
-- `/health`, `/docs`, `/redoc`, `/openapi.json`
+The **auto-injector** container cycles scenarios on a schedule (`IDLE → ACTIVE → PAUSED` state machine) while generating realistic logged-in traffic — and pauses automatically when Niramay heals the system.
 
 ---
 
-## API Reference
+## 🚀 Quick Start
 
-### Authentication
-| Method | Endpoint | Access | Description |
-|--------|----------|--------|-------------|
-| POST | `/api/v1/auth/register` | Public | Register new user |
-| POST | `/api/v1/auth/login` | Public | Login, returns JWT tokens |
-| GET | `/api/v1/auth/me` | Auth | Get current user profile |
-| POST | `/api/v1/auth/refresh` | Auth | Refresh access token |
-| POST | `/api/v1/auth/logout` | Auth | Logout |
+### Prerequisites
 
-### Restaurants
-| Method | Endpoint | Access | Description |
-|--------|----------|--------|-------------|
-| GET | `/api/v1/restaurants` | Public | List all restaurants |
-| GET | `/api/v1/restaurants/{id}` | Public | Get restaurant details |
-| GET | `/api/v1/restaurants/{id}/menu` | Public | Get restaurant menu |
-| POST | `/api/v1/restaurants` | Owner | Create restaurant |
-| GET | `/api/v1/restaurants/my-restaurant` | Owner | Get own restaurant |
+- **Docker** and **Docker Compose**
+- Ports free: `3001` (frontend), `8001` (backend), `5433` (postgres), `6380` (redis)
 
-### Orders
-| Method | Endpoint | Access | Description |
-|--------|----------|--------|-------------|
-| POST | `/api/v1/orders` | Customer | Create new order |
-| GET | `/api/v1/orders/my-orders` | Customer | List customer's orders |
-| GET | `/api/v1/orders/{id}` | Auth | Get order details |
-| PATCH | `/api/v1/orders/{id}/status` | Owner | Update order status |
-| POST | `/api/v1/orders/{id}/cancel` | Customer | Cancel order |
-
-### Payments
-| Method | Endpoint | Access | Description |
-|--------|----------|--------|-------------|
-| POST | `/api/v1/payments/process` | Customer | Process payment (card/UPI) |
-| GET | `/api/v1/payments/methods` | Auth | List payment methods |
-
-### Delivery
-| Method | Endpoint | Access | Description |
-|--------|----------|--------|-------------|
-| GET | `/api/v1/delivery/available` | Driver | List available deliveries |
-| POST | `/api/v1/delivery/{id}/accept` | Driver | Accept delivery |
-| POST | `/api/v1/delivery/{id}/location` | Driver | Update driver location |
-| POST | `/api/v1/delivery/{id}/complete` | Driver | Complete delivery |
-
-### Failure Simulator (Developer only)
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/failure-simulator/status` | Simulator status & metrics |
-| GET | `/api/v1/failure-simulator/scenarios` | List all scenarios |
-| POST | `/api/v1/failure-simulator/scenarios/{name}/enable` | Enable scenario |
-| POST | `/api/v1/failure-simulator/scenarios/{name}/disable` | Disable scenario |
-| POST | `/api/v1/failure-simulator/reset` | Reset all scenarios |
-| POST | `/api/v1/failure-simulator/heal` | **Heal endpoint** (called by Niramay) |
-| POST | `/api/v1/failure-simulator/presets/{name}/apply` | Apply failure preset |
-| POST | `/api/v1/failure-simulator/payment-config` | Configure payment success rates |
-
-### Injector Control (Developer only)
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/failure-simulator/injector/state` | Get injector & traffic state |
-| POST | `/api/v1/failure-simulator/injector/state` | Set injector state (idle/active) |
-| POST | `/api/v1/failure-simulator/injector/traffic` | Enable/disable traffic generator |
-| POST | `/api/v1/failure-simulator/injector/clear-pause` | Clear heal-triggered pause |
-
-### RabbitMQ Publishing Control (Developer only)
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/failure-simulator/rabbitmq/state` | Publishing status |
-| POST | `/api/v1/failure-simulator/rabbitmq/state` | Enable/disable log shipping |
-
-### Chaos Engineer (Developer only)
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/chaos/experiments` | List all 23 experiments |
-| POST | `/api/v1/chaos/experiments/{id}/toggle` | Toggle experiment |
-| POST | `/api/v1/chaos/reset` | Reset all experiments |
-| GET | `/api/v1/chaos/impact-log` | Get chaos impact log |
-
-### Observation (Developer only)
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/observation/logs` | Retrieve observation logs from Redis |
-
----
-
-## Service Registry
-
-CRAVE maps URL prefixes to logical microservice names, enabling per-service healing when integrated with Niramay:
-
-| Path Prefix | Service Name | Domain |
-|---|---|---|
-| `/api/v1/auth` | `crave-auth` | Authentication & sessions |
-| `/api/v1/restaurants` | `crave-restaurant` | Restaurant & menu management |
-| `/api/v1/orders` | `crave-orders` | Order lifecycle |
-| `/api/v1/payments` | `crave-payments` | Payment processing |
-| `/api/v1/delivery` | `crave-delivery` | Delivery tracking |
-| `/api/v1/admin` | `crave-admin` | Admin operations |
-| `/api/v1/contact` | `crave-notification` | Support notifications |
-| `/api/v1/developer` | `crave-developer` | Developer dashboard |
-| `/api/v1/chaos` | `crave-chaos` | Chaos experiments |
-| `/api/v1/failure-simulator` | `crave-simulator` | Failure injection |
-| `/api/v1/observation` | `crave-observation` | Log retrieval |
-| *(fallback)* | `crave-gateway` | Health, root, unknown paths |
-
----
-
-## Database Schema
-
-### Tables
-
-| Table | Description |
-|---|---|
-| `users` | Multi-role users (customer, restaurant_owner, driver, developer, admin) |
-| `restaurants` | Restaurant profiles with cuisine, address, delivery settings |
-| `menu_items` | Menu items with pricing, dietary flags, availability |
-| `orders` | Full order lifecycle with payment and delivery tracking |
-| `order_items` | Line items within orders (snapshot of menu item at order time) |
-| `deliveries` | Delivery assignments with driver, status, location |
-| `driver_locations` | Real-time driver GPS coordinates |
-| `api_call_logs` | Observation data — every API call with service name, failure type, timing |
-
----
-
-## Self-Healing Integration
-
-### Data Flow: CRAVE → Niramay
-
-```
-crave-injector                crave-backend                  Niramay
-      │                            │                            │
-      │── enable scenario ────────▶│                            │
-      │── HTTP traffic ───────────▶│                            │
-      │                            │── observation log ────────▶│ (via RabbitMQ)
-      │                            │                            │
-      │                            │                            │── detect failure
-      │                            │◀── POST /heal ────────────│
-      │                            │── disable all + pause ───▶│
-      │◀── reads "paused" ────────│                            │
-      │   (stops injecting)        │                            │── verify recovery
-```
-
-### Observation Log Schema (Niramay-compatible)
-
-```json
-{
-    "timestamp": "2026-04-30T18:49:37+00:00",
-    "service": "crave-orders",
-    "endpoint": "/api/v1/orders/my-orders",
-    "method": "GET",
-    "status_code": 500,
-    "response_time_ms": 12.3,
-    "failure_tag": "database_error",
-    "request_id": "550e8400-e29b-41d4-a716-446655440000"
-}
-```
-
-### Redis Coordination Keys
-
-| Key | Values | Purpose |
-|---|---|---|
-| `crave:injector:state` | `idle` / `active` / `paused` | Injector state machine |
-| `crave:injector:paused` | `"1"` or absent | Permanent heal marker (no TTL) |
-| `crave:injector:current` | scenario name | Currently active scenario |
-| `crave:traffic:enabled` | `"0"` / `"1"` | Traffic generator toggle |
-| `crave:rabbitmq:enabled` | `"0"` / `"1"` | RabbitMQ publishing toggle |
-| `observation:logs` | Redis list | Capped log store (1000 entries) |
-
----
-
-## Frontend Route Map
-
-| Route | Component | Role Guard | Description |
-|---|---|---|---|
-| `/` | HeroPage | — | Landing page |
-| `/browse` | BrowsePage | — | Restaurant listing |
-| `/menu/:id` | MenuPage | — | Restaurant menu & cart |
-| `/login` | LoginPage | — | Authentication |
-| `/register` | RegisterPage | — | User registration |
-| `/tracking` | TrackingPage | Auth | Order tracking |
-| `/restaurant-dashboard` | RestaurantDashboard | Owner | Kitchen management |
-| `/setup-restaurant` | SetupRestaurantPage | Owner | Restaurant onboarding |
-| `/driver-dashboard` | DriverDashboard | Driver | Delivery management |
-| `/admin` | AdminPanel | Admin | User & restaurant admin |
-| `/developer` | DeveloperDashboard | Developer | Dev tools hub |
-| `/developer/failure-simulator` | FailureSimulatorPage | Developer | Scenario control panel |
-| `/developer/chaos-engineer` | ChaosEngineer | Developer | 23 experiment toggles |
-| `/developer/dual-view` | DualView | Developer | Side-by-side customer + observation |
-| `/developer/observation-logs` | ObservationLogsPage | Developer | Live log stream |
-| `/developer/analysis` | AnalysisPage | Developer | Metrics & analytics |
-| `/developer/injector-control` | InjectorControlPage | Developer | Injector + traffic + RabbitMQ control |
-
----
-
-## Configuration
-
-### Environment Variables (Backend)
-
-```env
-# App
-DEBUG=true
-FAILURE_SIMULATOR_ENABLED=true
-
-# PostgreSQL
-POSTGRES_SERVER=crave-postgres
-POSTGRES_PORT=5432
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=password
-POSTGRES_DB=food_delivery
-
-# Redis
-REDIS_HOST=crave-redis
-REDIS_PORT=6379
-
-# JWT
-SECRET_KEY=your-secret-key
-ACCESS_TOKEN_EXPIRE_MINUTES=60
-REFRESH_TOKEN_EXPIRE_DAYS=7
-ALGORITHM=HS256
-
-# CORS
-CORS_ORIGINS=["http://localhost:3001"]
-
-# RabbitMQ (Niramay integration)
-RABBITMQ_HOST=niramay-rabbitmq
-RABBITMQ_PORT=5672
-NIRAMAY_PUBLISH_ENABLED=true
-```
-
-### Environment Variables (Injector)
-
-```env
-CRAVE_BACKEND_URL=http://crave-backend:8000
-CRAVE_DEVELOPER_EMAIL=developer@example.com
-CRAVE_DEVELOPER_PASSWORD=developer123
-CRAVE_CUSTOMER_EMAIL=customer@example.com
-CRAVE_CUSTOMER_PASSWORD=password123
-REDIS_HOST=crave-redis
-REDIS_PORT=6379
-INJECT_INTERVAL_SECONDS=45
-SCENARIO_DURATION_SECONDS=40
-TRAFFIC_INTERVAL_SECONDS=1
-```
-
----
-
-## Testing
+### 1. Clone & network
 
 ```bash
-# Backend tests
-cd backend
-pytest
-
-# Manual API testing
-# Visit http://localhost:8001/docs for interactive Swagger UI
+git clone https://github.com/Self-healing-cloud-simulater/Crave_Food_Delivery_webapp.git
+cd Crave_Food_Delivery_webapp
+docker network create selfhealing-network   # shared with Niramay
 ```
 
----
+### 2. Launch
 
-## Key Design Decisions
+```bash
+docker compose up --build
+```
 
-| Decision | Rationale |
-|---|---|
-| **Monolith with service registry** | Single FastAPI app simulates microservices via path-prefix mapping. Simplifies deployment while enabling per-service healing actions. |
-| **Two failure layers** | Simulator for broad scenario-based failures; Chaos Engineer for surgical, experiment-level injection. |
-| **Protected control endpoints** | Failure simulator, chaos, and observation endpoints are immune to injection — prevents recursive failure loops. |
-| **Triple-write observation** | Redis for real-time dashboards, PostgreSQL for persistence, RabbitMQ for external export to Niramay. |
-| **Injector starts in IDLE** | Failures never auto-inject on container startup — requires explicit developer action via UI. |
-| **Heal pauses permanently** | After Niramay heals, the injector stays paused (no TTL) until manually cleared — prevents re-injection before verification. |
-| **Redis as coordination bus** | Injector, backend, and frontend share state via Redis keys for real-time synchronization without tight coupling. |
+### 3. Access
 
----
+| Service | URL |
+|---------|-----|
+| 🖥️ **Frontend** | http://localhost:3001 |
+| ⚡ **Backend API** | http://localhost:8001 |
+| 📚 **API Docs (Swagger)** | http://localhost:8001/docs |
 
-## License
-
-This project is licensed under the MIT License.
+> **Standalone mode:** CRAVE runs fully without Niramay — log shipping simply no-ops if RabbitMQ is unreachable. To enable self-healing, start [Niramay](https://github.com/Self-healing-cloud-simulater/Niramay_AI_Based_healing_webapp) on the same Docker network.
 
 ---
 
-**Built for the Self-Healing Cloud Platform** 🔥
+## 🔌 API Overview
+
+| Router | Prefix | Highlights |
+|--------|--------|-----------|
+| Auth | `/api/v1/auth` | JWT register/login/refresh, role-based access |
+| Restaurants | `/api/v1/restaurants` | CRUD, menu management, search |
+| Orders | `/api/v1/orders` | Create, list, **state-machine status updates**, cancel |
+| Payments | `/api/v1/payments` | Card / UPI / cash processing |
+| Delivery | `/api/v1/delivery` | Available (READY-gated), accept, advance, location, **rate** |
+| Failure Simulator | `/api/v1/failure-simulator` | Enable/disable scenarios, global failure rate, metrics |
+| Chaos Engineer | `/api/v1/chaos-engineer` | Targeted chaos experiments |
+| Observation Logs | `/api/v1/observation-logs` | Request observation feed (Redis-backed) |
+| Admin | `/api/v1/admin` | Session registry, user activation, CSV export |
+
+---
+
+## 🗄️ Data Storage
+
+| Storage | Purpose | Lifetime |
+|---------|---------|----------|
+| **PostgreSQL** | Users, restaurants, menus, orders, deliveries, payments, API call logs | Permanent |
+| **Redis** | Observation logs (capped), injector state, traffic toggle, RabbitMQ switch | Ephemeral |
+| **RabbitMQ** *(Niramay)* | `component-c-logs` queue — observation stream to the healing pipeline | Transport |
+
+---
+
+## 🧪 Testing
+
+```bash
+# Backend — 25 tests (state machines, payments, rate limiting, observation)
+cd backend && python -m pytest tests/ -v
+
+# Frontend — type-check + production build
+cd frontend && npm run build
+```
+
+> Backend tests expect the pinned dependency set (`requirements.txt`) — run them inside the Docker container or a virtualenv on Python ≤3.12.
+
+---
+
+## 🛠️ Tech Stack
+
+<table>
+<tr><th>Layer</th><th>Technology</th></tr>
+<tr><td><strong>Frontend</strong></td><td>React 18, TypeScript 5, Vite 8 (rolldown), TailwindCSS, Framer Motion, Zustand, TanStack Query</td></tr>
+<tr><td><strong>Backend</strong></td><td>FastAPI, Python 3.11, SQLAlchemy 2, Pydantic 2, Uvicorn</td></tr>
+<tr><td><strong>Databases</strong></td><td>PostgreSQL 15, Redis 7</td></tr>
+<tr><td><strong>Auth</strong></td><td>JWT (python-jose), bcrypt, role-based guards</td></tr>
+<tr><td><strong>Observability</strong></td><td>Structured request observation → Redis + RabbitMQ (Niramay pipeline)</td></tr>
+<tr><td><strong>DevOps</strong></td><td>Docker Compose (5 containers), shared external network with Niramay</td></tr>
+</table>
+
+---
+
+## 🔗 Related Repositories
+
+| Repository | Description |
+|-----------|-------------|
+| [**Niramay**](https://github.com/Self-healing-cloud-simulater/Niramay_AI_Based_healing_webapp) | AI-based self-healing orchestrator — consumes CRAVE's logs, detects anomalies, executes remediation |
