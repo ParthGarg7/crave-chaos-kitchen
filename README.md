@@ -22,15 +22,15 @@
 
 ## 🌟 What is CRAVE?
 
-CRAVE is a **complete food delivery web application** — customers browse restaurants and place orders, restaurant owners accept and prepare them, drivers claim ready orders and deliver them, all tracked live on a real order timeline.
+CRAVE is a **complete food delivery web application** - customers browse restaurants and place orders, restaurant owners accept and prepare them, drivers claim ready orders and deliver them, all tracked live on a real order timeline.
 
-It is also a **controlled failure environment**: a built-in failure simulator can inject 9 classes of realistic API failures (rate limits, timeouts, database errors, dependency outages…) on demand, and every request is observed and shipped to [**Niramay**](https://github.com/Self-healing-cloud-simulater/Niramay_AI_Based_healing_webapp) — the self-healing orchestrator — over RabbitMQ. That makes CRAVE both a real product and a test bench for automated incident detection and remediation.
+It is also a **controlled failure environment**: a built-in failure simulator can inject 9 classes of realistic API failures (rate limits, timeouts, database errors, dependency outages…) on demand, and every request is observed and shipped to [**Niramay**](https://github.com/Self-healing-cloud-simulater/Niramay_AI_Based_healing_webapp) - the self-healing orchestrator - over RabbitMQ. That makes CRAVE both a real product and a test bench for automated incident detection and remediation.
 
-1. 🛒 **Order** — full customer flow: browse → cart → pay (card/UPI/cash) → live tracking
-2. 🍽️ **Manage** — restaurant dashboard: accept/reject, prepare, mark ready
-3. 🛵 **Deliver** — driver dashboard: claim ready orders, advance delivery, get rated
-4. 💥 **Break** — failure simulator + auto-injector cycle failures through the API
-5. 🔭 **Observe** — every request logged to Redis and streamed to Niramay for healing
+1. 🛒 **Order** - full customer flow: browse → cart → pay (card/UPI/cash) → live tracking
+2. 🍽️ **Manage** - restaurant dashboard: accept/reject, prepare, mark ready
+3. 🛵 **Deliver** - driver dashboard: claim ready orders, advance delivery, get rated
+4. 💥 **Break** - failure simulator + auto-injector cycle failures through the API
+5. 🔭 **Observe** - every request logged to Redis and streamed to Niramay for healing
 
 ---
 
@@ -39,10 +39,10 @@ It is also a **controlled failure environment**: a built-in failure simulator ca
 ```mermaid
 graph TB
     subgraph USER["👤 Users"]
-        BROWSER["Browser — React SPA<br/>Customer · Restaurant · Driver · Admin · Developer"]
+        BROWSER["Browser - React SPA<br/>Customer · Restaurant · Driver · Admin · Developer"]
     end
 
-    subgraph CRAVE["CRAVE — Docker (selfhealing-network)"]
+    subgraph CRAVE["CRAVE - Docker (selfhealing-network)"]
         subgraph BACKEND["FastAPI Backend :8001"]
             MW["Middleware Chain<br/>Chaos → Failure Injection → Observation"]
             API["API Routers<br/>auth · restaurants · orders · payments · delivery<br/>failure-simulator · chaos-engineer · admin · developer"]
@@ -55,7 +55,7 @@ graph TB
         FRONTEND["React Frontend :3001"]
     end
 
-    subgraph NIRAMAY["Niramay — Self-Healing Orchestrator"]
+    subgraph NIRAMAY["Niramay - Self-Healing Orchestrator"]
         RABBIT["RabbitMQ<br/>component-c-logs"]
         HEALER["Detection → RCA → Healing"]
     end
@@ -75,7 +75,7 @@ graph TB
 
 ## 🔄 Order Lifecycle
 
-Every order flows through a **validated state machine** — no skipped states, no going backwards, and each transition is authorized per role:
+Every order flows through a **validated state machine** - no skipped states, no going backwards, and each transition is authorized per role:
 
 ```mermaid
 stateDiagram-v2
@@ -142,7 +142,7 @@ Nine configurable failure scenarios, each with its own probability, target endpo
 | `config_error` | Configuration | 500 | Bad config deployment |
 | `service_overload` | Unavailable | 503 | Global overload (all endpoints) |
 
-The **auto-injector** container cycles scenarios on a schedule (`IDLE → ACTIVE → PAUSED` state machine) while generating realistic logged-in traffic — and pauses automatically when Niramay heals the system.
+The **auto-injector** container cycles scenarios on a schedule (`IDLE → ACTIVE → PAUSED` state machine) while generating realistic logged-in traffic - and pauses automatically when Niramay heals the system.
 
 ---
 
@@ -175,7 +175,7 @@ docker compose up --build
 | ⚡ **Backend API** | http://localhost:8001 |
 | 📚 **API Docs (Swagger)** | http://localhost:8001/docs |
 
-> **Standalone mode:** CRAVE runs fully without Niramay — log shipping simply no-ops if RabbitMQ is unreachable. To enable self-healing, start [Niramay](https://github.com/Self-healing-cloud-simulater/Niramay_AI_Based_healing_webapp) on the same Docker network.
+> **Standalone mode:** CRAVE runs fully without Niramay - log shipping simply no-ops if RabbitMQ is unreachable. To enable self-healing, start [Niramay](https://github.com/Self-healing-cloud-simulater/Niramay_AI_Based_healing_webapp) on the same Docker network.
 
 ---
 
@@ -201,21 +201,21 @@ docker compose up --build
 |---------|---------|----------|
 | **PostgreSQL** | Users, restaurants, menus, orders, deliveries, payments, API call logs | Permanent |
 | **Redis** | Observation logs (capped), injector state, traffic toggle, RabbitMQ switch | Ephemeral |
-| **RabbitMQ** *(Niramay)* | `component-c-logs` queue — observation stream to the healing pipeline | Transport |
+| **RabbitMQ** *(Niramay)* | `component-c-logs` queue - observation stream to the healing pipeline | Transport |
 
 ---
 
 ## 🧪 Testing
 
 ```bash
-# Backend — 25 tests (state machines, payments, rate limiting, observation)
+# Backend - 25 tests (state machines, payments, rate limiting, observation)
 cd backend && python -m pytest tests/ -v
 
-# Frontend — type-check + production build
+# Frontend - type-check + production build
 cd frontend && npm run build
 ```
 
-> Backend tests expect the pinned dependency set (`requirements.txt`) — run them inside the Docker container or a virtualenv on Python ≤3.12.
+> Backend tests expect the pinned dependency set (`requirements.txt`) - run them inside the Docker container or a virtualenv on Python ≤3.12.
 
 ---
 
@@ -233,8 +233,42 @@ cd frontend && npm run build
 
 ---
 
+## 🌳 Project History
+
+The road to v2.0.0, as merged into `main`:
+
+```mermaid
+gitGraph
+    commit id: "initial platform"
+    commit id: "Retro Y2K redesign"
+    branch fix/security-deps
+    commit id: "aiohttp + multipart CVEs"
+    checkout main
+    merge fix/security-deps
+    branch fix/dependabot-alerts
+    commit id: "16 Dependabot alerts fixed"
+    checkout main
+    merge fix/dependabot-alerts id: "PR #10" tag: "0 vulnerabilities"
+    branch fix/ts-build-errors
+    commit id: "dead code removed, tsc green"
+    checkout main
+    merge fix/ts-build-errors id: "PR #12"
+    branch feat/order-lifecycle
+    commit id: "order + delivery state machines"
+    commit id: "real tracking, driver gating"
+    checkout main
+    merge feat/order-lifecycle id: "PR #13"
+    branch fix/vite8-compat
+    commit id: "vite 8 + plugin-react 6"
+    checkout main
+    merge fix/vite8-compat id: "PR #14"
+    commit id: "README v2" tag: "v2.0.0"
+```
+
+---
+
 ## 🔗 Related Repositories
 
 | Repository | Description |
 |-----------|-------------|
-| [**Niramay**](https://github.com/Self-healing-cloud-simulater/Niramay_AI_Based_healing_webapp) | AI-based self-healing orchestrator — consumes CRAVE's logs, detects anomalies, executes remediation |
+| [**Niramay**](https://github.com/Self-healing-cloud-simulater/Niramay_AI_Based_healing_webapp) | AI-based self-healing orchestrator - consumes CRAVE's logs, detects anomalies, executes remediation |
