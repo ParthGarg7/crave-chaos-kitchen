@@ -7,7 +7,8 @@ import toast from 'react-hot-toast';
 import HeroPage from './pages/HeroPage';
 import BrowsePage from './pages/BrowsePage';
 import MenuPage from './pages/MenuPage';
-import TrackingPage from './pages/TrackingPage';
+import OrdersPage from './pages/OrdersPage';
+import OrderDetailPage from './pages/OrderDetailPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import FailureSimulatorPage from './pages/FailureSimulatorPage';
@@ -190,6 +191,8 @@ function Navbar({ cartCount, onCartClick }: { cartCount: number; onCartClick: ()
   const navLinks = [
     { path: '/', label: 'Home' },
     { path: '/browse', label: 'Browse' },
+    ...(isAuthenticated && !['driver', 'restaurant_owner'].includes(user?.role ?? '')
+      ? [{ path: '/orders', label: 'My Orders' }] : []),
     ...(!isAuthenticated ? [{ path: '/login', label: 'Login' }] : []),
     ...(user?.role === 'developer' ? [{ path: '/developer', label: '🛠 Dev' }] : []),
     ...(user?.role === 'admin' ? [{ path: '/admin', label: 'Admin' }] : []),
@@ -385,7 +388,6 @@ function AppContent() {
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
   const [orderState, setOrderState] = useState<'idle' | 'loading' | 'success'>('idle');
-  const [orderId, setOrderId] = useState('');
   const [paymentError, setPaymentError] = useState('');
   const [checkoutDeliveryFee, setCheckoutDeliveryFee] = useState<number | null>(null);
 
@@ -478,9 +480,7 @@ function AppContent() {
         await paymentApi.process(orderRow.id, pay);
       }
 
-      const realOrderId = orderRow.order_number ?? String(orderRow.id);
       setOrderState('success');
-      setOrderId(String(realOrderId));
       toast.success('Order placed successfully! 🎉');
 
       setTimeout(() => {
@@ -489,7 +489,7 @@ function AppContent() {
         setCartOpen(false);
         setPaymentOpen(false);
         setOrderState('idle');
-        navigate('/tracking');
+        navigate(`/orders/${orderRow.id}`);
       }, 1200);
 
     } catch (err: unknown) {
@@ -707,7 +707,10 @@ function AppContent() {
             <Route path="/browse" element={<PageWrap key="browse"><BrowsePage onSelect={(id) => navigate(`/menu/${id}`)} /></PageWrap>} />
             {/* Fixed: now passes the actual :id param from the URL instead of hardcoded 1 */}
             <Route path="/menu/:id" element={<MenuPageWrapper cart={cart} addToCart={addToCart} updateQty={updateQty} onViewCart={() => setCartOpen(true)} onRestaurantLoaded={onMenuRestaurantLoaded} />} />
-            <Route path="/tracking" element={<PageWrap key="track"><TrackingPage orderId={orderId} navigate={legacyNavigate} /></PageWrap>} />
+            <Route path="/orders" element={<PageWrap key="orders"><OrdersPage /></PageWrap>} />
+            <Route path="/orders/:id" element={<PageWrap key="order-detail"><OrderDetailPage /></PageWrap>} />
+            {/* Legacy tracking route — the old page was a fake animation; real tracking lives at /orders/:id */}
+            <Route path="/tracking" element={<Navigate to="/orders" replace />} />
             <Route path="/login" element={<PageWrap key="login"><LoginPage /></PageWrap>} />
             <Route path="/register" element={<PageWrap key="register"><RegisterPage /></PageWrap>} />
             {/* Developer-only simulator route (legacy path preserved) */}

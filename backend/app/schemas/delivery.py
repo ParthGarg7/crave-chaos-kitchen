@@ -116,5 +116,9 @@ class DeliveryListResponse(BaseModel):
 
 class DeliveryComplete(BaseModel):
     delivery_notes: Optional[str] = None
-    customer_rating: Optional[int] = Field(None, ge=1, le=5)
-    customer_feedback: Optional[str] = None
+
+
+class DeliveryRate(BaseModel):
+    """Customer rating for a completed delivery"""
+    rating: int = Field(..., ge=1, le=5)
+    feedback: Optional[str] = None

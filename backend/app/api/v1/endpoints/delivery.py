@@ -13,11 +13,26 @@ from app.models.order import Order, OrderStatus, PaymentStatus
 from app.models.user import User, UserRole
 from app.schemas.delivery import (
     DeliveryResponse, DeliveryListResponse, DeliveryAssign,
-    DeliveryStatusUpdate, DriverLocationUpdate, DeliveryComplete
+    DeliveryStatusUpdate, DriverLocationUpdate, DeliveryComplete,
+    DeliveryRate,
 )
 from app.api.v1.endpoints.auth import get_current_user, require_role
 
 router = APIRouter(prefix="/delivery", tags=["Delivery"])
+
+
+# Valid forward transitions for a delivery once a driver has accepted it.
+# AT_RESTAURANT may be skipped (driver taps "Picked Up" directly).
+DELIVERY_TRANSITIONS = {
+    DeliveryStatus.ACCEPTED: {DeliveryStatus.AT_RESTAURANT, DeliveryStatus.PICKED_UP},
+    DeliveryStatus.AT_RESTAURANT: {DeliveryStatus.PICKED_UP},
+    DeliveryStatus.PICKED_UP: {DeliveryStatus.IN_TRANSIT},
+    DeliveryStatus.IN_TRANSIT: {DeliveryStatus.NEARBY, DeliveryStatus.ARRIVED, DeliveryStatus.DELIVERED},
+    DeliveryStatus.NEARBY: {DeliveryStatus.ARRIVED, DeliveryStatus.DELIVERED},
+    DeliveryStatus.ARRIVED: {DeliveryStatus.DELIVERED},
+    DeliveryStatus.DELIVERED: set(),
+    DeliveryStatus.FAILED: set(),
+}
 
 
 @router.get("/available", response_model=List[DeliveryListResponse])
@@ -32,13 +47,16 @@ async def get_available_deliveries(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="This action requires driver or developer role"
         )
-    deliveries = db.query(Delivery).options(
+    # Only orders the restaurant has marked READY are claimable by drivers —
+    # never pending/unconfirmed orders, and never cancelled ones.
+    deliveries = db.query(Delivery).join(Delivery.order).options(
         joinedload(Delivery.order).joinedload(Order.restaurant),
         joinedload(Delivery.order).joinedload(Order.customer),
         joinedload(Delivery.order).joinedload(Order.items),
     ).filter(
         Delivery.status == DeliveryStatus.ASSIGNED,
-        Delivery.driver_id == None
+        Delivery.driver_id == None,
+        Order.status == OrderStatus.READY,
     ).all()
 
     return deliveries
@@ -99,6 +117,26 @@ async def accept_delivery(
     db: Session = Depends(get_db)
 ):
     """Accept a delivery assignment"""
+    existing_delivery = db.query(Delivery).filter(Delivery.id == delivery_id).first()
+    if not existing_delivery:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Delivery not found"
+        )
+
+    # Only READY orders are claimable — mirrors the /available listing
+    order_status = existing_delivery.order.status
+    if order_status == OrderStatus.CANCELLED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This order has been cancelled"
+        )
+    if order_status != OrderStatus.READY:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Order is not ready for pickup yet"
+        )
+
     updated_rows = db.execute(
         update(Delivery)
         .where(Delivery.id == delivery_id, Delivery.driver_id.is_(None))
@@ -110,12 +148,6 @@ async def accept_delivery(
     ).rowcount
 
     if updated_rows == 0:
-        existing_delivery = db.query(Delivery).filter(Delivery.id == delivery_id).first()
-        if not existing_delivery:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Delivery not found"
-            )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Delivery already assigned to another driver"
@@ -221,27 +253,49 @@ async def update_delivery_status(
             detail="Not assigned to this delivery"
         )
     
+    # A cancelled order can never progress — fail the delivery instead of
+    # letting the driver resurrect it.
+    if delivery.order.status == OrderStatus.CANCELLED:
+        if delivery.status not in (DeliveryStatus.DELIVERED, DeliveryStatus.FAILED):
+            delivery.status = DeliveryStatus.FAILED
+            db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Order was cancelled — delivery voided"
+        )
+
     new_status = status_update.status
+
+    # Validate the transition against the delivery state machine
+    if new_status not in DELIVERY_TRANSITIONS.get(delivery.status, set()):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid delivery transition: {delivery.status.value} → {new_status.value}"
+        )
+
     delivery.status = new_status
-    
+
     # Update timestamps
+    now = datetime.now(timezone.utc)
     if new_status == DeliveryStatus.PICKED_UP:
-        delivery.picked_up_at = datetime.now(timezone.utc)
+        delivery.picked_up_at = now
         # Also update order status
         delivery.order.status = OrderStatus.PICKED_UP
+        delivery.order.picked_up_at = now
     elif new_status == DeliveryStatus.IN_TRANSIT:
         delivery.order.status = OrderStatus.IN_TRANSIT
     elif new_status == DeliveryStatus.DELIVERED:
-        delivery.delivered_at = datetime.now(timezone.utc)
+        delivery.delivered_at = now
         delivery.order.status = OrderStatus.DELIVERED
-        delivery.order.delivered_at = datetime.now(timezone.utc)
+        delivery.order.delivered_at = now
+        delivery.order.actual_delivery_time = now
         # Align with complete_delivery: mark paid when delivery completes (COD / pending).
         if delivery.order.payment_status == PaymentStatus.PENDING:
             delivery.order.payment_status = PaymentStatus.COMPLETED
-    
+
     db.commit()
     db.refresh(delivery)
-    
+
     return delivery
 
 
@@ -267,20 +321,70 @@ async def complete_delivery(
             detail="Not assigned to this delivery"
         )
     
+    if delivery.order.status == OrderStatus.CANCELLED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Order was cancelled — delivery cannot be completed"
+        )
+    if delivery.status == DeliveryStatus.DELIVERED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Delivery already completed"
+        )
+
+    now = datetime.now(timezone.utc)
     delivery.status = DeliveryStatus.DELIVERED
-    delivery.delivered_at = datetime.now(timezone.utc)
+    delivery.delivered_at = now
+    # Ratings/feedback belong to the customer (POST /{id}/rate), not the driver
     delivery.delivery_notes = complete_data.delivery_notes
-    delivery.customer_rating = complete_data.customer_rating
-    delivery.customer_feedback = complete_data.customer_feedback
 
     # Update order
     delivery.order.status = OrderStatus.DELIVERED
-    delivery.order.delivered_at = datetime.now(timezone.utc)
-    delivery.order.payment_status = PaymentStatus.COMPLETED
-    
+    delivery.order.delivered_at = now
+    delivery.order.actual_delivery_time = now
+    if delivery.order.payment_status in (PaymentStatus.PENDING, PaymentStatus.PROCESSING):
+        delivery.order.payment_status = PaymentStatus.COMPLETED
+
     db.commit()
     db.refresh(delivery)
-    
+
+    return delivery
+
+
+@router.post("/{delivery_id}/rate", response_model=DeliveryResponse)
+async def rate_delivery(
+    delivery_id: int,
+    rating_data: DeliveryRate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Rate a completed delivery (customer of the order only)"""
+    delivery = db.query(Delivery).filter(Delivery.id == delivery_id).first()
+
+    if not delivery:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Delivery not found"
+        )
+
+    if delivery.order.customer_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the customer who placed the order can rate this delivery"
+        )
+
+    if delivery.status != DeliveryStatus.DELIVERED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Can only rate a completed delivery"
+        )
+
+    delivery.customer_rating = rating_data.rating
+    delivery.customer_feedback = rating_data.feedback
+
+    db.commit()
+    db.refresh(delivery)
+
     return delivery
 
 

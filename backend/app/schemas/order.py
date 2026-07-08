@@ -5,6 +5,26 @@ from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
 from app.models.order import OrderStatus, PaymentStatus, PaymentMethod
+from app.models.delivery import DeliveryStatus
+
+
+class _DriverInfo(BaseModel):
+    """Driver contact shown to the customer once a delivery is accepted"""
+    first_name: Optional[str] = None
+    phone: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class _DeliverySummary(BaseModel):
+    id: int
+    status: DeliveryStatus
+    driver: Optional[_DriverInfo] = None
+    estimated_duration_min: Optional[int] = None
+
+    class Config:
+        from_attributes = True
 
 
 # Order Item Schemas
@@ -90,7 +110,16 @@ class OrderResponse(BaseModel):
     created_at: datetime
     updated_at: Optional[datetime] = None
     estimated_delivery_time: Optional[datetime] = None
-    
+
+    # Lifecycle timestamps for the order timeline
+    confirmed_at: Optional[datetime] = None
+    prepared_at: Optional[datetime] = None
+    picked_up_at: Optional[datetime] = None
+    delivered_at: Optional[datetime] = None
+
+    # Delivery/driver info (populated once a driver accepts)
+    delivery: Optional[_DeliverySummary] = None
+
     class Config:
         from_attributes = True
 
