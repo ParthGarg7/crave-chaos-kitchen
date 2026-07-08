@@ -2,7 +2,7 @@
 Order API Endpoints
 """
 from typing import List
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
@@ -29,6 +29,36 @@ def generate_order_number() -> str:
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d")
     random_suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
     return f"ORD-{timestamp}-{random_suffix}"
+
+
+# Valid forward transitions of the order lifecycle. Cancellation rules are
+# role-dependent and handled separately in update_order_status/cancel_order.
+ORDER_TRANSITIONS = {
+    OrderStatus.PENDING:    {OrderStatus.CONFIRMED, OrderStatus.CANCELLED},
+    OrderStatus.CONFIRMED:  {OrderStatus.PREPARING, OrderStatus.CANCELLED},
+    OrderStatus.PREPARING:  {OrderStatus.READY, OrderStatus.CANCELLED},
+    OrderStatus.READY:      {OrderStatus.PICKED_UP, OrderStatus.CANCELLED},
+    OrderStatus.PICKED_UP:  {OrderStatus.IN_TRANSIT},
+    OrderStatus.IN_TRANSIT: {OrderStatus.DELIVERED},
+    OrderStatus.DELIVERED:  set(),
+    OrderStatus.CANCELLED:  set(),
+    OrderStatus.REFUNDED:   set(),
+}
+
+# Statuses from which each role may cancel an order
+CANCELLABLE_BY_CUSTOMER = {OrderStatus.PENDING}
+CANCELLABLE_BY_OWNER = {
+    OrderStatus.PENDING, OrderStatus.CONFIRMED,
+    OrderStatus.PREPARING, OrderStatus.READY,
+}
+
+
+def _void_delivery_for_cancelled_order(order: Order) -> None:
+    """When an order is cancelled, fail its delivery so drivers stop seeing it."""
+    if order.delivery and order.delivery.status not in (
+        DeliveryStatus.DELIVERED, DeliveryStatus.FAILED
+    ):
+        order.delivery.status = DeliveryStatus.FAILED
 
 
 @router.get("/my-orders", response_model=List[OrderListResponse])
@@ -253,36 +283,52 @@ async def update_order_status(
             detail="Order not found"
         )
 
-    # Check authorization based on status change
     new_status = status_update.status
 
-    # Restaurant owner can: CONFIRMED, PREPARING, READY, CANCELLED
+    # Validate the transition against the lifecycle state machine
+    if new_status not in ORDER_TRANSITIONS.get(order.status, set()):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid status transition: {order.status.value} → {new_status.value}"
+        )
+
+    is_admin = current_user.role == UserRole.ADMIN
+    is_owner = order.restaurant.owner_id == current_user.id
+
+    # Restaurant owner can: CONFIRMED, PREPARING, READY
     if new_status in [OrderStatus.CONFIRMED, OrderStatus.PREPARING, OrderStatus.READY]:
-        if order.restaurant.owner_id != current_user.id and current_user.role != UserRole.ADMIN:
+        if not is_owner and not is_admin:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Only restaurant owner can update to this status"
             )
 
-    # Driver can: PICKED_UP, IN_TRANSIT, DELIVERED
+    # Only the driver assigned to this order's delivery can: PICKED_UP, IN_TRANSIT, DELIVERED
     elif new_status in [OrderStatus.PICKED_UP, OrderStatus.IN_TRANSIT, OrderStatus.DELIVERED]:
-        if current_user.role not in [UserRole.DRIVER, UserRole.ADMIN]:
+        is_assigned_driver = (
+            current_user.role == UserRole.DRIVER
+            and order.delivery is not None
+            and order.delivery.driver_id == current_user.id
+        )
+        if not is_assigned_driver and not is_admin:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Only drivers can update to this status"
+                detail="Only the driver assigned to this order can update to this status"
             )
 
-    # Customer can: CANCELLED (only if PENDING)
+    # Cancellation: customer while pending; owner until pickup; admin per state machine
     elif new_status == OrderStatus.CANCELLED:
-        if order.customer_id != current_user.id and current_user.role != UserRole.ADMIN:
+        is_customer = order.customer_id == current_user.id
+        if is_admin:
+            pass
+        elif is_owner and order.status in CANCELLABLE_BY_OWNER:
+            pass
+        elif is_customer and order.status in CANCELLABLE_BY_CUSTOMER:
+            pass
+        else:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to cancel this order"
-            )
-        if order.status != OrderStatus.PENDING:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Can only cancel pending orders"
+                detail="Not authorized to cancel this order at its current status"
             )
 
     # Update status
@@ -292,13 +338,26 @@ async def update_order_status(
     now = datetime.now(timezone.utc)
     if new_status == OrderStatus.CONFIRMED:
         order.confirmed_at = now
-    elif new_status == OrderStatus.PREPARING:
+        # ETA = prep time (~15 min) + route estimate from the delivery record
+        eta_min = 15 + (
+            order.delivery.estimated_duration_min
+            if order.delivery and order.delivery.estimated_duration_min
+            else 25
+        )
+        order.estimated_delivery_time = now + timedelta(minutes=eta_min)
+    elif new_status == OrderStatus.READY:
         order.prepared_at = now
     elif new_status == OrderStatus.PICKED_UP:
         order.picked_up_at = now
     elif new_status == OrderStatus.DELIVERED:
         order.delivered_at = now
-        order.payment_status = PaymentStatus.COMPLETED
+        order.actual_delivery_time = now
+        if order.payment_status in (PaymentStatus.PENDING, PaymentStatus.PROCESSING):
+            order.payment_status = PaymentStatus.COMPLETED
+    elif new_status == OrderStatus.CANCELLED:
+        _void_delivery_for_cancelled_order(order)
+        if order.payment_status == PaymentStatus.COMPLETED:
+            order.payment_status = PaymentStatus.REFUNDED
 
     db.commit()
     db.refresh(order)
@@ -322,23 +381,32 @@ async def cancel_order(
             detail="Order not found"
         )
 
-    # Check authorization
-    if (order.customer_id != current_user.id and
-        order.restaurant.owner_id != current_user.id and
-        current_user.role != UserRole.ADMIN):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to cancel this order"
-        )
+    # Role-based cancellation rules (mirror update_order_status):
+    # customer while pending, owner until pickup, admin any time before delivery
+    is_admin = current_user.role == UserRole.ADMIN
+    is_owner = order.restaurant.owner_id == current_user.id
+    is_customer = order.customer_id == current_user.id
 
-    # Can only cancel if not already delivered or cancelled
-    if order.status in [OrderStatus.DELIVERED, OrderStatus.CANCELLED]:
+    if order.status in [OrderStatus.DELIVERED, OrderStatus.CANCELLED, OrderStatus.REFUNDED]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Cannot cancel order with status: {order.status.value}"
         )
 
+    if is_admin:
+        pass
+    elif is_owner and order.status in CANCELLABLE_BY_OWNER:
+        pass
+    elif is_customer and order.status in CANCELLABLE_BY_CUSTOMER:
+        pass
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to cancel this order at its current status"
+        )
+
     order.status = OrderStatus.CANCELLED
+    _void_delivery_for_cancelled_order(order)
 
     # Only mark as REFUNDED if payment was actually completed — not if it was still PENDING
     if order.payment_status == PaymentStatus.COMPLETED:

@@ -308,8 +308,11 @@ export const deliveryApi = {
   updateStatus: (id: number, status: string, notes?: string) =>
     api.post(`/delivery/${id}/status`, { status, notes }),
 
-  complete: (id: number, data: { delivery_notes?: string; customer_rating?: number; customer_feedback?: string }) =>
+  complete: (id: number, data: { delivery_notes?: string }) =>
     api.post(`/delivery/${id}/complete`, data),
+
+  rate: (id: number, rating: number, feedback?: string) =>
+    api.post(`/delivery/${id}/rate`, { rating, feedback }),
 };
 
 // Admin API

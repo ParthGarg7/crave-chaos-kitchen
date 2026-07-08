@@ -233,7 +233,7 @@ function AddItemModal({
 }
 
 // ── Order Card ─────────────────────────────────────────────────────────────
-function OrderCard({ order, onAdvance }: { order: RealOrder; onAdvance: (id: number, nextStatus: string) => void }) {
+function OrderCard({ order, onAdvance, onReject }: { order: RealOrder; onAdvance: (id: number, nextStatus: string) => void; onReject: (id: number) => void }) {
     const cfg = STATUS_CONFIG[order.status] ?? { label: order.status, color: '#fff', bg: 'rgba(255,255,255,0.08)' };
     const nextStatus = NEXT_STATUS[order.status];
     const nextLabel = NEXT_LABEL[order.status] ?? '';
@@ -277,24 +277,42 @@ function OrderCard({ order, onAdvance }: { order: RealOrder; onAdvance: (id: num
                     <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.65rem', color: 'var(--text-muted)' }}>📍 {order.delivery_address.slice(0, 40)}...</p>
                     <p style={{ fontFamily: 'var(--font-accent)', fontSize: '1.4rem', color: 'var(--accent-gold)', marginTop: 2 }}>₹{order.total.toLocaleString('en-IN')}</p>
                 </div>
-                {nextLabel && nextStatus && (
-                    <motion.button
-                        whileHover={{ scale: 1.04 }}
-                        whileTap={{ scale: 0.96 }}
-                        onClick={() => onAdvance(order.id, nextStatus)}
-                        style={{
-                            padding: '10px 20px', borderRadius: 'var(--radius-sm)',
-                            background: order.status === 'pending' ? 'var(--accent-fire)' : 'var(--bg-elevated)',
-                            color: order.status === 'pending' ? '#fff' : 'var(--accent-cream)',
-                            border: order.status === 'pending' ? 'none' : '1px solid rgba(255,255,255,0.08)',
-                            fontFamily: 'var(--font-body)', fontSize: '0.72rem', letterSpacing: 1,
-                            boxShadow: order.status === 'pending' ? '0 0 20px var(--glow-fire)' : 'none',
-                            cursor: 'none',
-                        }}
-                    >
-                        {nextLabel} →
-                    </motion.button>
-                )}
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    {order.status === 'pending' && (
+                        <motion.button
+                            whileHover={{ scale: 1.04 }}
+                            whileTap={{ scale: 0.96 }}
+                            onClick={() => onReject(order.id)}
+                            style={{
+                                padding: '10px 16px', borderRadius: 'var(--radius-sm)',
+                                background: 'rgba(248,113,113,0.1)', color: '#f87171',
+                                border: '1px solid rgba(248,113,113,0.25)',
+                                fontFamily: 'var(--font-body)', fontSize: '0.72rem', letterSpacing: 1,
+                                cursor: 'none',
+                            }}
+                        >
+                            Reject
+                        </motion.button>
+                    )}
+                    {nextLabel && nextStatus && (
+                        <motion.button
+                            whileHover={{ scale: 1.04 }}
+                            whileTap={{ scale: 0.96 }}
+                            onClick={() => onAdvance(order.id, nextStatus)}
+                            style={{
+                                padding: '10px 20px', borderRadius: 'var(--radius-sm)',
+                                background: order.status === 'pending' ? 'var(--accent-fire)' : 'var(--bg-elevated)',
+                                color: order.status === 'pending' ? '#fff' : 'var(--accent-cream)',
+                                border: order.status === 'pending' ? 'none' : '1px solid rgba(255,255,255,0.08)',
+                                fontFamily: 'var(--font-body)', fontSize: '0.72rem', letterSpacing: 1,
+                                boxShadow: order.status === 'pending' ? '0 0 20px var(--glow-fire)' : 'none',
+                                cursor: 'none',
+                            }}
+                        >
+                            {nextLabel} →
+                        </motion.button>
+                    )}
+                </div>
             </div>
         </motion.div>
     );
@@ -554,6 +572,17 @@ export default function RestaurantDashboard() {
         }
     };
 
+    const handleRejectOrder = async (orderId: number) => {
+        if (!window.confirm('Reject this order? The customer will be refunded if already paid.')) return;
+        try {
+            await orderApi.cancel(orderId, 'Rejected by restaurant');
+            setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'cancelled' as RealOrder['status'] } : o));
+            toast.success('Order rejected');
+        } catch {
+            // handled by interceptor
+        }
+    };
+
     const handleToggleItem = (itemId: number, newVal: boolean) => {
         setMenuItems(prev => prev.map(m => m.id === itemId ? { ...m, is_available: newVal } : m));
     };
@@ -759,7 +788,7 @@ export default function RestaurantDashboard() {
                                         {orders
                                             .filter(o => !['delivered', 'cancelled'].includes(o.status))
                                             .map(order => (
-                                                <OrderCard key={order.id} order={order} onAdvance={handleAdvanceOrder} />
+                                                <OrderCard key={order.id} order={order} onAdvance={handleAdvanceOrder} onReject={handleRejectOrder} />
                                             ))}
                                     </AnimatePresence>
                                 </div>

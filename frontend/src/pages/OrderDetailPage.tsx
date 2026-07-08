@@ -1,26 +1,35 @@
 import { useParams, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import {
   ChevronLeft,
   Package,
   MapPin,
-  CreditCard
+  CreditCard,
+  Clock,
+  XCircle
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { orderApi } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 const statusSteps = [
-  { key: 'pending',    label: 'Order Placed', icon: '📋', subtitle: 'We received your order' },
-  { key: 'confirmed',  label: 'Confirmed',    icon: '✅', subtitle: 'Restaurant accepted' },
-  { key: 'preparing',  label: 'Preparing',    icon: '👨‍🍳', subtitle: 'Being cooked fresh' },
-  { key: 'ready',      label: 'Ready',        icon: '📦', subtitle: 'Packed and waiting' },
-  { key: 'picked_up',  label: 'Picked Up',   icon: '🛵', subtitle: 'Driver collected' },
-  { key: 'in_transit', label: 'On the Way',  icon: '🚀', subtitle: 'Heading to you' },
-  { key: 'delivered',  label: 'Delivered',   icon: '🎉', subtitle: 'Enjoy your meal!' },
+  { key: 'pending',    label: 'Order Placed', icon: '📋', subtitle: 'We received your order', ts: 'created_at' },
+  { key: 'confirmed',  label: 'Confirmed',    icon: '✅', subtitle: 'Restaurant accepted', ts: 'confirmed_at' },
+  { key: 'preparing',  label: 'Preparing',    icon: '👨‍🍳', subtitle: 'Being cooked fresh', ts: null },
+  { key: 'ready',      label: 'Ready',        icon: '📦', subtitle: 'Packed and waiting', ts: 'prepared_at' },
+  { key: 'picked_up',  label: 'Picked Up',   icon: '🛵', subtitle: 'Driver collected', ts: 'picked_up_at' },
+  { key: 'in_transit', label: 'On the Way',  icon: '🚀', subtitle: 'Heading to you', ts: null },
+  { key: 'delivered',  label: 'Delivered',   icon: '🎉', subtitle: 'Enjoy your meal!', ts: 'delivered_at' },
 ];
+
+const formatTime = (iso?: string | null) =>
+  iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : null;
 
 const OrderDetailPage = () => {
   const { id } = useParams<{ id: string }>();
+  const queryClient = useQueryClient();
+  const [cancelling, setCancelling] = useState(false);
 
   const { data: order, isLoading } = useQuery({
     queryKey: ['order', id],
@@ -28,6 +37,21 @@ const OrderDetailPage = () => {
     select: (res) => res.data,
     refetchInterval: 15000,
   });
+
+  const handleCancel = async () => {
+    if (!order || !window.confirm('Cancel this order?')) return;
+    setCancelling(true);
+    try {
+      await orderApi.cancel(order.id);
+      toast.success('Order cancelled');
+      queryClient.invalidateQueries({ queryKey: ['order', id] });
+      queryClient.invalidateQueries({ queryKey: ['my-orders'] });
+    } catch {
+      // error toast handled by api interceptor
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   if (isLoading) {
     return <LoadingSpinner fullScreen />;
@@ -68,16 +92,35 @@ const OrderDetailPage = () => {
                 Placed on {new Date(order.created_at).toLocaleString()}
               </p>
             </div>
-            <span
-              className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium capitalize ${order.status === 'delivered'
-                ? 'bg-green-100 text-green-800'
-                : order.status === 'cancelled'
-                  ? 'bg-red-100 text-red-800'
-                  : 'bg-blue-100 text-blue-800'
-                }`}
-            >
-              {order.status.replace('_', ' ')}
-            </span>
+            <div className="flex flex-col items-end gap-2">
+              <span
+                className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium capitalize ${order.status === 'delivered'
+                  ? 'bg-green-100 text-green-800'
+                  : order.status === 'cancelled'
+                    ? 'bg-red-100 text-red-800'
+                    : 'bg-blue-100 text-blue-800'
+                  }`}
+              >
+                {order.status.replace('_', ' ')}
+              </span>
+              {order.estimated_delivery_time &&
+                !['delivered', 'cancelled'].includes(order.status) && (
+                <span className="inline-flex items-center text-sm text-gray-600">
+                  <Clock className="h-4 w-4 mr-1" />
+                  ETA {formatTime(order.estimated_delivery_time)}
+                </span>
+              )}
+              {order.status === 'pending' && (
+                <button
+                  onClick={handleCancel}
+                  disabled={cancelling}
+                  className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 disabled:opacity-50"
+                >
+                  <XCircle className="h-4 w-4 mr-1" />
+                  {cancelling ? 'Cancelling…' : 'Cancel Order'}
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -163,6 +206,11 @@ const OrderDetailPage = () => {
                     >
                       {step.label}
                     </span>
+                    {step.ts && index <= safeIndex && formatTime((order as Record<string, any>)[step.ts]) && (
+                      <span style={{ fontSize: '0.68rem', color: '#9ca3af', marginTop: 2 }}>
+                        {formatTime((order as Record<string, any>)[step.ts])}
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
@@ -248,6 +296,31 @@ const OrderDetailPage = () => {
             </div>
           </div>
         </div>
+
+        {/* Driver Info — visible once a driver has accepted the delivery */}
+        {order.delivery?.driver && order.status !== 'cancelled' && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              Your Driver
+            </h2>
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center text-xl">
+                🛵
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">
+                  {order.delivery.driver.first_name ?? 'Driver'}
+                </p>
+                {order.delivery.driver.phone && (
+                  <p className="text-sm text-gray-600">{order.delivery.driver.phone}</p>
+                )}
+                <p className="text-sm text-gray-500 capitalize">
+                  {String(order.delivery.status).replace('_', ' ')}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Delivery Info */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">

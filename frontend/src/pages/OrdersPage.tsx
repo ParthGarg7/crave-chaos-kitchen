@@ -21,6 +21,7 @@ const OrdersPage = () => {
     queryKey: ['my-orders'],
     queryFn: () => orderApi.getMyOrders(),
     select: (res) => res.data,
+    refetchInterval: 15000,
   });
 
   if (isLoading) {
@@ -41,7 +42,7 @@ const OrdersPage = () => {
               Place your first order to see it here
             </p>
             <Link
-              to="/restaurants"
+              to="/browse"
               className="inline-flex items-center space-x-2 btn-primary"
             >
               <span>Browse Restaurants</span>
@@ -92,7 +93,7 @@ const OrdersPage = () => {
 
                 <div className="text-right">
                   <p className="text-lg font-semibold text-gray-900">
-                    ${order.total.toFixed(2)}
+                    ₹{order.total.toLocaleString('en-IN')}
                   </p>
                   <p className="text-sm text-gray-500 capitalize">
                     {order.payment_status}
