@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import BrowsePage from './BrowsePage';
@@ -160,12 +160,6 @@ function PanelAuthState({ type, error }: { type: PanelType; error: string }) {
       </div>
     </div>
   );
-}
-
-// ─── CUSTOMER PANEL ───────────────────────────────────────────────────────────
-function CustomerPanel() {
-  const navigate = useNavigate();
-  return <BrowsePage onSelect={(id) => navigate(`/menu/${id}`)} />;
 }
 
 // ─── DRIVER PANEL ─────────────────────────────────────────────────────────────
