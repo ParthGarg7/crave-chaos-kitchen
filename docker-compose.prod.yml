@@ -1,0 +1,120 @@
+# Production stack for Oracle Cloud (or any Docker host).
+#
+#   1. cp deploy/.env.prod.example .env   (then fill in real values)
+#   2. docker compose -f docker-compose.prod.yml up -d --build
+#
+# Only Caddy is exposed to the internet (80/443). It terminates HTTPS,
+# serves the built SPA, and proxies /api/* to the backend.
+# The injector is intentionally NOT part of the production stack.
+
+services:
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: crave-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-food_delivery}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - crave-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: crave-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - crave-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: crave-backend
+    restart: unless-stopped
+    environment:
+      DEBUG: "false"
+      FAILURE_SIMULATOR_ENABLED: "true"      # the chaos lab is a feature; endpoints stay role-guarded
+      POSTGRES_SERVER: crave-postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-food_delivery}
+      REDIS_HOST: crave-redis
+      REDIS_PORT: "6379"
+      SECRET_KEY: ${SECRET_KEY}
+      ACCESS_TOKEN_EXPIRE_MINUTES: "60"
+      REFRESH_TOKEN_EXPIRE_DAYS: "7"
+      CORS_ORIGINS: '["https://${DOMAIN}"]'
+      # RabbitMQ / Niramay integration stays dormant in production
+      RABBITMQ_HOST: ""
+      NIRAMAY_PUBLISH_ENABLED: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\" || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    networks:
+      - crave-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    container_name: crave-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - crave-network
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: crave-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - crave-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  crave-network:
+    name: crave-network

@@ -1,10 +1,10 @@
 <div align="center">
 
-# 🍔 CRAVE
+# 🍔🔥 CRAVE Chaos Kitchen
 
-### Full-Stack Food Delivery Platform with a Built-In Chaos Lab
+### A Full-Stack Food Delivery Platform with a Built-In Chaos Lab
 
-*Order food • Run a restaurant • Deliver as a driver • Inject failures • Watch it heal*
+*Order food • Run a restaurant • Deliver as a driver • Break everything on purpose*
 
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
@@ -14,23 +14,23 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1?logo=postgresql&logoColor=white)](https://postgresql.org)
 [![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)](https://redis.io)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://docker.com)
-[![Release](https://img.shields.io/badge/Release-v2.0.0-22c55e?logo=github&logoColor=white)](https://github.com/Self-healing-cloud-simulater/Crave_Food_Delivery_webapp/releases/tag/v2.0.0)
+[![Release](https://img.shields.io/badge/Release-v2.0.0-22c55e?logo=github&logoColor=white)](https://github.com/ParthGarg7/crave-chaos-kitchen/releases/tag/v2.0.0)
 
 ---
 
 </div>
 
-## 🌟 What is CRAVE?
+## 🌟 What is CRAVE Chaos Kitchen?
 
-CRAVE is a **complete food delivery web application** - customers browse restaurants and place orders, restaurant owners accept and prepare them, drivers claim ready orders and deliver them, all tracked live on a real order timeline.
+CRAVE is a **complete food delivery web application** - customers browse restaurants and place orders, restaurant owners accept and prepare them, drivers claim ready orders and deliver them, all tracked live on a real order timeline with validated state machines.
 
-It is also a **controlled failure environment**: a built-in failure simulator can inject 9 classes of realistic API failures (rate limits, timeouts, database errors, dependency outages…) on demand, and every request is observed and shipped to [**Niramay**](https://github.com/Self-healing-cloud-simulater/Niramay_AI_Based_healing_webapp) - the self-healing orchestrator - over RabbitMQ. That makes CRAVE both a real product and a test bench for automated incident detection and remediation.
+What makes it different from every other food delivery clone: **it ships with its own chaos engineering lab.** A built-in failure simulator injects 9 classes of realistic API failures (rate limits, timeouts, database errors, dependency outages, service overload) with configurable probability per endpoint, an auto-injector cycles failure scenarios while generating realistic traffic, and an observation layer records every request. Break it on purpose, watch how it behaves, and study real failure modes in a system you fully control.
 
 1. 🛒 **Order** - full customer flow: browse → cart → pay (card/UPI/cash) → live tracking
 2. 🍽️ **Manage** - restaurant dashboard: accept/reject, prepare, mark ready
 3. 🛵 **Deliver** - driver dashboard: claim ready orders, advance delivery, get rated
-4. 💥 **Break** - failure simulator + auto-injector cycle failures through the API
-5. 🔭 **Observe** - every request logged to Redis and streamed to Niramay for healing
+4. 💥 **Break** - failure simulator + chaos engineer + auto-injector, all role-guarded
+5. 🔭 **Observe** - every request logged with latency, status, and failure tags
 
 ---
 
@@ -42,22 +42,17 @@ graph TB
         BROWSER["Browser - React SPA<br/>Customer · Restaurant · Driver · Admin · Developer"]
     end
 
-    subgraph CRAVE["CRAVE - Docker (selfhealing-network)"]
-        subgraph BACKEND["FastAPI Backend :8001"]
+    subgraph STACK["Docker Compose (crave-network)"]
+        subgraph BACKEND["FastAPI Backend"]
             MW["Middleware Chain<br/>Chaos → Failure Injection → Observation"]
             API["API Routers<br/>auth · restaurants · orders · payments · delivery<br/>failure-simulator · chaos-engineer · admin · developer"]
             SM["Order + Delivery<br/>State Machines"]
         end
 
         INJECTOR["Auto-Injector<br/>traffic gen + scenario cycling"]
-        POSTGRES[("PostgreSQL 15<br/>:5433")]
-        REDIS[("Redis 7<br/>:6380")]
-        FRONTEND["React Frontend :3001"]
-    end
-
-    subgraph NIRAMAY["Niramay - Self-Healing Orchestrator"]
-        RABBIT["RabbitMQ<br/>component-c-logs"]
-        HEALER["Detection → RCA → Healing"]
+        POSTGRES[("PostgreSQL 15")]
+        REDIS[("Redis 7")]
+        FRONTEND["React Frontend"]
     end
 
     BROWSER --> FRONTEND --> MW
@@ -67,8 +62,6 @@ graph TB
     INJECTOR -->|"enable/disable scenarios"| API
     INJECTOR -->|"synthetic traffic"| MW
     MW -->|"observation logs"| REDIS
-    MW -->|"ship logs"| RABBIT --> HEALER
-    HEALER -.->|"heal / restart / pause injector"| CRAVE
 ```
 
 ---
@@ -105,6 +98,32 @@ stateDiagram-v2
 
 ---
 
+## 💥 The Chaos Lab
+
+Nine configurable failure scenarios, each with its own probability, target endpoints, and error semantics:
+
+| Scenario | Failure Type | HTTP | Simulates |
+|----------|--------------|:----:|-----------|
+| `rate_limiting` | Rate limit | 429 | Traffic exceeding API quotas |
+| `auth_expiration` | Authentication | 401 | Expired sessions/tokens |
+| `payment_timeout` | Timeout | 408/504 | Slow payment gateway |
+| `database_error` | Server error | 500 | Connection pool exhaustion |
+| `validation_error` | Bad request | 400 | Malformed client data |
+| `stripe_dependency` | Dependency | 502/503 | Payment provider outage |
+| `maps_dependency` | Dependency | 502/503 | Location service outage |
+| `config_error` | Configuration | 500 | Bad config deployment |
+| `service_overload` | Unavailable | 503 | Global overload (all endpoints) |
+
+Drive it three ways, all from the **developer dashboard** (role-guarded):
+
+- **Failure Simulator** - toggle scenarios, tune probabilities, set a global failure rate, watch live metrics
+- **Chaos Engineer** - targeted chaos experiments against specific endpoints
+- **Auto-Injector** - a dedicated container that cycles scenarios on a schedule (`IDLE → ACTIVE → PAUSED` state machine) while generating realistic logged-in traffic
+
+Every request that flows through the system is captured by the observation middleware with latency, status code, and failure tags - browsable live in the observation logs panel.
+
+---
+
 ## 🧑‍🤝‍🧑 Roles & Dashboards
 
 | Role | Landing | What they can do |
@@ -126,48 +145,21 @@ stateDiagram-v2
 
 ---
 
-## 💥 Failure Simulator
-
-Nine configurable failure scenarios, each with its own probability, target endpoints, and error semantics:
-
-| Scenario | Failure Type | HTTP | Simulates |
-|----------|--------------|:----:|-----------|
-| `rate_limiting` | Rate limit | 429 | Traffic exceeding API quotas |
-| `auth_expiration` | Authentication | 401 | Expired sessions/tokens |
-| `payment_timeout` | Timeout | 408/504 | Slow payment gateway |
-| `database_error` | Server error | 500 | Connection pool exhaustion |
-| `validation_error` | Bad request | 400 | Malformed client data |
-| `stripe_dependency` | Dependency | 502/503 | Payment provider outage |
-| `maps_dependency` | Dependency | 502/503 | Location service outage |
-| `config_error` | Configuration | 500 | Bad config deployment |
-| `service_overload` | Unavailable | 503 | Global overload (all endpoints) |
-
-The **auto-injector** container cycles scenarios on a schedule (`IDLE → ACTIVE → PAUSED` state machine) while generating realistic logged-in traffic - and pauses automatically when Niramay heals the system.
-
----
-
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- **Docker** and **Docker Compose**
-- Ports free: `3001` (frontend), `8001` (backend), `5433` (postgres), `6380` (redis)
+- **Docker** and **Docker Compose** - that's it
 
-### 1. Clone & network
-
-```bash
-git clone https://github.com/Self-healing-cloud-simulater/Crave_Food_Delivery_webapp.git
-cd Crave_Food_Delivery_webapp
-docker network create selfhealing-network   # shared with Niramay
-```
-
-### 2. Launch
+### Run it
 
 ```bash
+git clone https://github.com/ParthGarg7/crave-chaos-kitchen.git
+cd crave-chaos-kitchen
 docker compose up --build
 ```
 
-### 3. Access
+### Access
 
 | Service | URL |
 |---------|-----|
@@ -175,7 +167,14 @@ docker compose up --build
 | ⚡ **Backend API** | http://localhost:8001 |
 | 📚 **API Docs (Swagger)** | http://localhost:8001/docs |
 
-> **Standalone mode:** CRAVE runs fully without Niramay - log shipping simply no-ops if RabbitMQ is unreachable. To enable self-healing, start [Niramay](https://github.com/Self-healing-cloud-simulater/Niramay_AI_Based_healing_webapp) on the same Docker network.
+### Deploy to production
+
+A complete Oracle Cloud Free Tier guide (VM setup, firewall, DuckDNS domain, automatic HTTPS via Caddy) lives in [`deploy/DEPLOY.md`](deploy/DEPLOY.md):
+
+```bash
+cp deploy/.env.prod.example .env   # fill in real secrets
+docker compose -f docker-compose.prod.yml up -d --build
+```
 
 ---
 
@@ -200,8 +199,7 @@ docker compose up --build
 | Storage | Purpose | Lifetime |
 |---------|---------|----------|
 | **PostgreSQL** | Users, restaurants, menus, orders, deliveries, payments, API call logs | Permanent |
-| **Redis** | Observation logs (capped), injector state, traffic toggle, RabbitMQ switch | Ephemeral |
-| **RabbitMQ** *(Niramay)* | `component-c-logs` queue - observation stream to the healing pipeline | Transport |
+| **Redis** | Observation logs (capped), injector state, traffic toggle | Ephemeral |
 
 ---
 
@@ -227,8 +225,8 @@ cd frontend && npm run build
 <tr><td><strong>Backend</strong></td><td>FastAPI, Python 3.11, SQLAlchemy 2, Pydantic 2, Uvicorn</td></tr>
 <tr><td><strong>Databases</strong></td><td>PostgreSQL 15, Redis 7</td></tr>
 <tr><td><strong>Auth</strong></td><td>JWT (python-jose), bcrypt, role-based guards</td></tr>
-<tr><td><strong>Observability</strong></td><td>Structured request observation → Redis + RabbitMQ (Niramay pipeline)</td></tr>
-<tr><td><strong>DevOps</strong></td><td>Docker Compose (5 containers), shared external network with Niramay</td></tr>
+<tr><td><strong>Chaos</strong></td><td>Failure-injection middleware, chaos engineer, auto-injector, observation layer</td></tr>
+<tr><td><strong>DevOps</strong></td><td>Docker Compose (dev + prod stacks), Caddy reverse proxy with automatic HTTPS</td></tr>
 </table>
 
 ---
@@ -267,8 +265,10 @@ gitGraph
 
 ---
 
-## 🔗 Related Repositories
+## 🔇 Dormant: external observability hook
 
-| Repository | Description |
-|-----------|-------------|
-| [**Niramay**](https://github.com/Self-healing-cloud-simulater/Niramay_AI_Based_healing_webapp) | AI-based self-healing orchestrator - consumes CRAVE's logs, detects anomalies, executes remediation |
+The observation middleware can additionally ship every request log to an external RabbitMQ queue for downstream analysis (originally built for a self-healing experiment). This is **off by default** and CRAVE is fully standalone without it. To enable it alongside a compatible consumer:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.niramay.yml up --build
+```

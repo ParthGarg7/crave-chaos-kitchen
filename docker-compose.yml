@@ -19,7 +19,7 @@ services:
       timeout: 5s
       retries: 10
     networks:
-      - selfhealing-network
+      - crave-network
 
   # ── Redis Cache ──────────────────────────────────────────────────────────
   redis:
@@ -36,7 +36,7 @@ services:
       timeout: 5s
       retries: 10
     networks:
-      - selfhealing-network
+      - crave-network
 
   # ── FastAPI Backend ──────────────────────────────────────────────────────
   backend:
@@ -60,9 +60,9 @@ services:
       ALGORITHM: HS256
       CORS_ORIGINS: '["http://localhost:3001","http://localhost:3001","http://127.0.0.1:3001","http://127.0.0.1:3001"]'
       FAILURE_SIMULATOR_ENABLED: "true"
-      RABBITMQ_HOST: "niramay-rabbitmq"
+      RABBITMQ_HOST: ""
       RABBITMQ_PORT: "5672"
-      NIRAMAY_PUBLISH_ENABLED: "true"
+      NIRAMAY_PUBLISH_ENABLED: "false"
       COMPONENT_A_HEAL_ENDPOINT: ""
       NIRAMAY_URL: ""
       K3S_ENABLED: "false"
@@ -90,7 +90,7 @@ services:
       retries: 10
       start_period: 20s
     networks:
-      - selfhealing-network
+      - crave-network
 
   frontend:
     build:
@@ -111,7 +111,7 @@ services:
       backend:
         condition: service_healthy
     networks:
-      - selfhealing-network
+      - crave-network
 
   # ── Auto-Injector ────────────────────────────────────────────────────────
   crave-injector:
@@ -135,13 +135,12 @@ services:
       backend:
         condition: service_healthy
     networks:
-      - selfhealing-network
+      - crave-network
 
 volumes:
   postgres_data:
   redis_data:
 
 networks:
-  selfhealing-network:
-    external: true
-    name: selfhealing-network
+  crave-network:
+    name: crave-network
