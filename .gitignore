@@ -68,3 +68,7 @@ backend.txt
 backend_structure.txt
 frontend_clean.txt
 structure.txt
+
+# GitNexus-generated agent context (local only)
+CLAUDE.md
+AGENTS.md
