@@ -1,0 +1,23 @@
+# OPTIONAL override: re-enables the dormant Niramay observability integration.
+# CRAVE runs fully standalone without this file.
+#
+# Usage (requires the Niramay stack running on the shared network):
+#   docker network create selfhealing-network   # once
+#   docker compose -f docker-compose.yml -f docker-compose.niramay.yml up --build
+#
+# This switches the log shipper on and joins the shared Docker network so
+# observation logs flow to Niramay's RabbitMQ (component-c-logs queue).
+
+services:
+  backend:
+    environment:
+      RABBITMQ_HOST: "niramay-rabbitmq"
+      RABBITMQ_PORT: "5672"
+      NIRAMAY_PUBLISH_ENABLED: "true"
+    networks:
+      - selfhealing-network
+
+networks:
+  selfhealing-network:
+    external: true
+    name: selfhealing-network

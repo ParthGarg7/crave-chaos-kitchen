@@ -1,0 +1,27 @@
+# Caddy reverse proxy: automatic HTTPS via Let's Encrypt.
+# DOMAIN comes from the .env file (e.g. crave-chaos-kitchen.duckdns.org).
+
+{$DOMAIN} {
+	encode gzip
+
+	# Backend API (paths already include /api/v1)
+	handle /api/* {
+		reverse_proxy crave-backend:8000
+	}
+
+	# Swagger docs + OpenAPI schema
+	handle /docs* {
+		reverse_proxy crave-backend:8000
+	}
+	handle /openapi.json {
+		reverse_proxy crave-backend:8000
+	}
+	handle /health {
+		reverse_proxy crave-backend:8000
+	}
+
+	# Everything else: the React SPA
+	handle {
+		reverse_proxy crave-frontend:80
+	}
+}
