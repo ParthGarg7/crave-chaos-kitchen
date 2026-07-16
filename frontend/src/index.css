@@ -4,6 +4,17 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&family=DM+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700;1,900&display=swap');
 
+/* Tailwind utilities (preflight disabled — see tailwind.config.js).
+   Used by the customer order pages (OrdersPage / OrderDetailPage). */
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .btn-primary {
+    @apply px-5 py-2.5 rounded-lg text-sm font-medium text-white bg-orange-600 hover:bg-orange-700;
+  }
+}
+
 :root {
   /* Colors */
   --bg-void: #080608;

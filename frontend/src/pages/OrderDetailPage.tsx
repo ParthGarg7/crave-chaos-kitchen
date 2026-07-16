@@ -10,7 +10,7 @@ import {
   XCircle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { orderApi } from '../services/api';
+import { orderApi, deliveryApi } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 const statusSteps = [
@@ -37,6 +37,25 @@ const OrderDetailPage = () => {
     select: (res) => res.data,
     refetchInterval: 15000,
   });
+
+  const [stars, setStars] = useState(0);
+  const [hoverStars, setHoverStars] = useState(0);
+  const [feedback, setFeedback] = useState('');
+  const [submittingRating, setSubmittingRating] = useState(false);
+
+  const handleRate = async () => {
+    if (!order?.delivery || stars < 1) return;
+    setSubmittingRating(true);
+    try {
+      await deliveryApi.rate(order.delivery.id, stars, feedback.trim() || undefined);
+      toast.success('Thanks for rating your delivery! ⭐');
+      queryClient.invalidateQueries({ queryKey: ['order', id] });
+    } catch {
+      // error toast handled by api interceptor
+    } finally {
+      setSubmittingRating(false);
+    }
+  };
 
   const handleCancel = async () => {
     if (!order || !window.confirm('Cancel this order?')) return;
@@ -296,6 +315,52 @@ const OrderDetailPage = () => {
             </div>
           </div>
         </div>
+
+        {/* Rate your delivery — after it's delivered, once */}
+        {order.status === 'delivered' && order.delivery && !order.delivery.customer_rating && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">
+              Rate your delivery
+            </h2>
+            <p className="text-sm text-gray-500 mb-4">How was your experience?</p>
+            <div className="flex items-center space-x-1 mb-4">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setStars(n)}
+                  onMouseEnter={() => setHoverStars(n)}
+                  onMouseLeave={() => setHoverStars(0)}
+                  className="text-3xl transition-transform hover:scale-110"
+                  aria-label={`${n} star${n > 1 ? 's' : ''}`}
+                >
+                  {(hoverStars || stars) >= n ? '⭐' : '☆'}
+                </button>
+              ))}
+            </div>
+            <textarea
+              value={feedback}
+              onChange={(e) => setFeedback(e.target.value)}
+              rows={2}
+              placeholder="Any feedback for your driver? (optional)"
+              className="w-full border border-gray-200 rounded-lg p-3 text-sm mb-3 resize-none"
+            />
+            <button
+              onClick={handleRate}
+              disabled={stars < 1 || submittingRating}
+              className="px-5 py-2 rounded-lg text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 disabled:opacity-40"
+            >
+              {submittingRating ? 'Submitting…' : 'Submit Rating'}
+            </button>
+          </div>
+        )}
+
+        {order.status === 'delivered' && order.delivery?.customer_rating && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+            <p className="text-sm text-gray-600">
+              You rated this delivery {'⭐'.repeat(order.delivery.customer_rating)} — thank you!
+            </p>
+          </div>
+        )}
 
         {/* Driver Info — visible once a driver has accepted the delivery */}
         {order.delivery?.driver && order.status !== 'cancelled' && (

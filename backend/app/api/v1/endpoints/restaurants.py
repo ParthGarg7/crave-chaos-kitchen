@@ -7,11 +7,13 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from app.db.base import get_db
-from app.models.restaurant import Restaurant, MenuItem, RestaurantStatus, CuisineType
+from app.models.restaurant import Restaurant, MenuItem, RestaurantStatus, CuisineType, Review
+from app.models.order import Order, OrderStatus
 from app.models.user import User, UserRole
 from app.schemas.restaurant import (
     RestaurantCreate, RestaurantUpdate, RestaurantResponse, RestaurantListResponse,
-    MenuItemCreate, MenuItemUpdate, MenuItemResponse, RestaurantSearchParams
+    MenuItemCreate, MenuItemUpdate, MenuItemResponse, RestaurantSearchParams,
+    ReviewCreate, ReviewResponse,
 )
 from app.api.v1.endpoints.auth import get_current_user, require_role
 
@@ -290,8 +292,103 @@ async def delete_menu_item(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Menu item not found"
         )
-    
+
     db.delete(item)
     db.commit()
-    
+
     return {"message": "Menu item deleted successfully"}
+
+
+# ========== REVIEWS ==========
+
+def _recompute_restaurant_rating(db: Session, restaurant: Restaurant) -> None:
+    """Keep the denormalized rating/review_count columns in sync."""
+    stats = db.query(
+        func.avg(Review.rating), func.count(Review.id)
+    ).filter(Review.restaurant_id == restaurant.id).one()
+    restaurant.rating = round(float(stats[0] or 0.0), 1)
+    restaurant.review_count = int(stats[1] or 0)
+
+
+@router.get("/{restaurant_id}/reviews", response_model=List[ReviewResponse])
+async def list_reviews(
+    restaurant_id: int,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    """Public list of reviews for a restaurant, newest first"""
+    restaurant = db.query(Restaurant).filter(Restaurant.id == restaurant_id).first()
+    if not restaurant:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Restaurant not found"
+        )
+
+    reviews = (
+        db.query(Review)
+        .filter(Review.restaurant_id == restaurant_id)
+        .order_by(Review.created_at.desc())
+        .offset(skip).limit(limit)
+        .all()
+    )
+
+    result = []
+    for review in reviews:
+        review.customer_name = review.customer.first_name if review.customer else "Customer"
+        result.append(review)
+    return result
+
+
+@router.post("/{restaurant_id}/reviews", response_model=ReviewResponse, status_code=status.HTTP_201_CREATED)
+async def create_or_update_review(
+    restaurant_id: int,
+    review_data: ReviewCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Leave a review. Only customers with a delivered order from this
+    restaurant may review; re-submitting updates the existing review."""
+    restaurant = db.query(Restaurant).filter(Restaurant.id == restaurant_id).first()
+    if not restaurant:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Restaurant not found"
+        )
+
+    has_delivered_order = db.query(Order.id).filter(
+        Order.customer_id == current_user.id,
+        Order.restaurant_id == restaurant_id,
+        Order.status == OrderStatus.DELIVERED,
+    ).first() is not None
+
+    if not has_delivered_order:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can review a restaurant after an order from it has been delivered"
+        )
+
+    review = db.query(Review).filter(
+        Review.restaurant_id == restaurant_id,
+        Review.customer_id == current_user.id,
+    ).first()
+
+    if review:
+        review.rating = review_data.rating
+        review.comment = review_data.comment
+    else:
+        review = Review(
+            restaurant_id=restaurant_id,
+            customer_id=current_user.id,
+            rating=review_data.rating,
+            comment=review_data.comment,
+        )
+        db.add(review)
+
+    db.flush()
+    _recompute_restaurant_rating(db, restaurant)
+    db.commit()
+    db.refresh(review)
+
+    review.customer_name = current_user.first_name or "Customer"
+    return review

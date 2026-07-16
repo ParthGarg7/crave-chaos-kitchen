@@ -1,5 +1,10 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  // Preflight (Tailwind's global reset) stays OFF: the app has its own
+  // hand-rolled reset and theme in index.css. Only utilities are emitted.
+  corePlugins: {
+    preflight: false,
+  },
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",

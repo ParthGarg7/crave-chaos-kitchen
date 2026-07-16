@@ -22,6 +22,7 @@ class _DeliverySummary(BaseModel):
     status: DeliveryStatus
     driver: Optional[_DriverInfo] = None
     estimated_duration_min: Optional[int] = None
+    customer_rating: Optional[int] = None
 
     class Config:
         from_attributes = True

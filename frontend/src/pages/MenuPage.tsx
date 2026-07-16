@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import type { Variants } from 'framer-motion';
+import toast from 'react-hot-toast';
 import { restaurantApi } from '../services/api';
+import { useAuthStore } from '../stores/authStore';
 import type { CartItem } from '../App';
 
 const stagger: Variants = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } };
@@ -30,10 +32,112 @@ interface DbRestaurant {
     name: string;
     cuisine_type: string;
     rating: number;
+    review_count?: number;
     delivery_time_min: number;
     delivery_time_max: number;
     delivery_fee: number;
     description?: string;
+}
+
+interface DbReview {
+    id: number;
+    rating: number;
+    comment?: string;
+    customer_name: string;
+    created_at?: string;
+}
+
+// ── Reviews section (bottom of the menu page) ─────────────────────────────
+function ReviewsSection({ restaurantId, onRatingChange }: { restaurantId: number; onRatingChange: () => void }) {
+    const { isAuthenticated, user } = useAuthStore();
+    const [reviews, setReviews] = useState<DbReview[]>([]);
+    const [stars, setStars] = useState(0);
+    const [hoverStars, setHoverStars] = useState(0);
+    const [comment, setComment] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+
+    const loadReviews = () => {
+        restaurantApi.getReviews(restaurantId)
+            .then(res => setReviews(res.data ?? []))
+            .catch(() => { /* non-critical */ });
+    };
+
+    useEffect(loadReviews, [restaurantId]);
+
+    const submit = async () => {
+        if (stars < 1) return;
+        setSubmitting(true);
+        try {
+            await restaurantApi.submitReview(restaurantId, stars, comment.trim() || undefined);
+            toast.success('Review submitted! ⭐');
+            setStars(0); setComment('');
+            loadReviews();
+            onRatingChange();
+        } catch {
+            // 403 (no delivered order yet) is toasted by the api interceptor
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const canWrite = isAuthenticated && user?.role === 'customer';
+
+    return (
+        <div style={{ marginTop: 'var(--space-2xl)', paddingTop: 'var(--space-xl)', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', marginBottom: 'var(--space-lg)' }}>
+                <span style={{ color: 'var(--text-muted)' }}>—</span>
+                <h3 style={{ fontFamily: 'var(--font-sub)', fontStyle: 'italic', fontSize: '1.8rem' }}>Reviews</h3>
+                <span style={{ color: 'var(--text-muted)' }}>—</span>
+            </div>
+
+            {/* Write a review */}
+            {canWrite && (
+                <div className="glass" style={{ borderRadius: 'var(--radius-md)', padding: 'var(--space-md)', marginBottom: 'var(--space-lg)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.72rem', color: 'var(--text-muted)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 10 }}>
+                        Rate this restaurant
+                    </p>
+                    <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
+                        {[1, 2, 3, 4, 5].map(n => (
+                            <button key={n} onClick={() => setStars(n)} onMouseEnter={() => setHoverStars(n)} onMouseLeave={() => setHoverStars(0)}
+                                style={{ fontSize: '1.6rem', filter: (hoverStars || stars) >= n ? 'none' : 'grayscale(1) opacity(0.35)', transition: 'filter 0.15s' }}>
+                                ⭐
+                            </button>
+                        ))}
+                    </div>
+                    <textarea value={comment} onChange={e => setComment(e.target.value)} rows={2}
+                        placeholder="What did you think? (optional)"
+                        style={{ width: '100%', resize: 'none', background: 'var(--bg-elevated)', color: 'var(--accent-cream)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: '0.78rem', marginBottom: 10 }} />
+                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={submit} disabled={stars < 1 || submitting}
+                        style={{ padding: '10px 24px', background: stars >= 1 ? 'var(--accent-fire)' : 'var(--bg-elevated)', color: stars >= 1 ? '#fff' : 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: '0.72rem', letterSpacing: 2, textTransform: 'uppercase', borderRadius: 'var(--radius-sm)', opacity: submitting ? 0.6 : 1 }}>
+                        {submitting ? 'Submitting…' : 'Submit Review'}
+                    </motion.button>
+                    <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.62rem', color: 'var(--text-muted)', marginTop: 8 }}>
+                        You can review after an order from this restaurant has been delivered.
+                    </p>
+                </div>
+            )}
+
+            {/* Review list */}
+            {reviews.length === 0 ? (
+                <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                    No reviews yet{canWrite ? ' — be the first!' : '.'}
+                </p>
+            ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
+                    {reviews.map(r => (
+                        <div key={r.id} style={{ background: 'var(--bg-surface)', borderRadius: 'var(--radius-md)', padding: 'var(--space-md)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                                <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.8rem', fontWeight: 600, color: 'var(--accent-cream)' }}>{r.customer_name}</span>
+                                <span style={{ fontFamily: 'var(--font-accent)', color: 'var(--accent-gold)', fontSize: '0.9rem' }}>{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</span>
+                            </div>
+                            {r.comment && <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>{r.comment}</p>}
+                            {r.created_at && <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.62rem', color: 'var(--text-muted)', marginTop: 6, opacity: 0.7 }}>{new Date(r.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
 }
 
 export default function MenuPage({ restaurantId, cart, addToCart, updateQty, onViewCart, onRestaurantLoaded }: {
@@ -86,6 +190,12 @@ export default function MenuPage({ restaurantId, cart, addToCart, updateQty, onV
 
     const cartCount = cart.reduce((s, i) => s + i.qty, 0);
     const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+
+    const refreshRestaurant = () => {
+        restaurantApi.getById(restaurantId)
+            .then(res => setRestaurant(res.data))
+            .catch(() => { /* non-critical */ });
+    };
 
     const handleAdd = (item: DbMenuItem) => {
         const emoji = CUISINE_EMOJI[restaurant?.cuisine_type ?? 'other'] ?? '🍽️';
@@ -236,6 +346,9 @@ export default function MenuPage({ restaurantId, cart, addToCart, updateQty, onV
                         </motion.div>
                     </div>
                 ))}
+
+                {/* Reviews */}
+                <ReviewsSection restaurantId={restaurantId} onRatingChange={refreshRestaurant} />
             </div>
         </section>
     );

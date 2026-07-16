@@ -130,3 +130,21 @@ class RestaurantSearchParams(BaseModel):
     city: Optional[str] = None
     min_rating: Optional[float] = Field(None, ge=0, le=5)
     max_delivery_time: Optional[int] = None
+
+
+# Review Schemas
+class ReviewCreate(BaseModel):
+    rating: int = Field(..., ge=1, le=5)
+    comment: Optional[str] = Field(None, max_length=2000)
+
+
+class ReviewResponse(BaseModel):
+    id: int
+    rating: int
+    comment: Optional[str] = None
+    customer_name: str
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
