@@ -5,15 +5,16 @@ import { orderApi } from '../services/api';
 import { Order } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
 
-const statusColors: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  confirmed: 'bg-blue-100 text-blue-800',
-  preparing: 'bg-purple-100 text-purple-800',
-  ready: 'bg-indigo-100 text-indigo-800',
-  picked_up: 'bg-pink-100 text-pink-800',
-  in_transit: 'bg-orange-100 text-orange-800',
-  delivered: 'bg-green-100 text-green-800',
-  cancelled: 'bg-red-100 text-red-800',
+// Translucent pills read correctly on both the dark and light theme
+const statusColors: Record<string, { color: string; bg: string }> = {
+  pending:    { color: '#d97706', bg: 'rgba(217, 119, 6, 0.15)' },
+  confirmed:  { color: '#2563eb', bg: 'rgba(37, 99, 235, 0.15)' },
+  preparing:  { color: '#9333ea', bg: 'rgba(147, 51, 234, 0.15)' },
+  ready:      { color: '#4f46e5', bg: 'rgba(79, 70, 229, 0.15)' },
+  picked_up:  { color: '#db2777', bg: 'rgba(219, 39, 119, 0.15)' },
+  in_transit: { color: '#ea580c', bg: 'rgba(234, 88, 12, 0.15)' },
+  delivered:  { color: '#16a34a', bg: 'rgba(22, 163, 74, 0.15)' },
+  cancelled:  { color: '#dc2626', bg: 'rgba(220, 38, 38, 0.15)' },
 };
 
 const OrdersPage = () => {
@@ -30,15 +31,15 @@ const OrdersPage = () => {
 
   if (!orders?.length) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8">
+      <div className="min-h-screen py-8" style={{ paddingTop: 100 }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-8">My Orders</h1>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-            <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+          <h1 className="text-3xl font-bold crave-heading mb-8">My Orders</h1>
+          <div className="crave-card p-12 text-center">
+            <Package className="h-16 w-16 crave-muted mx-auto mb-4" />
+            <h2 className="text-xl font-semibold crave-heading mb-2">
               No orders yet
             </h2>
-            <p className="text-gray-600 mb-6">
+            <p className="crave-muted mb-6">
               Place your first order to see it here
             </p>
             <Link
@@ -55,53 +56,55 @@ const OrdersPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen py-8" style={{ paddingTop: 100 }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">My Orders</h1>
+        <h1 className="text-3xl font-bold crave-heading mb-8">My Orders</h1>
 
         <div className="space-y-4">
-          {orders.map((order: Order) => (
-            <Link
-              key={order.id}
-              to={`/orders/${order.id}`}
-              className="block bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="flex items-center space-x-3">
-                    <h3 className="font-semibold text-gray-900">
-                      Order #{order.order_number}
-                    </h3>
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${
-                        statusColors[order.status] || 'bg-gray-100 text-gray-800'
-                      }`}
-                    >
-                      {order.status.replace('_', ' ')}
-                    </span>
+          {orders.map((order: Order) => {
+            const pill = statusColors[order.status] ?? { color: 'var(--text-muted)', bg: 'var(--bg-elevated)' };
+            return (
+              <Link
+                key={order.id}
+                to={`/orders/${order.id}`}
+                className="block crave-card p-6 transition-transform hover:scale-[1.01]"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center space-x-3">
+                      <h3 className="font-semibold crave-heading">
+                        Order #{order.order_number}
+                      </h3>
+                      <span
+                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize"
+                        style={{ color: pill.color, background: pill.bg }}
+                      >
+                        {order.status.replace('_', ' ')}
+                      </span>
+                    </div>
+                    <p className="text-sm crave-muted mt-1">
+                      {(order as any).restaurant_name || 'Restaurant'}
+                    </p>
+                    <div className="flex items-center space-x-4 mt-2 text-sm crave-muted">
+                      <span className="flex items-center space-x-1">
+                        <Clock className="h-4 w-4" />
+                        <span>{new Date(order.created_at).toLocaleDateString()}</span>
+                      </span>
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-600 mt-1">
-                    {(order as any).restaurant_name || 'Restaurant'}
-                  </p>
-                  <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
-                    <span className="flex items-center space-x-1">
-                      <Clock className="h-4 w-4" />
-                      <span>{new Date(order.created_at).toLocaleDateString()}</span>
-                    </span>
-                  </div>
-                </div>
 
-                <div className="text-right">
-                  <p className="text-lg font-semibold text-gray-900">
-                    ₹{order.total.toLocaleString('en-IN')}
-                  </p>
-                  <p className="text-sm text-gray-500 capitalize">
-                    {order.payment_status}
-                  </p>
+                  <div className="text-right">
+                    <p className="text-lg font-semibold" style={{ color: 'var(--accent-gold)' }}>
+                      ₹{order.total.toLocaleString('en-IN')}
+                    </p>
+                    <p className="text-sm crave-muted capitalize">
+                      {order.payment_status}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            );
+          })}
         </div>
       </div>
     </div>
