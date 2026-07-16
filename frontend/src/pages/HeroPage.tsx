@@ -170,8 +170,8 @@ export default function HeroPage({ navigate }: { navigate: (p: string) => void }
                         <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={() => navigate('browse')} className="shimmer" style={{ padding: '16px 36px', background: 'var(--accent-fire)', color: '#fff', fontFamily: 'var(--font-body)', fontSize: '0.85rem', letterSpacing: 3, textTransform: 'uppercase', borderRadius: 'var(--radius-sm)', fontWeight: 500, boxShadow: '0 0 40px var(--glow-fire)' }}>
                             EXPLORE RESTAURANTS →
                         </motion.button>
-                        <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} style={{ padding: '16px 36px', border: '1px solid var(--text-muted)', color: 'var(--accent-cream)', fontFamily: 'var(--font-body)', fontSize: '0.85rem', letterSpacing: 3, textTransform: 'uppercase', borderRadius: 'var(--radius-sm)' }}>
-                            HOW IT WORKS ↓
+                        <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={() => navigate('how-it-works')} style={{ padding: '16px 36px', border: '1px solid var(--text-muted)', color: 'var(--accent-cream)', fontFamily: 'var(--font-body)', fontSize: '0.85rem', letterSpacing: 3, textTransform: 'uppercase', borderRadius: 'var(--radius-sm)' }}>
+                            HOW IT WORKS →
                         </motion.button>
                     </motion.div>
 
