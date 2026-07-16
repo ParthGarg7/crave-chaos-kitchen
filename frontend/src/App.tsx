@@ -9,6 +9,7 @@ import BrowsePage from './pages/BrowsePage';
 import MenuPage from './pages/MenuPage';
 import OrdersPage from './pages/OrdersPage';
 import OrderDetailPage from './pages/OrderDetailPage';
+import HowItWorksPage from './pages/HowItWorksPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
@@ -756,6 +757,7 @@ function AppContent() {
             <Route path="/tracking" element={<Navigate to="/orders" replace />} />
             <Route path="/login" element={<PageWrap key="login"><LoginPage /></PageWrap>} />
             <Route path="/register" element={<PageWrap key="register"><RegisterPage /></PageWrap>} />
+            <Route path="/how-it-works" element={<PageWrap key="how-it-works"><HowItWorksPage /></PageWrap>} />
             <Route path="/forgot-password" element={<PageWrap key="forgot-pw"><ForgotPasswordPage /></PageWrap>} />
             <Route path="/reset-password" element={<PageWrap key="reset-pw"><ResetPasswordPage /></PageWrap>} />
             <Route path="/verify-email" element={<PageWrap key="verify-email"><VerifyEmailPage /></PageWrap>} />
