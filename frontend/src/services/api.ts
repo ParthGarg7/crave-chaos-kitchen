@@ -186,6 +186,18 @@ export const authApi = {
   login: (email: string, password: string) =>
     api.post('/auth/login', { email, password }),
 
+  forgotPassword: (email: string) =>
+    api.post('/auth/forgot-password', { email }),
+
+  resetPassword: (token: string, newPassword: string) =>
+    api.post('/auth/reset-password', { token, new_password: newPassword }),
+
+  verifyEmail: (token: string) =>
+    api.post('/auth/verify-email', { token }),
+
+  resendVerification: (email: string) =>
+    api.post('/auth/resend-verification', { email }),
+
   register: (data: {
     email: string;
     password: string;
@@ -207,6 +219,11 @@ export const restaurantApi = {
     api.get('/restaurants', { params }),
 
   getById: (id: number) => api.get(`/restaurants/${id}`),
+
+  getReviews: (id: number) => api.get(`/restaurants/${id}/reviews`),
+
+  submitReview: (id: number, rating: number, comment?: string) =>
+    api.post(`/restaurants/${id}/reviews`, { rating, comment }),
 
   // Returns the first restaurant (legacy, single-restaurant flow)
   getMyRestaurant: () => api.get('/restaurants/my-restaurant'),

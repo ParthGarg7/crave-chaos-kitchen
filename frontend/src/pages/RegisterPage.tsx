@@ -36,6 +36,7 @@ const RegisterPage = () => {
         );
         setAuth(loginRes.data);
         toast.success('Welcome to CRAVE! 🎉');
+        toast('📬 We sent a verification link to your email.', { duration: 6000 });
         const role = loginRes.data.user?.role;
         if (role === 'restaurant_owner') {
           navigate('/setup-restaurant');

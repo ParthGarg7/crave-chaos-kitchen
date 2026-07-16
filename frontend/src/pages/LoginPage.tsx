@@ -417,6 +417,10 @@ const LoginPage = () => {
             <Link to="/register" style={{ color: 'var(--accent-fire)', textDecoration: 'none', fontWeight: 600 }}>
               Create one →
             </Link>
+            <span style={{ margin: '0 8px', opacity: 0.4 }}>·</span>
+            <Link to="/forgot-password" style={{ color: 'var(--text-muted)', textDecoration: 'underline' }}>
+              Forgot password?
+            </Link>
           </motion.p>
         </div>
       </motion.div>

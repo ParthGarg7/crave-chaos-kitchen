@@ -1,7 +1,7 @@
 """
 Restaurant and Menu Models
 """
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey, Float
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey, Float, UniqueConstraint
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 import enum
@@ -119,6 +119,31 @@ class MenuItem(Base):
     # Relationships
     restaurant = relationship("Restaurant", back_populates="menu_items")
     order_items = relationship("OrderItem", back_populates="menu_item")
-    
+
     def __repr__(self):
         return f"<MenuItem(id={self.id}, name={self.name}, price={self.price})>"
+
+
+class Review(Base):
+    """Customer review of a restaurant. One review per customer per
+    restaurant (re-submitting updates the existing review)."""
+    __tablename__ = "reviews"
+    __table_args__ = (
+        UniqueConstraint("restaurant_id", "customer_id", name="uq_review_restaurant_customer"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    restaurant_id = Column(Integer, ForeignKey("restaurants.id"), nullable=False, index=True)
+    customer_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    rating = Column(Integer, nullable=False)  # 1-5
+    comment = Column(Text, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    restaurant = relationship("Restaurant")
+    customer = relationship("User")
+
+    def __repr__(self):
+        return f"<Review(id={self.id}, restaurant_id={self.restaurant_id}, rating={self.rating})>"

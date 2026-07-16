@@ -9,6 +9,9 @@ import BrowsePage from './pages/BrowsePage';
 import MenuPage from './pages/MenuPage';
 import OrdersPage from './pages/OrdersPage';
 import OrderDetailPage from './pages/OrderDetailPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
+import VerifyEmailPage from './pages/VerifyEmailPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import FailureSimulatorPage from './pages/FailureSimulatorPage';
@@ -453,7 +456,7 @@ function AppContent() {
           menu_item_id: item.id,
           quantity: item.qty,
         })),
-        delivery_address: user?.address ?? '123 Main Street, New Delhi',
+        delivery_address: details.address,
         payment_method: backendPaymentMethod,
         tip: 0,
       };
@@ -668,6 +671,7 @@ function AppContent() {
         cartItems={cart.map(i => ({ name: i.name, emoji: i.emoji, qty: i.qty, price: i.price }))}
         orderState={orderState}
         errorMessage={paymentError}
+        defaultAddress={user?.address ?? ''}
       />
 
       <ContactSupportModal open={contactOpen} onClose={() => setContactOpen(false)} />
@@ -713,6 +717,9 @@ function AppContent() {
             <Route path="/tracking" element={<Navigate to="/orders" replace />} />
             <Route path="/login" element={<PageWrap key="login"><LoginPage /></PageWrap>} />
             <Route path="/register" element={<PageWrap key="register"><RegisterPage /></PageWrap>} />
+            <Route path="/forgot-password" element={<PageWrap key="forgot-pw"><ForgotPasswordPage /></PageWrap>} />
+            <Route path="/reset-password" element={<PageWrap key="reset-pw"><ResetPasswordPage /></PageWrap>} />
+            <Route path="/verify-email" element={<PageWrap key="verify-email"><VerifyEmailPage /></PageWrap>} />
             {/* Developer-only simulator route (legacy path preserved) */}
             <Route path="/simulator" element={<RequireRole role="developer"><PageWrap key="simulator"><div style={{ paddingTop: '0px' }}><FailureSimulatorPage /></div></PageWrap></RequireRole>} />
             <Route path="/admin" element={<RequireRole role="admin"><PageWrap key="admin"><AdminPanel /></PageWrap></RequireRole>} />

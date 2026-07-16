@@ -7,6 +7,7 @@ export type PaymentMethod = 'card' | 'upi' | 'cash' | 'paypal';
 /** Passed to parent when user confirms — includes gateway fields for card/UPI. */
 export interface PaymentConfirmation {
   method: PaymentMethod;
+  address: string;
   cardNumber?: string;
   expiry?: string;
   cvv?: string;
@@ -28,6 +29,7 @@ interface PaymentModalProps {
     cartItems: CartSummaryItem[];
     orderState: 'idle' | 'loading' | 'success';
     errorMessage?: string; // Inline error from order creation (shown as red banner)
+    defaultAddress?: string; // Prefill from the user's profile
 }
 
 // ─── Inline SVG QR Code (decorative, represents UPI/QR) ──────
@@ -159,9 +161,12 @@ function TabBtn({
 
 // ─── Main Component ───────────────────────────────────────────
 export default function PaymentModal({
-    open, onClose, onConfirm, total, cartItems, orderState, errorMessage = '',
+    open, onClose, onConfirm, total, cartItems, orderState, errorMessage = '', defaultAddress = '',
 }: PaymentModalProps) {
     const [tab, setTab] = useState<PaymentMethod>('card');
+
+    // Delivery address
+    const [address, setAddress] = useState('');
 
     // Card fields
     const [cardNumber, setCardNumber] = useState('1234 5678 9012 3456');
@@ -177,40 +182,47 @@ export default function PaymentModal({
     useEffect(() => {
         if (open) {
             setTab('card');
+            setAddress(defaultAddress);
             setCardNumber('1234 5678 9012 3456'); setExpiry('12/26'); setCvv('123'); setCardError('');
             setUpiId('craveuser@upi'); setUpiMode('qr');
         }
-    }, [open]);
+    }, [open, defaultAddress]);
 
     const handleConfirm = () => {
+        if (address.trim().length < 10) {
+            setCardError('Enter a delivery address (at least 10 characters)');
+            return;
+        }
         if (tab === 'card') {
             const rawNum = cardNumber.replace(/\s/g, '');
             if (rawNum.length < 16) { setCardError('Enter a valid 16-digit card number'); return; }
             if (expiry.length < 5) { setCardError('Enter expiry as MM/YY'); return; }
             if (cvv.length < 3) { setCardError('Enter a valid CVV'); return; }
-            setCardError('');
         }
+        setCardError('');
+        const addr = address.trim();
         if (tab === 'upi' && upiMode === 'id' && !upiId.includes('@')) {
             return; // silent — button will be disabled
         }
         if (tab === 'upi') {
             const uid = upiMode === 'id' ? upiId.trim() : 'craveuser@upi';
-            onConfirm({ method: tab, upiId: uid.includes('@') ? uid : 'craveuser@upi' });
+            onConfirm({ method: tab, address: addr, upiId: uid.includes('@') ? uid : 'craveuser@upi' });
             return;
         }
         if (tab === 'card') {
             onConfirm({
                 method: tab,
+                address: addr,
                 cardNumber: cardNumber.replace(/\s/g, ''),
                 expiry,
                 cvv,
             });
             return;
         }
-        onConfirm({ method: tab });
+        onConfirm({ method: tab, address: addr });
     };
 
-    const isConfirmDisabled = orderState !== 'idle' || (
+    const isConfirmDisabled = orderState !== 'idle' || address.trim().length < 10 || (
         tab === 'upi' && upiMode === 'id' && !upiId.includes('@')
     );
 
@@ -707,6 +719,29 @@ export default function PaymentModal({
                             borderTop: '1px solid rgba(255,255,255,0.05)',
                             flexShrink: 0,
                         }}>
+                            {/* Delivery address */}
+                            <div style={{ marginBottom: 12 }}>
+                                <label style={{
+                                    fontFamily: 'var(--font-body)', fontSize: '0.62rem', color: 'var(--text-muted)',
+                                    letterSpacing: 2, textTransform: 'uppercase', display: 'block', marginBottom: 6,
+                                }}>
+                                    📍 Deliver to
+                                </label>
+                                <textarea
+                                    value={address}
+                                    onChange={(e) => setAddress(e.target.value)}
+                                    disabled={orderState !== 'idle'}
+                                    rows={2}
+                                    placeholder="House / street / area / city"
+                                    style={{
+                                        width: '100%', resize: 'none',
+                                        background: 'var(--bg-elevated)', color: 'var(--accent-cream)',
+                                        border: `1px solid ${address.trim().length >= 10 ? 'rgba(255,255,255,0.1)' : 'rgba(248,81,73,0.4)'}`,
+                                        borderRadius: 8, padding: '10px 12px',
+                                        fontFamily: 'var(--font-body)', fontSize: '0.78rem', lineHeight: 1.4,
+                                    }}
+                                />
+                            </div>
                             {/* Error banner — shown when order creation fails */}
                             {errorMessage && orderState === 'idle' && (
                                 <div style={{

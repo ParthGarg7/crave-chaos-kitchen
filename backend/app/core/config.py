@@ -17,6 +17,17 @@ class Settings(BaseSettings):
     # Server
     HOST: str = "0.0.0.0"
     PORT: int = 8000
+
+    # Public frontend URL (used in email links)
+    FRONTEND_URL: str = "http://localhost:3001"
+
+    # SMTP - leave SMTP_HOST empty to log emails to the console instead
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_TLS: bool = True
+    SMTP_FROM: str = "noreply@crave-chaos-kitchen.local"
     
     # Database - PostgreSQL
     POSTGRES_SERVER: str = "localhost"

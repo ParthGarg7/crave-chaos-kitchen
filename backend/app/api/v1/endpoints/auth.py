@@ -10,8 +10,12 @@ from passlib.context import CryptContext
 
 from app.db.base import get_db
 from app.models.user import User, UserRole
-from app.schemas.user import UserCreate, UserResponse, UserLogin, TokenResponse, PasswordChange, UserUpdate
+from app.schemas.user import (
+    UserCreate, UserResponse, UserLogin, TokenResponse, PasswordChange, UserUpdate,
+    ForgotPasswordRequest, ResetPasswordRequest, VerifyEmailRequest, ResendVerificationRequest,
+)
 from app.core.config import settings
+from app.services.email_service import send_email
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -63,6 +67,45 @@ def decode_token(token: str) -> dict:
             detail="Invalid authentication credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+
+def create_action_token(user_id: int, purpose: str, expires_minutes: int) -> str:
+    """Short-lived single-purpose token (password reset, email verification)"""
+    payload = {
+        "sub": str(user_id),
+        "type": purpose,
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=expires_minutes),
+    }
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
+def decode_action_token(token: str, purpose: str) -> int:
+    """Validate an action token and return the user id. 400 on any mismatch."""
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired link. Please request a new one."
+        )
+    if payload.get("type") != purpose:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired link. Please request a new one."
+        )
+    return int(payload["sub"])
+
+
+def _send_verification_email(user: User) -> str:
+    token = create_action_token(user.id, "verify_email", expires_minutes=60 * 24)
+    link = f"{settings.FRONTEND_URL}/verify-email?token={token}"
+    send_email(
+        user.email,
+        "Verify your CRAVE account",
+        f"Hi {user.first_name},\n\nVerify your email to finish setting up your "
+        f"CRAVE account:\n\n{link}\n\nThe link is valid for 24 hours.",
+    )
+    return link
 
 
 async def get_current_user(
@@ -154,8 +197,82 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
-    
+
+    _send_verification_email(db_user)
+
     return db_user
+
+
+@router.post("/forgot-password")
+async def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    """Request a password reset link. Always returns 200 (no user enumeration)."""
+    user = db.query(User).filter(User.email == request.email).first()
+    dev_link = None
+    if user and user.is_active:
+        token = create_action_token(user.id, "password_reset", expires_minutes=30)
+        link = f"{settings.FRONTEND_URL}/reset-password?token={token}"
+        send_email(
+            user.email,
+            "Reset your CRAVE password",
+            f"Hi {user.first_name},\n\nReset your CRAVE password here:\n\n{link}\n\n"
+            f"The link is valid for 30 minutes. If you didn't request this, ignore this email.",
+        )
+        if settings.DEBUG:
+            dev_link = link
+
+    response = {"message": "If that email is registered, a reset link has been sent."}
+    if dev_link:
+        response["dev_link"] = dev_link
+    return response
+
+
+@router.post("/reset-password")
+async def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db)):
+    """Set a new password using a reset token from the email link."""
+    user_id = decode_action_token(request.token, "password_reset")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired link. Please request a new one."
+        )
+
+    user.hashed_password = get_password_hash(request.new_password)
+    db.commit()
+    return {"message": "Password reset successfully. You can now log in."}
+
+
+@router.post("/verify-email")
+async def verify_email(request: VerifyEmailRequest, db: Session = Depends(get_db)):
+    """Confirm a user's email address using the token from the email link."""
+    user_id = decode_action_token(request.token, "verify_email")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired link. Please request a new one."
+        )
+
+    if not user.is_verified:
+        user.is_verified = True
+        db.commit()
+    return {"message": "Email verified successfully."}
+
+
+@router.post("/resend-verification")
+async def resend_verification(request: ResendVerificationRequest, db: Session = Depends(get_db)):
+    """Resend the verification email. Always returns 200 (no user enumeration)."""
+    user = db.query(User).filter(User.email == request.email).first()
+    dev_link = None
+    if user and user.is_active and not user.is_verified:
+        link = _send_verification_email(user)
+        if settings.DEBUG:
+            dev_link = link
+
+    response = {"message": "If that email is registered and unverified, a new link has been sent."}
+    if dev_link:
+        response["dev_link"] = dev_link
+    return response
 
 
 @router.post("/login", response_model=TokenResponse)
