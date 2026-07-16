@@ -35,6 +35,42 @@ import { orderApi, paymentApi, formatApiDetail, injectorApi, setHealingInProgres
 // ─── Types ───
 export interface CartItem { id: number; name: string; price: number; emoji: string; qty: number; restaurantId: number }
 
+// ─── Theme toggle (global light/dark via data-theme on <html>) ───
+type Theme = 'dark' | 'light';
+
+function applyTheme(theme: Theme) {
+  document.documentElement.dataset.theme = theme;
+  localStorage.setItem('crave-theme', theme);
+}
+
+// Apply persisted theme immediately on module load (before first paint)
+applyTheme((localStorage.getItem('crave-theme') as Theme) || 'dark');
+
+function ThemeToggle() {
+  const [theme, setTheme] = useState<Theme>(
+    () => (localStorage.getItem('crave-theme') as Theme) || 'dark'
+  );
+
+  const toggle = () => {
+    const next: Theme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    applyTheme(next);
+  };
+
+  return (
+    <motion.button
+      whileHover={{ scale: 1.1 }}
+      whileTap={{ scale: 0.9, rotate: 40 }}
+      onClick={toggle}
+      title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+      aria-label="Toggle theme"
+      style={{ padding: 8, fontSize: '1.05rem', lineHeight: 1 }}
+    >
+      {theme === 'dark' ? '☀️' : '🌙'}
+    </motion.button>
+  );
+}
+
 // ─── Custom Cursor ───
 function CustomCursor() {
   const dot = useRef<HTMLDivElement>(null);
@@ -212,6 +248,9 @@ function Navbar({ cartCount, onCartClick }: { cartCount: number; onCartClick: ()
               {location.pathname === link.path && <motion.span layoutId="nav-underline" style={{ position: 'absolute', bottom: -2, left: 0, right: 0, height: 2, background: 'var(--accent-fire)', borderRadius: 1 }} />}
             </button>
           ))}
+
+          {/* Theme toggle */}
+          <ThemeToggle />
 
           {/* Cart */}
           <button onClick={onCartClick} style={{ position: 'relative', padding: 8, animation: bounce ? 'shake 0.4s ease' : 'none' }}>

@@ -13,6 +13,28 @@
   .btn-primary {
     @apply px-5 py-2.5 rounded-lg text-sm font-medium text-white bg-orange-600 hover:bg-orange-700;
   }
+
+  /* Theme-aware building blocks for the customer order pages.
+     These follow the CSS variables, so they work in both themes. */
+  .crave-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+  }
+  .crave-heading {
+    color: var(--accent-cream);
+  }
+  .crave-muted {
+    color: var(--text-muted);
+  }
+  .crave-border {
+    border-color: var(--border-soft);
+  }
+  .crave-input {
+    background: var(--bg-elevated);
+    color: var(--accent-cream);
+    border: 1px solid var(--border-soft);
+  }
 }
 
 :root {
@@ -27,6 +49,7 @@
   --text-muted: #7a6f6f;
   --glow-fire: rgba(255, 69, 0, 0.35);
   --glow-ember: rgba(255, 140, 0, 0.25);
+  --border-soft: rgba(255, 255, 255, 0.07);
 
   /* Spacing */
   --space-xs: 0.5rem;
@@ -63,6 +86,29 @@ html {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ── Light theme ─────────────────────────────────────────────
+   The entire app is painted with the CSS variables above, so the
+   light theme is a variable swap. Toggled via data-theme on <html>
+   (see the ThemeToggle in the navbar); persisted in localStorage. */
+[data-theme="light"] {
+  --bg-void: #f6f1e9;
+  --bg-surface: #ffffff;
+  --bg-elevated: #efe7db;
+  --accent-fire: #e63e00;
+  --accent-ember: #d97706;
+  --accent-gold: #a8720a;
+  --accent-cream: #1c1410;
+  --text-muted: #85786c;
+  --glow-fire: rgba(230, 62, 0, 0.18);
+  --glow-ember: rgba(217, 119, 6, 0.15);
+  --border-soft: rgba(28, 20, 16, 0.12);
+}
+
+[data-theme="light"] .glass {
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(28, 20, 16, 0.08);
+}
+
 body {
   background: var(--bg-void);
   color: var(--accent-cream);
@@ -70,6 +116,7 @@ body {
   overflow-x: hidden;
   cursor: none;
   line-height: 1.6;
+  transition: background 0.35s ease, color 0.35s ease;
 }
 
 @media (pointer: coarse) {
