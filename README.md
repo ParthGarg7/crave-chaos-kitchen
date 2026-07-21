@@ -14,11 +14,29 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1?logo=postgresql&logoColor=white)](https://postgresql.org)
 [![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)](https://redis.io)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://docker.com)
-[![Release](https://img.shields.io/badge/Release-v2.0.0-22c55e?logo=github&logoColor=white)](https://github.com/ParthGarg7/crave-chaos-kitchen/releases/tag/v2.0.0)
+[![Release](https://img.shields.io/badge/Release-v2.1.0-22c55e?logo=github&logoColor=white)](https://github.com/ParthGarg7/crave-chaos-kitchen/releases/tag/v2.1.0)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Oracle%20Cloud-F80000?logo=oracle&logoColor=white)](https://crave-chaos-kitchen.duckdns.org)
 
 ---
 
 </div>
+
+## 🌐 Live Demo
+
+> **Deployed on Oracle Cloud Free Tier** - Ampere A1 (Arm) VM · HTTPS via Caddy + Let's Encrypt · Docker Compose · DuckDNS domain
+
+### 🔗 **[crave-chaos-kitchen.duckdns.org](https://crave-chaos-kitchen.duckdns.org)**
+
+| Service | URL |
+|---------|-----|
+| 🖥️ **App** | [crave-chaos-kitchen.duckdns.org](https://crave-chaos-kitchen.duckdns.org) |
+| ⚡ **Backend API** | [/api/v1/restaurants](https://crave-chaos-kitchen.duckdns.org/api/v1/restaurants) |
+| 📚 **API Docs (Swagger)** | [/docs](https://crave-chaos-kitchen.duckdns.org/docs) |
+| 🤖 **AI Project Guide** | [/how-it-works](https://crave-chaos-kitchen.duckdns.org/how-it-works) |
+
+**Try the full loop yourself:** log in as the customer and place an order → log in as the restaurant owner and accept it → mark it ready → log in as the driver and deliver it → watch the customer's timeline update live. Credentials are in [Demo Credentials](#demo-credentials) below.
+
+---
 
 ## 🌟 What is CRAVE Chaos Kitchen?
 
@@ -237,6 +255,7 @@ Every request that flows through the system is captured by the observation middl
 | 🛠️ **Developer** | `/developer` | Failure simulator, chaos engineer, injector control, observation logs, dual-view panels |
 
 ### Demo Credentials
+<a id="demo-credentials"></a>
 
 | Role | Email | Password |
 |------|-------|----------|
@@ -271,7 +290,7 @@ docker compose up --build
 
 ### Deploy to production
 
-A complete Oracle Cloud Free Tier guide (VM setup, firewall, DuckDNS domain, automatic HTTPS via Caddy) lives in [`deploy/DEPLOY.md`](deploy/DEPLOY.md):
+The [live demo](#-live-demo) runs exactly this way. A complete Oracle Cloud Free Tier guide (VM setup, both firewalls, DuckDNS domain, automatic HTTPS via Caddy) lives in [`deploy/DEPLOY.md`](deploy/DEPLOY.md):
 
 ```bash
 cp deploy/.env.prod.example .env   # fill in real secrets
