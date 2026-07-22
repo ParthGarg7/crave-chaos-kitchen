@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, useLocation, useNavigate, useParams, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Sun, Moon } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 // Pages
@@ -65,9 +66,14 @@ function ThemeToggle() {
       onClick={toggle}
       title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
       aria-label="Toggle theme"
-      style={{ padding: 8, fontSize: '1.05rem', lineHeight: 1 }}
+      style={{
+        padding: 8, lineHeight: 0, display: 'flex', alignItems: 'center',
+        color: 'var(--accent-cream)',
+      }}
     >
-      {theme === 'dark' ? '☀️' : '🌙'}
+      {theme === 'dark'
+        ? <Sun size={20} strokeWidth={1.75} />
+        : <Moon size={20} strokeWidth={1.75} />}
     </motion.button>
   );
 }
